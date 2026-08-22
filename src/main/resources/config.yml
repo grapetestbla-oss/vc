@@ -1,0 +1,62 @@
+# Demorgan — исправительные работы вместо бана.
+# Время идёт только пока игрок онлайн; добыча породы ускоряет освобождение.
+
+zone:
+  # Мир деморгана. Отдельный мир — так проще всё изолировать.
+  world: demorgan
+  # Создать мир и построить арену автоматически при первом запуске.
+  auto-create: true
+  # Внутренний размер арены по X/Z и высота потолка.
+  size: 24
+  height: 6
+  # Уровень пола.
+  floor-y: 64
+  # Порода, которую отрабатывают заключённые.
+  mine-material: STONE
+  # Через сколько секунд сломанный блок восстанавливается.
+  regen-seconds: 5
+  # Инструмент, который выдаётся на входе (неразрушаемый, не выбрасывается).
+  tool: IRON_PICKAXE
+
+sentence:
+  # Сколько секунд срока списывает один добытый блок.
+  seconds-per-block: 2
+  # Прогрессивная шкала для /demorgan <ник> auto <причина>, в минутах.
+  # 1-е нарушение, 2-е, 3-е; дальше берётся последнее значение.
+  escalation: [30, 120, 360]
+  # Предохранитель от опечаток вида "/demorgan Steve 9999".
+  max-minutes: 1440
+
+restrictions:
+  # Команды, разрешённые заключённым (без слэша).
+  allowed-commands:
+    - demorgan
+    - help
+  # Заключённые говорят только между собой (и с demorgan.seechat).
+  isolate-chat: true
+  # Отключить урон и голод в зоне.
+  invulnerable: true
+
+storage:
+  # Периодическое сохранение состояния на диск, секунды.
+  save-interval-seconds: 60
+
+discord:
+  # Вебхук для лога выдачи/снятия наказаний. Пусто — логирование выключено.
+  webhook-url: ""
+
+messages:
+  prefix: "<dark_gray>[<gold>Деморган<dark_gray>]<reset> "
+  jailed: "<red>Вы отправлены в деморган на <yellow><time><red>. Причина: <white><reason>"
+  jailed-broadcast: "<gray><player> отправлен в деморган на <yellow><time><gray> — <white><reason>"
+  released: "<green>Срок отбыт. Вы свободны."
+  released-broadcast: "<gray><player> отбыл срок в деморгане."
+  released-early: "<green>Вас освободили досрочно."
+  actionbar: "<gold>Осталось: <yellow><time>  <dark_gray>|  <gold>Отработано блоков: <yellow><blocks>"
+  command-blocked: "<red>В деморгане эта команда недоступна."
+  action-blocked: "<red>В деморгане это делать нельзя."
+  already-jailed: "<red><player> уже в деморгане."
+  not-jailed: "<red><player> не в деморгане."
+  exempt: "<red>Этого игрока нельзя отправить в деморган."
+  check: "<gray><player>: осталось <yellow><time><gray>, блоков <yellow><blocks><gray>, причина: <white><reason>"
+  history: "<gray>Нарушений у <player>: <yellow><count>"

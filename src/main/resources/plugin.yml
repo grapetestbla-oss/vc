@@ -1,0 +1,28 @@
+name: Demorgan
+version: '${project.version}'
+main: host.vanilla.demorgan.DemorganPlugin
+api-version: '1.21'
+description: Исправительные работы вместо бана
+author: vc
+commands:
+  demorgan:
+    description: Отправить игрока в деморган и управлять сроками
+    usage: /demorgan <ник> <минуты|auto> <причина>
+    permission: demorgan.check
+  unmorgan:
+    description: Досрочно освободить игрока
+    usage: /unmorgan <ник>
+    permission: demorgan.admin
+permissions:
+  demorgan.admin:
+    description: Выдача и снятие сроков, reload
+    default: op
+  demorgan.check:
+    description: Просмотр сроков и списка заключённых
+    default: op
+  demorgan.exempt:
+    description: Игрока нельзя отправить в деморган
+    default: false
+  demorgan.seechat:
+    description: Видит чат заключённых
+    default: op
