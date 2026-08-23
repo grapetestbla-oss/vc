@@ -30,9 +30,21 @@
 curl -fsSL https://raw.githubusercontent.com/grapetestbla-oss/vc/claude/minecraft-server-demorgan-16y10o/deploy/install.sh | bash
 ```
 
-Скрипт поставит Docker, поднимет PostgreSQL и сайт, создаст схему и выведет
-`MC_SERVER_TOKEN` — его нужно вписать в `plugins/VanillaCore/config.yml` на
-игровом сервере вместе с адресом сайта.
+Скрипт поставит Docker, поднимет PostgreSQL и сайт, создаст схему, загрузит
+каталог кейсов и выведет `MC_SERVER_TOKEN` — его нужно вписать в
+`plugins/VanillaCore/config.yml` на игровом сервере.
+
+Администратор заводится отдельной командой (или через `ADMIN_*` в `deploy/.env`):
+
+```
+cd /opt/vanillacoins/deploy
+docker compose --env-file .env run --rm \
+  -e ADMIN_LOGIN=nick -e ADMIN_EMAIL=mail@example.com -e ADMIN_PASSWORD=... \
+  web node prisma/create-admin.mjs
+```
+
+Повторный запуск с тем же логином меняет пароль и уровень — так же
+восстанавливают доступ.
 
 Плагин: собрать `mvn package` в `plugin/` (нужен JDK 25) и положить jar в
 `plugins/`.

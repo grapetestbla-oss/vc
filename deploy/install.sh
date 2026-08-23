@@ -39,6 +39,12 @@ MC_SERVER_IP=5.83.140.208/32
 # Логин, который получит 5 уровень админки при регистрации на сайте.
 # Впишите свой ник ДО первой регистрации, потом уберите отсюда.
 BOOTSTRAP_ADMIN_LOGIN=
+# Либо заведите администратора сразу — аккаунт создастся при установке.
+# Пароль после первого входа лучше сменить.
+ADMIN_LOGIN=
+ADMIN_EMAIL=
+ADMIN_PASSWORD=
+ADMIN_LEVEL=5
 ENV
 fi
 
@@ -69,6 +75,17 @@ docker compose --env-file .env up -d --build
 echo "==> Схема базы"
 docker compose --env-file .env run --rm web npx prisma db push
 docker compose --env-file .env run --rm web npx tsx prisma/seed.ts || true
+
+# Администратора заводим, только если данные заданы в .env.
+if [ -n "${ADMIN_LOGIN:-}" ] && [ -n "${ADMIN_EMAIL:-}" ] && [ -n "${ADMIN_PASSWORD:-}" ]; then
+  echo "==> Администратор $ADMIN_LOGIN"
+  docker compose --env-file .env run --rm \
+    -e ADMIN_LOGIN="$ADMIN_LOGIN" \
+    -e ADMIN_EMAIL="$ADMIN_EMAIL" \
+    -e ADMIN_PASSWORD="$ADMIN_PASSWORD" \
+    -e ADMIN_LEVEL="${ADMIN_LEVEL:-5}" \
+    web node prisma/create-admin.mjs
+fi
 
 echo
 echo "Готово. Токен для плагина (config.yml → api.token):"
