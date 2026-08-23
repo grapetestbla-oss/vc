@@ -29,10 +29,18 @@ elif command -v docker-compose >/dev/null 2>&1; then
   COMPOSE="docker-compose"
 else
   echo "==> Docker Compose"
-  if ! apt-get install -y -qq docker-compose-plugin >/dev/null 2>&1; then
-    # Репозиторий дистрибутива плагина не знает — подключаем официальный.
-    curl -fsSL https://get.docker.com | sh
+  apt-get install -y -qq docker-compose-plugin >/dev/null 2>&1 || true
+
+  if ! docker compose version >/dev/null 2>&1; then
+    # В репозитории дистрибутива плагина нет — кладём официальный бинарник.
+    plugin_dir=/usr/local/lib/docker/cli-plugins
+    mkdir -p "$plugin_dir"
+    arch=$(uname -m)
+    curl -fsSL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-${arch}" \
+      -o "$plugin_dir/docker-compose"
+    chmod +x "$plugin_dir/docker-compose"
   fi
+
   if docker compose version >/dev/null 2>&1; then
     COMPOSE="docker compose"
   else
@@ -50,6 +58,14 @@ if [ -d "$APP_DIR/.git" ]; then
   git -C "$APP_DIR" pull origin "$BRANCH"
 else
   git clone --branch "$BRANCH" "$REPO_URL" "$APP_DIR"
+fi
+
+# Скрипт только что обновил сам себя, а bash дочитывает файл по мере
+# выполнения — дальше пошёл бы кусок старого кода вперемешку с новым.
+# Перезапускаемся уже из свежей версии.
+if [ "${INSTALLER_RELOADED:-0}" != "1" ]; then
+  export INSTALLER_RELOADED=1
+  exec bash "$APP_DIR/deploy/install.sh" "$@"
 fi
 
 cd "$APP_DIR/deploy"
