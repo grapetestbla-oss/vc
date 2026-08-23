@@ -9,6 +9,7 @@ const LINKS = [
   { href: "/cases", label: "Кейсы" },
   { href: "/collection", label: "Коллекция" },
   { href: "/games", label: "Игры" },
+  { href: "/partners", label: "Партнёрам" },
   { href: "/rules", label: "Правила" },
 ];
 

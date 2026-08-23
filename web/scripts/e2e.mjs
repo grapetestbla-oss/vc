@@ -42,11 +42,11 @@ async function api(path, { method = "GET", body, cookie, serverToken, ip } = {})
 
 let ipCounter = 0;
 
-async function register(login, password = "password123") {
+async function register(login, password = "password123", promo) {
   const result = await api("/api/auth/register", {
     method: "POST",
     ip: `203.0.113.${++ipCounter}`,
-    body: { login, email: `${login}@example.com`, password },
+    body: { login, email: `${login}@example.com`, password, promo },
   });
   return { ...result, session: result.cookie?.split(";")[0] };
 }
@@ -250,26 +250,37 @@ const run = async () => {
     serverToken: TOKEN,
     body: { login: "Alex", code: "BLOGGER" },
   });
-  check("промокод требует уровень аккаунта", lowLevel.json?.status === "level_too_low", lowLevel.json);
+  check("промокод привязывается, награда ждёт уровня", lowLevel.json?.status === "ok" && lowLevel.json?.pending === true, lowLevel.json);
+
+  const secondPromo = await api("/api/mc/promo", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Alex", code: "OPEN" },
+  });
+  check("второй промокод не привязывается", secondPromo.json?.status === "error", secondPromo.json);
 
   await api("/api/panel/promo", {
     method: "POST",
     cookie: steve.session,
     body: { code: "OPEN", rewardVc: 500, requiredLevel: 0 },
   });
-  const promoOk = await api("/api/mc/promo", {
-    method: "POST",
-    serverToken: TOKEN,
-    body: { login: "Alex", code: "OPEN" },
-  });
-  check("промокод начисляет 500 VC", promoOk.json?.status === "ok" && promoOk.json?.reward === 500, promoOk.json);
 
-  const promoAgain = await api("/api/mc/promo", {
+  const withPromo = await register("Newcomer", "password123", "OPEN");
+  check("промокод принимается при регистрации", withPromo.json?.promo === "OPEN", withPromo.json);
+
+  const promoInCabinet = await api("/api/me", { cookie: withPromo.session });
+  check("награда за промокод нулевого уровня начислена", promoInCabinet.json?.balanceVc === 500, promoInCabinet.json);
+
+  const badPromo = await register("Wrongcode", "password123", "NOPE404");
+  check("аккаунт создаётся даже с неверным кодом", badPromo.status === 200, badPromo.json);
+  check("о неверном коде сообщают", Boolean(badPromo.json?.promoError), badPromo.json);
+
+  const ownPromo = await api("/api/mc/promo", {
     method: "POST",
     serverToken: TOKEN,
-    body: { login: "Alex", code: "OPEN" },
+    body: { login: "Steve", code: "BLOGGER" },
   });
-  check("второй промокод не активируется", promoAgain.json?.status === "already_used");
+  check("свой промокод активировать нельзя", ownPromo.json?.status === "error", ownPromo.json);
 
   const bonusCreate = await api("/api/panel/bonus", {
     method: "POST",
@@ -555,6 +566,84 @@ const run = async () => {
 
   const totpByPlayer = await api("/api/panel/totp", { method: "POST", cookie: alex.session });
   check("helper не трогает TOTP панели", totpByPlayer.status === 403, totpByPlayer.json);
+
+  console.log("— Медиа-партнёры —");
+  const applyAnon = await api("/api/partners/apply", {
+    method: "POST",
+    body: { platform: "youtube", channelUrl: "https://youtube.com/@x", audience: "100", contact: "tg" },
+  });
+  check("заявка без входа не принимается", applyAnon.status === 401);
+
+  const blogger = await register("Blogger");
+  const badUrl = await api("/api/partners/apply", {
+    method: "POST",
+    cookie: blogger.session,
+    body: { platform: "youtube", channelUrl: "youtube.com/@x", audience: "100", contact: "tg" },
+  });
+  check("ссылка проверяется", badUrl.status === 400, badUrl.json);
+
+  const badPlatform = await api("/api/partners/apply", {
+    method: "POST",
+    cookie: blogger.session,
+    body: { platform: "myspace", channelUrl: "https://x.ru", audience: "100", contact: "tg" },
+  });
+  check("площадка проверяется", badPlatform.status === 400);
+
+  const apply = await api("/api/partners/apply", {
+    method: "POST",
+    cookie: blogger.session,
+    body: {
+      platform: "youtube",
+      channelUrl: "https://youtube.com/@blogger",
+      audience: "120 средних просмотров, minecraft",
+      contact: "@blogger",
+      desiredCode: "BLOGGER2",
+    },
+  });
+  check("заявка подаётся", apply.json?.ok === true, apply.json);
+
+  const applyTwice = await api("/api/partners/apply", {
+    method: "POST",
+    cookie: blogger.session,
+    body: {
+      platform: "youtube",
+      channelUrl: "https://youtube.com/@blogger",
+      audience: "ещё раз",
+      contact: "@blogger",
+    },
+  });
+  check("вторая заявка не принимается", applyTwice.status === 409, applyTwice.json);
+
+  const decideByPlayer = await api("/api/panel/partners", {
+    method: "POST",
+    cookie: blogger.session,
+    body: { id: apply.json.id, approve: true },
+  });
+  check("игрок не решает по заявкам", decideByPlayer.status === 403);
+
+  const approve = await api("/api/panel/partners", {
+    method: "POST",
+    cookie: steve.session,
+    body: { id: apply.json.id, approve: true, code: "BLOGGER2", note: "подходит" },
+  });
+  check("заявка одобряется", approve.json?.code === "BLOGGER2", approve.json);
+
+  const approveAgain = await api("/api/panel/partners", {
+    method: "POST",
+    cookie: steve.session,
+    body: { id: apply.json.id, approve: true },
+  });
+  check("повторное решение не проходит", approveAgain.status === 409);
+
+  const bloggerProfile = await api("/api/me", { cookie: blogger.session });
+  check("партнёр получил статус media", bloggerProfile.json?.adminLevel === 1, bloggerProfile.json);
+
+  const partnerPromo = await api("/api/mc/promo", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Newbie", code: "BLOGGER2" },
+  });
+  check("промокод партнёра работает", partnerPromo.json?.status === "ok", partnerPromo.json);
 
   console.log("— Новости —");
   const newsByHelper = await api("/api/panel/news", {

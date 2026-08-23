@@ -48,6 +48,14 @@ source .env
 set -u
 if [ -n "${SITE_DOMAIN:-}" ] && bash check-dns.sh "$SITE_DOMAIN"; then
   cp Caddyfile.domain Caddyfile
+  # www добавляем, только если на него есть A-запись: иначе Caddy будет
+  # бесконечно просить сертификат для несуществующего имени.
+  if bash check-dns.sh "www.$SITE_DOMAIN" >/dev/null 2>&1; then
+    cat Caddyfile.www >> Caddyfile
+    echo "www.$SITE_DOMAIN тоже указывает сюда — редирект включён."
+  else
+    echo "A-записи для www.$SITE_DOMAIN нет — блок www пропущен."
+  fi
   SITE_MODE="https://$SITE_DOMAIN"
 else
   cp Caddyfile.ip Caddyfile

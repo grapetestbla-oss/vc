@@ -5,6 +5,8 @@ import { currentUser } from "@/lib/session";
 import { levelFromPlaytime, nextLevelAt } from "@/lib/levels";
 import { ADMIN_LEVELS } from "@/lib/config";
 import TwoFactorCode from "@/components/TwoFactorCode";
+import { promoStatus } from "@/lib/promo";
+import { PLATFORM_LABEL, STATUS_LABEL } from "@/lib/partners";
 import Reveal from "@/components/Reveal";
 import CountUp from "@/components/CountUp";
 
@@ -14,7 +16,7 @@ export default async function CabinetPage() {
   const user = await currentUser();
   if (!user) redirect("/login?next=/cabinet");
 
-  const [transactions, punishments, promo, rounds, cosmetics] = await Promise.all([
+  const [transactions, punishments, promo, rounds, cosmetics, myPromo, application] = await Promise.all([
     db.transaction.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 12 }),
     db.punishment.findMany({
       where: { userId: user.id },
@@ -28,6 +30,11 @@ export default async function CabinetPage() {
     }),
     db.gameRound.findMany({ where: { userId: user.id }, select: { betVc: true, payoutVc: true } }),
     db.userCosmetic.findMany({ where: { userId: user.id } }),
+    promoStatus(user.id),
+    db.partnerApplication.findFirst({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+    }),
   ]);
 
   const level = levelFromPlaytime(user.playtimeSec);
@@ -102,6 +109,50 @@ export default async function CabinetPage() {
           <TwoFactorCode />
         </section>
       </Reveal>
+
+      {myPromo && (
+        <Reveal delay={70}>
+          <section className="panel p-6">
+            <p className="eyebrow">Промокод аккаунта</p>
+            <h2 className="mt-1 text-2xl font-semibold tracking-tight">{myPromo.code}</h2>
+            <p className="muted mt-2 text-sm">
+              {myPromo.partner && `Партнёр: ${myPromo.partner}. `}
+              {myPromo.rewarded
+                ? `Награда ${myPromo.rewardVc} VC получена.`
+                : `Награда ${myPromo.rewardVc} VC придёт на ${myPromo.requiredLevel} уровне — сейчас у вас ${myPromo.level}.`}
+            </p>
+            <p className="muted mt-1 text-xs">
+              Код привязан к аккаунту навсегда, сменить его нельзя.
+            </p>
+          </section>
+        </Reveal>
+      )}
+
+      {application && (
+        <Reveal delay={80}>
+          <section className="panel p-6">
+            <p className="eyebrow">Заявка медиа-партнёра</p>
+            <h2 className="mt-1 text-lg font-semibold">
+              {PLATFORM_LABEL[application.platform] ?? application.platform} —{" "}
+              <span
+                style={{
+                  color:
+                    application.status === "APPROVED"
+                      ? "var(--mint)"
+                      : application.status === "REJECTED"
+                        ? "var(--danger)"
+                        : "var(--gold)",
+                }}
+              >
+                {STATUS_LABEL[application.status]}
+              </span>
+            </h2>
+            {application.reviewNote && (
+              <p className="muted mt-2 text-sm">{application.reviewNote}</p>
+            )}
+          </section>
+        </Reveal>
+      )}
 
       {promo && (
         <Reveal delay={90}>

@@ -83,6 +83,7 @@ await shot("/panel/users", "05-panel-users");
 await shot("/panel/logs", "06-panel-logs");
 await shot("/panel/promos", "07-panel-promos");
 await shot("/panel/security", "08-panel-security");
+await shot("/panel/partners", "15-panel-partners");
 
 await shot("/panel/news", "09-panel-news");
 await shot("/news", "10-news");
@@ -98,6 +99,8 @@ await page.screenshot({ path: `${OUT}/13-case-opened.png`, fullPage: true });
 console.log("13 case opened");
 
 await shot("/collection", "14-collection");
+await shot("/partners", "16-partners");
+await shot("/register", "17-register");
 await shot("/games", "12-games");
 await shot("/", "01-home");
 await shot("/cabinet", "02-cabinet");

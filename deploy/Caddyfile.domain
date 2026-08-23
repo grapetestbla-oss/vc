@@ -17,7 +17,3 @@
 		format json
 	}
 }
-
-www.{$SITE_DOMAIN} {
-	redir https://{$SITE_DOMAIN}{uri} permanent
-}

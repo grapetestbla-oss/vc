@@ -7,6 +7,7 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
   const router = useRouter();
   const params = useSearchParams();
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -28,6 +29,13 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
       setError(data.error ?? "Ошибка");
       return;
     }
+    if (data.promoError) {
+      // Аккаунт создан, но код не подошёл — говорим об этом до перехода.
+      setNotice(`Аккаунт создан, но промокод не принят: ${data.promoError}`);
+      setTimeout(() => router.push("/cabinet"), 2500);
+      router.refresh();
+      return;
+    }
     router.push(params.get("next") ?? "/cabinet");
     router.refresh();
   }
@@ -47,10 +55,26 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
       </label>
 
       {mode === "register" && (
-        <label className="block space-y-1">
-          <span className="muted text-sm">Почта</span>
-          <input name="email" type="email" className="input" autoComplete="email" required />
-        </label>
+        <>
+          <label className="block space-y-1">
+            <span className="muted text-sm">Почта</span>
+            <input name="email" type="email" className="input" autoComplete="email" required />
+          </label>
+
+          <label className="block space-y-1">
+            <span className="muted text-sm">Промокод — необязательно</span>
+            <input
+              name="promo"
+              className="input font-mono uppercase"
+              placeholder="код блогера"
+              autoCapitalize="characters"
+            />
+            <span className="muted block text-xs">
+              Вводится один раз при регистрации и навсегда остаётся за аккаунтом.
+              Награда придёт, когда аккаунт дорастёт до третьего уровня.
+            </span>
+          </label>
+        </>
       )}
 
       <label className="block space-y-1">
@@ -64,7 +88,8 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
         />
       </label>
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm" style={{ color: "var(--danger)" }}>{error}</p>}
+      {notice && <p className="text-sm" style={{ color: "var(--gold)" }}>{notice}</p>}
 
       <button className="btn w-full" disabled={busy}>
         {busy ? "…" : mode === "login" ? "Войти" : "Создать аккаунт"}

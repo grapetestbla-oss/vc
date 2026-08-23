@@ -3,6 +3,7 @@ import { hashPassword, LOGIN_RE, passwordProblem } from "@/lib/auth";
 import { createSession } from "@/lib/session";
 import { audit, clientIp } from "@/lib/audit";
 import { rateLimit } from "@/lib/ratelimit";
+import { attachPromo, PromoError, rewardPendingPromo } from "@/lib/promo";
 
 export async function POST(request: Request) {
   const ip = clientIp(request);
@@ -10,10 +11,11 @@ export async function POST(request: Request) {
     return Response.json({ error: "Слишком много регистраций с этого адреса" }, { status: 429 });
   }
 
-  const { login, email, password } = (await request.json()) as {
+  const { login, email, password, promo } = (await request.json()) as {
     login?: string;
     email?: string;
     password?: string;
+    promo?: string;
   };
 
   if (!login || !LOGIN_RE.test(login)) {
@@ -37,6 +39,8 @@ export async function POST(request: Request) {
   const bootstrap = process.env.BOOTSTRAP_ADMIN_LOGIN;
   const isBootstrapAdmin = Boolean(bootstrap) && bootstrap === login;
 
+  let promoError: string | null = null;
+
   const user = await db.user.create({
     data: {
       login,
@@ -47,6 +51,20 @@ export async function POST(request: Request) {
     },
   });
   await db.knownIp.create({ data: { userId: user.id, ip } });
+
+  // Промокод необязателен, но привязывается только здесь и навсегда.
+  let promoAttached: string | null = null;
+  if (promo?.trim()) {
+    try {
+      const attached = await attachPromo(user.id, promo, "web");
+      promoAttached = attached.code;
+      // Если порог уровня нулевой, награда выдаётся сразу же.
+      await rewardPendingPromo(user.id);
+    } catch (error) {
+      // Аккаунт уже создан — из-за неверного кода регистрацию не отменяем.
+      promoError = error instanceof PromoError ? error.message : "Промокод не принят";
+    }
+  }
   await createSession(user.id, ip, request.headers.get("user-agent") ?? undefined);
   await audit({
     actorId: user.id,
@@ -54,5 +72,11 @@ export async function POST(request: Request) {
     ip,
   });
 
-  return Response.json({ ok: true, login: user.login, adminLevel: user.adminLevel });
+  return Response.json({
+    ok: true,
+    login: user.login,
+    adminLevel: user.adminLevel,
+    promo: promoAttached,
+    promoError,
+  });
 }

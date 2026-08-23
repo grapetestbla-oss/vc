@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { serverTokenValid, unauthorized } from "@/lib/mcauth";
+import { rewardPendingPromo } from "@/lib/promo";
 
 /** Плагин раз в минуту присылает наигранные секунды по онлайн-игрокам. */
 export async function POST(request: Request) {
@@ -20,6 +21,13 @@ export async function POST(request: Request) {
       data: { playtimeSec: { increment: seconds }, lastSeenAt: new Date() },
     });
     updated += result.count;
+
+    // Уровень мог только что дорасти до порога промокода — проверяем.
+    const player = await db.user.findUnique({
+      where: { login: entry.login },
+      select: { id: true },
+    });
+    if (player) await rewardPendingPromo(player.id);
   }
   return Response.json({ updated });
 }

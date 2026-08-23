@@ -25,6 +25,10 @@ model User {
   lastSeenAt   DateTime?
   lastIp       String?
 
+  /// Промокод, введённый при регистрации. Привязывается один раз и навсегда.
+  referredByPromoId String?
+  referredByPromo   Promo?  @relation("PromoReferrals", fields: [referredByPromoId], references: [id], onDelete: SetNull)
+
   twoFactorCode      String?
   twoFactorExpiresAt DateTime?
 
@@ -32,26 +36,28 @@ model User {
   totpSecret    String?
   totpEnabledAt DateTime?
 
-  knownIps        KnownIp[]
-  sessions        Session[]
-  loginAttempts   LoginAttempt[]
-  punishments     Punishment[]      @relation("PunishedUser")
-  issued          Punishment[]      @relation("PunishedBy")
-  reports         Report[]          @relation("ReportAuthor")
-  claimedReports  Report[]          @relation("ReportClaimer")
-  transactions    Transaction[]
-  promoActivation PromoActivation[]
-  bonusUses       BonusUse[]
-  caseOpenings    CaseOpening[]
-  gameRounds      GameRound[]
-  seeds           Seed[]
-  cosmetics       UserCosmetic[]
-  auditEntries    AuditLog[]        @relation("AuditActor")
-  auditTargets    AuditLog[]        @relation("AuditTarget")
-  flags           SuspiciousFlag[]
-  payments        Payment[]
-  ownedPromos     Promo[]           @relation("PromoPartner")
-  news            News[]            @relation("NewsAuthor")
+  knownIps             KnownIp[]
+  sessions             Session[]
+  loginAttempts        LoginAttempt[]
+  punishments          Punishment[]         @relation("PunishedUser")
+  issued               Punishment[]         @relation("PunishedBy")
+  reports              Report[]             @relation("ReportAuthor")
+  claimedReports       Report[]             @relation("ReportClaimer")
+  transactions         Transaction[]
+  promoActivation      PromoActivation[]
+  bonusUses            BonusUse[]
+  caseOpenings         CaseOpening[]
+  gameRounds           GameRound[]
+  seeds                Seed[]
+  cosmetics            UserCosmetic[]
+  auditEntries         AuditLog[]           @relation("AuditActor")
+  auditTargets         AuditLog[]           @relation("AuditTarget")
+  flags                SuspiciousFlag[]
+  payments             Payment[]
+  ownedPromos          Promo[]              @relation("PromoPartner")
+  news                 News[]               @relation("NewsAuthor")
+  partnerApplications  PartnerApplication[] @relation("ApplicationAuthor")
+  reviewedApplications PartnerApplication[] @relation("ApplicationReviewer")
 
   @@index([adminLevel])
 }
@@ -215,15 +221,20 @@ model Promo {
   createdAt     DateTime @default(now())
 
   activations PromoActivation[]
+  referrals   User[]            @relation("PromoReferrals")
 }
 
+/// Привязка игрока к промокоду. Награда выдаётся отдельно — по достижении уровня.
 model PromoActivation {
-  id        String   @id @default(cuid())
-  promoId   String
-  promo     Promo    @relation(fields: [promoId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
+  id         String    @id @default(cuid())
+  promoId    String
+  promo      Promo     @relation(fields: [promoId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Где ввели код: при регистрации на сайте или командой в игре.
+  source     String    @default("web")
+  rewardedAt DateTime?
+  createdAt  DateTime  @default(now())
 
   @@unique([promoId, userId])
   @@index([userId])
@@ -487,4 +498,36 @@ model News {
   updatedAt DateTime @updatedAt
 
   @@index([published, pinned, createdAt])
+}
+
+// ─────────────────────── Заявки медиа-партнёров ───────────────────────
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model PartnerApplication {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation("ApplicationAuthor", fields: [userId], references: [id], onDelete: Cascade)
+
+  platform    String // youtube | shorts | twitch | tiktok | discord | trovo | other
+  channelUrl  String
+  audience    String // метрики своими словами: просмотры, зрители, участники
+  contact     String // телеграм или дискорд для связи
+  comment     String?
+  /// Желаемый промокод — если заявку одобрят, он и станет кодом партнёра.
+  desiredCode String?
+
+  status     ApplicationStatus @default(PENDING)
+  reviewNote String?
+  reviewedBy String?
+  reviewer   User?             @relation("ApplicationReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
+  reviewedAt DateTime?
+  createdAt  DateTime          @default(now())
+
+  @@index([status, createdAt])
+  @@index([userId])
 }
