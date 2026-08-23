@@ -32,17 +32,27 @@ export async function POST(request: Request) {
     return Response.json({ error: "Логин или почта уже заняты" }, { status: 409 });
   }
 
+  // Первый администратор: логин из BOOTSTRAP_ADMIN_LOGIN получает 5 уровень
+  // при регистрации. Иначе панель некому открыть — и пришлось бы лезть в базу.
+  const bootstrap = process.env.BOOTSTRAP_ADMIN_LOGIN;
+  const isBootstrapAdmin = Boolean(bootstrap) && bootstrap === login;
+
   const user = await db.user.create({
     data: {
       login,
       email: email.toLowerCase(),
       passwordHash: await hashPassword(password!),
       lastIp: ip,
+      adminLevel: isBootstrapAdmin ? 5 : 0,
     },
   });
   await db.knownIp.create({ data: { userId: user.id, ip } });
   await createSession(user.id, ip, request.headers.get("user-agent") ?? undefined);
-  await audit({ actorId: user.id, action: "account.register", ip });
+  await audit({
+    actorId: user.id,
+    action: isBootstrapAdmin ? "account.register.bootstrap-admin" : "account.register",
+    ip,
+  });
 
-  return Response.json({ ok: true, login: user.login });
+  return Response.json({ ok: true, login: user.login, adminLevel: user.adminLevel });
 }

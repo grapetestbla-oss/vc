@@ -36,6 +36,9 @@ MC_SERVER_TOKEN=$(openssl rand -hex 32)
 SITE_DOMAIN=
 # IP игрового сервера, которому разрешён доступ к /api/mc/*
 MC_SERVER_IP=5.83.140.208/32
+# Логин, который получит 5 уровень админки при регистрации на сайте.
+# Впишите свой ник ДО первой регистрации, потом уберите отсюда.
+BOOTSTRAP_ADMIN_LOGIN=
 ENV
 fi
 
@@ -51,6 +54,6 @@ echo "Готово. Токен для плагина (config.yml → api.token):
 grep MC_SERVER_TOKEN .env
 echo
 echo "Сайт: http://$(curl -s ifconfig.me 2>/dev/null || echo IP)"
-echo "Первый аккаунт зарегистрируйте на сайте, затем выдайте себе 5 уровень:"
-echo "  docker compose --env-file .env exec postgres psql -U vanilla -d vanilla \\"
-echo "    -c \"UPDATE \\\"User\\\" SET \\\"adminLevel\\\"=5 WHERE login='ВАШ_НИК';\""
+echo "Впишите свой ник в BOOTSTRAP_ADMIN_LOGIN в deploy/.env, перезапустите"
+echo "(docker compose --env-file .env up -d) и зарегистрируйтесь — аккаунт"
+echo "сразу получит 5 уровень админки. После этого уберите переменную."
