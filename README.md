@@ -28,7 +28,7 @@ mvn package
 ```
 
 Готовый плагин: `target/Demorgan-1.0.0.jar` → в папку `plugins/` сервера.
-Требуется Paper 1.21+ и Java 21.
+Требуется Paper 26.2 и Java 25.
 
 ## Команды
 
@@ -71,3 +71,38 @@ Base64) и счётчик нарушений по каждому UUID. Сохр�
 Если инвентарь не удалось сохранить, плагин не отбирает вещи — игрок уходит в
 зону со своим инвентарём. Если не удалось вернуть — Base64 пишется в лог
 сервера строкой `INVENTORY-DUMP`, чтобы вещи можно было восстановить вручную.
+
+## Деплой на хостинг с панелью Calagopus (Bisquit.Host)
+
+API панели Pterodactyl-совместимый, тот же домен что и веб-интерфейс.
+Ключ создаётся в аккаунте панели, передаётся как `Authorization: Bearer <key>`.
+
+```
+PANEL=https://mgr.bisquit.host/api/client/servers/<server-id>
+
+# Paper вместо ванильного jar (панель скачает сама)
+curl -X POST -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"url":"<paper-jar-url>","directory":"/","filename":"paper.jar"}' "$PANEL/files/pull"
+
+# Переименование (бэкап старого jar)
+curl -X PUT -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"root":"/","files":[{"from":"server.jar","to":"vanilla.jar.bak"}]}' "$PANEL/files/rename"
+
+# Загрузка плагина (files/write принимает бинарь и создаёт папку сам)
+curl -X POST -H "Authorization: Bearer $KEY" -H 'Content-Type: application/octet-stream' \
+  --data-binary @target/Demorgan-1.0.0.jar \
+  "$PANEL/files/write?file=%2Fplugins%2FDemorgan-1.0.0.jar"
+
+# Состояние и запуск
+curl -H "Authorization: Bearer $KEY" "$PANEL/resources"
+curl -X POST -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"signal":"start"}' "$PANEL/power"
+```
+
+Эндпоинт `files/upload` отдаёт signed URL на демон (порт 8080) — снаружи он может
+быть недоступен, тогда используйте `files/write`, он работает через саму панель.
+
+### Версии
+
+Плагин собирается против paper-api 26.2. Сервер должен работать на Java 25 —
+Minecraft 26.1+ более ранние не принимает.
