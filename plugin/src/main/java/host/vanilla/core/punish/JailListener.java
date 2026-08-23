@@ -1,5 +1,7 @@
-package host.vanilla.demorgan;
+package host.vanilla.core.punish;
 
+import host.vanilla.core.VanillaCorePlugin;
+import host.vanilla.core.util.Messages;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -17,47 +19,28 @@ import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 
 import java.util.Locale;
 
 /** Всё, что заключённому нельзя, и всё, что засчитывается как отработка. */
-public final class PrisonListener implements Listener {
+public final class JailListener implements Listener {
 
-    private final DemorganPlugin plugin;
-    private final PluginConfig config;
-    private final ZoneManager zone;
-    private final PunishmentManager manager;
+    private final VanillaCorePlugin plugin;
+    private final JailManager jail;
     private final Messages messages;
 
-    public PrisonListener(DemorganPlugin plugin, PluginConfig config, ZoneManager zone,
-                          PunishmentManager manager, Messages messages) {
+    public JailListener(VanillaCorePlugin plugin, JailManager jail, Messages messages) {
         this.plugin = plugin;
-        this.config = config;
-        this.zone = zone;
-        this.manager = manager;
+        this.jail = jail;
         this.messages = messages;
     }
 
     private boolean jailed(Player player) {
-        return manager.isJailed(player.getUniqueId());
-    }
-
-    @EventHandler
-    public void onJoin(PlayerJoinEvent event) {
-        manager.handleJoin(event.getPlayer());
-    }
-
-    @EventHandler
-    public void onQuit(PlayerQuitEvent event) {
-        if (jailed(event.getPlayer())) {
-            manager.save();
-        }
+        return jail.isJailed(player);
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -66,36 +49,33 @@ public final class PrisonListener implements Listener {
         if (!jailed(player)) return;
 
         Block block = event.getBlock();
-        if (!zone.isMineBlock(block)) {
+        if (!jail.zone().isMineBlock(block)) {
             event.setCancelled(true);
-            player.sendMessage(messages.get("action-blocked"));
+            player.sendMessage(messages.get("jail.blocked"));
             return;
         }
         // Отработка не должна превращаться в фарм ресурсов.
         event.setDropItems(false);
         event.setExpToDrop(0);
-        manager.countMinedBlock(player);
+        jail.countMinedBlock(player);
 
-        Material material = config.mineMaterial;
+        Material material = plugin.config().jailMineMaterial;
         plugin.getServer().getScheduler().runTaskLater(plugin,
                 () -> block.setType(material, false),
-                config.regenSeconds * 20L);
+                plugin.config().jailRegenSeconds * 20L);
     }
 
     @EventHandler(ignoreCancelled = true)
     public void onPlace(BlockPlaceEvent event) {
         if (jailed(event.getPlayer())) {
             event.setCancelled(true);
-            event.getPlayer().sendMessage(messages.get("action-blocked"));
+            event.getPlayer().sendMessage(messages.get("jail.blocked"));
         }
     }
 
     @EventHandler(ignoreCancelled = true)
     public void onDrop(PlayerDropItemEvent event) {
-        if (jailed(event.getPlayer())) {
-            event.setCancelled(true);
-            event.getPlayer().sendMessage(messages.get("action-blocked"));
-        }
+        if (jailed(event.getPlayer())) event.setCancelled(true);
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -103,10 +83,9 @@ public final class PrisonListener implements Listener {
         Player player = event.getPlayer();
         if (!jailed(player)) return;
         String command = event.getMessage().substring(1).split(" ")[0].toLowerCase(Locale.ROOT);
-        if (!config.allowedCommands.contains(command)) {
-            event.setCancelled(true);
-            player.sendMessage(messages.get("command-blocked"));
-        }
+        if (plugin.config().jailAllowedCommands.contains(command)) return;
+        event.setCancelled(true);
+        player.sendMessage(messages.get("jail.command-blocked"));
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -128,46 +107,35 @@ public final class PrisonListener implements Listener {
 
     @EventHandler(ignoreCancelled = true)
     public void onInteract(PlayerInteractEvent event) {
-        if (jailed(event.getPlayer()) && event.getClickedBlock() != null) {
-            event.setCancelled(true);
-        }
+        if (jailed(event.getPlayer()) && event.getClickedBlock() != null) event.setCancelled(true);
     }
 
     @EventHandler(ignoreCancelled = true)
     public void onDamage(EntityDamageEvent event) {
-        if (config.invulnerable && event.getEntity() instanceof Player player && jailed(player)) {
-            event.setCancelled(true);
-        }
+        if (event.getEntity() instanceof Player player && jailed(player)) event.setCancelled(true);
     }
 
     @EventHandler(ignoreCancelled = true)
     public void onHunger(FoodLevelChangeEvent event) {
-        if (config.invulnerable && event.getEntity() instanceof Player player && jailed(player)) {
-            event.setCancelled(true);
-        }
+        if (event.getEntity() instanceof Player player && jailed(player)) event.setCancelled(true);
     }
 
     @EventHandler(ignoreCancelled = true)
     public void onTeleport(PlayerTeleportEvent event) {
         if (!jailed(event.getPlayer())) return;
         if (event.getCause() == PlayerTeleportEvent.TeleportCause.PLUGIN) return;
-        if (event.getTo() != null && zone.isInside(event.getTo())) return;
+        if (event.getTo() != null && jail.zone().isInside(event.getTo())) return;
         event.setCancelled(true);
-        event.getPlayer().sendMessage(messages.get("action-blocked"));
     }
 
     @EventHandler(ignoreCancelled = true)
     public void onPortal(PlayerPortalEvent event) {
-        if (jailed(event.getPlayer())) {
-            event.setCancelled(true);
-        }
+        if (jailed(event.getPlayer())) event.setCancelled(true);
     }
 
     @EventHandler
     public void onRespawn(PlayerRespawnEvent event) {
-        if (jailed(event.getPlayer())) {
-            event.setRespawnLocation(zone.spawnLocation());
-        }
+        if (jailed(event.getPlayer())) event.setRespawnLocation(jail.zone().spawn());
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -179,19 +147,17 @@ public final class PrisonListener implements Listener {
                 && event.getTo().getBlockZ() == event.getFrom().getBlockZ()) {
             return;
         }
-        if (!zone.isInside(event.getTo())) {
-            player.teleport(zone.spawnLocation());
-        }
+        if (!jail.zone().isInside(event.getTo())) player.teleport(jail.zone().spawn());
     }
 
     /** Заключённые говорят только между собой — иначе общий чат тонет в апелляциях. */
     @EventHandler(ignoreCancelled = true)
     public void onChat(AsyncChatEvent event) {
-        if (!config.isolateChat) return;
+        if (!plugin.config().jailIsolateChat) return;
         boolean senderJailed = jailed(event.getPlayer());
         event.viewers().removeIf(audience -> {
             if (!(audience instanceof Player viewer)) return false;
-            if (viewer.hasPermission("demorgan.seechat")) return false;
+            if (plugin.auth().adminLevel(viewer) >= 2) return false;
             return senderJailed != jailed(viewer);
         });
     }

@@ -1,28 +1,55 @@
-name: Demorgan
+name: VanillaCore
 version: '${project.version}'
-main: host.vanilla.demorgan.DemorganPlugin
+main: host.vanilla.core.VanillaCorePlugin
 api-version: '1.21'
-description: Исправительные работы вместо бана
+description: Ядро ванильного сервера — авторизация, наказания, админка, экономика
 author: vc
 commands:
-  demorgan:
-    description: Отправить игрока в деморган и управлять сроками
-    usage: /demorgan <ник> <минуты|auto> <причина>
-    permission: demorgan.check
-  unmorgan:
-    description: Досрочно освободить игрока
-    usage: /unmorgan <ник>
-    permission: demorgan.admin
-permissions:
-  demorgan.admin:
-    description: Выдача и снятие сроков, reload
-    default: op
-  demorgan.check:
-    description: Просмотр сроков и списка заключённых
-    default: op
-  demorgan.exempt:
-    description: Игрока нельзя отправить в деморган
-    default: false
-  demorgan.seechat:
-    description: Видит чат заключённых
-    default: op
+  login:
+    description: Вход по паролю с сайта
+    usage: /login <пароль>
+    aliases: [l]
+  2fa:
+    description: Подтверждение входа кодом из личного кабинета
+    usage: /2fa <код>
+  balance:
+    description: Баланс VanillaCoins
+  promo:
+    description: Активировать промокод медиапартнёра
+    usage: /promo <код>
+  bonus:
+    description: Активировать бонус-код
+    usage: /bonus <код>
+  report:
+    description: Пожаловаться администрации
+    usage: /report <текст>
+  spec:
+    description: Режим наблюдателя (администрация)
+  esp:
+    description: Подсветка игроков ниже своего уровня
+  ajail:
+    description: Отправить в деморган
+    usage: /ajail <ник> <причина> <минуты>
+  warn:
+    description: Выдать варн
+    usage: /warn <ник> <причина>
+  ban:
+    description: Забанить
+    usage: /ban <ник> <причина> <дни>
+  check:
+    description: Вызвать на проверку на читы
+    usage: /check <ник> <ссылка|pass|fail>
+  asms:
+    description: Личное сообщение от администрации
+    usage: /asms <ник> <текст>
+  news:
+    description: Глобальная новость
+    usage: /news <текст>
+  reports:
+    description: Меню репортов
+  tp:
+    description: Телепорт к игроку
+    usage: /tp <ник>
+  tphere:
+    description: Телепортировать игрока к себе
+    usage: /tphere <ник>

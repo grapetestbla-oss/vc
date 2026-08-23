@@ -1,62 +1,122 @@
-# Demorgan — исправительные работы вместо бана.
-# Время идёт только пока игрок онлайн; добыча породы ускоряет освобождение.
+# VanillaCore — ядро сервера.
+# Уровни админки и права выдаются на сайте, здесь их нет.
 
-zone:
-  # Мир деморгана. Отдельный мир — так проще всё изолировать.
+api:
+  # Адрес сайта. Плагин ходит только сюда, в базу напрямую не лезет.
+  url: "http://127.0.0.1:3000"
+  # Тот же токен, что MC_SERVER_TOKEN в .env сайта.
+  token: ""
+
+auth:
+  # Сколько секунд даётся на ввод пароля до кика.
+  timeout-seconds: 60
+  # Сколько неверных попыток подряд до кика.
+  max-attempts: 3
+
+jail:
   world: demorgan
-  # Создать мир и построить арену автоматически при первом запуске.
   auto-create: true
-  # Внутренний размер арены по X/Z и высота потолка.
   size: 24
   height: 6
-  # Уровень пола.
   floor-y: 64
-  # Порода, которую отрабатывают заключённые.
   mine-material: STONE
-  # Через сколько секунд сломанный блок восстанавливается.
   regen-seconds: 5
-  # Инструмент, который выдаётся на входе (неразрушаемый, не выбрасывается).
   tool: IRON_PICKAXE
-
-sentence:
+  # Время идёт 1 к 10: за секунду реального времени списывается 10 секунд срока.
+  time-ratio: 10
   # Сколько секунд срока списывает один добытый блок.
-  seconds-per-block: 2
-  # Прогрессивная шкала для /demorgan <ник> auto <причина>, в минутах.
-  # 1-е нарушение, 2-е, 3-е; дальше берётся последнее значение.
-  escalation: [30, 120, 360]
-  # Предохранитель от опечаток вида "/demorgan Steve 9999".
-  max-minutes: 1440
-
-restrictions:
-  # Команды, разрешённые заключённым (без слэша).
-  allowed-commands:
-    - demorgan
-    - help
-  # Заключённые говорят только между собой (и с demorgan.seechat).
+  seconds-per-block: 20
+  # Как часто состояние отсидки уходит на сайт.
+  sync-seconds: 30
   isolate-chat: true
-  # Отключить урон и голод в зоне.
-  invulnerable: true
+  allowed-commands:
+    - balance
+    - report
 
-storage:
-  # Периодическое сохранение состояния на диск, секунды.
-  save-interval-seconds: 60
-
-discord:
-  # Вебхук для лога выдачи/снятия наказаний. Пусто — логирование выключено.
-  webhook-url: ""
+staff:
+  # Администрация со 2 уровня всегда в режиме наблюдателя.
+  always-spectator: true
+  esp-refresh-seconds: 5
 
 messages:
-  prefix: "<dark_gray>[<gold>Деморган<dark_gray>]<reset> "
-  jailed: "<red>Вы отправлены в деморган на <yellow><time><red>. Причина: <white><reason>"
-  jailed-broadcast: "<gray><player> отправлен в деморган на <yellow><time><gray> — <white><reason>"
-  released: "<green>Срок отбыт. Вы свободны."
-  released-broadcast: "<gray><player> отбыл срок в деморгане."
-  released-early: "<green>Вас освободили досрочно."
-  actionbar: "<gold>Осталось: <yellow><time>  <dark_gray>|  <gold>Отработано блоков: <yellow><blocks>"
-  command-blocked: "<red>В деморгане эта команда недоступна."
-  action-blocked: "<red>В деморгане это делать нельзя."
-  already-jailed: "<red><player> уже в деморгане."
-  not-jailed: "<red><player> не в деморгане."
-  exempt: "<red>Этого игрока нельзя отправить в деморган."
-  check: "<gray><player>: осталось <yellow><time><gray>, блоков <yellow><blocks><gray>, причина: <white><reason>"
-  history: "<gray>Нарушений у <player>: <yellow><count>"
+  prefix: "<dark_gray>[<gold>VC<dark_gray>]<reset> "
+
+  auth.prompt: "<yellow>Войдите: <white>/login <пароль><yellow> — тот же, что на сайте."
+  auth.usage-login: "<yellow>Использование: /login <пароль>"
+  auth.usage-2fa: "<yellow>Использование: /2fa <код с сайта>"
+  auth.welcome: "<green>С возвращением, <player>."
+  auth.already: "<gray>Вы уже вошли."
+  auth.need2fa: "<yellow>Вход с нового адреса. Возьмите код в личном кабинете и введите <white>/2fa <код>"
+  auth.no2fa: "<red>Сейчас код не требуется."
+  auth.no-account: "<red>Аккаунта нет. Зарегистрируйтесь на сайте — ник должен совпадать."
+  auth.banned: "<red>Вы забанены. Причина: <white><reason>"
+  auth.bad: "<red>Неверный пароль. Осталось попыток: <left>"
+  auth.too-many: "<red>Слишком много неверных попыток."
+  auth.timeout: "<red>Время на вход истекло."
+  auth.rate-limited: "<red>Слишком много попыток входа с вашего адреса. Попробуйте позже."
+  auth.code-expired: "<red>Код просрочен или не выдан. Возьмите новый в кабинете."
+  auth.api-down: "<red>Сайт не отвечает. Сообщите администрации."
+
+  jail.jailed: "<red>Деморган на <yellow><time><red>. Причина: <white><reason>"
+  jail.released: "<green>Срок отбыт. Вы свободны."
+  jail.released-early: "<green>Вас освободили досрочно."
+  jail.actionbar: "<gold>Осталось: <yellow><time>  <dark_gray>|  <gold>Блоков: <yellow><blocks>"
+  jail.blocked: "<red>В деморгане это делать нельзя."
+  jail.command-blocked: "<red>В деморгане эта команда недоступна."
+
+  punish.warn: "<red>Вам выдан варн: <white><reason><red>. Действует 7 дней."
+  punish.auto-ban: "<red>Второй активный варн — бан на 5 дней. Причина: <white><reason>"
+  punish.banned: "<red>Бан на <days> дн. Причина: <white><reason>"
+
+  staff.no-access: "<red>Недостаточно прав."
+  staff.no-player: "<red>Игрок не в сети."
+  staff.error: "<red>Не удалось: <white><error>"
+  staff.spec-on: "<gray>Режим наблюдателя включён."
+  staff.spec-off: "<gray>Режим наблюдателя выключен."
+  staff.esp-on: "<gray>ESP включён."
+  staff.esp-off: "<gray>ESP выключен."
+  staff.usage-ajail: "<yellow>/ajail <ник> <причина> <минуты>"
+  staff.usage-warn: "<yellow>/warn <ник> <причина>"
+  staff.usage-ban: "<yellow>/ban <ник> <причина> <дни>"
+  staff.usage-check: "<yellow>/check <ник> <ссылка> либо /check <ник> pass|fail"
+  staff.usage-asms: "<yellow>/asms <ник> <текст>"
+  staff.usage-news: "<yellow>/news <текст>"
+  staff.usage-tp: "<yellow>/tp <ник>"
+  staff.jailed: "<gray><player> отправлен в деморган на <minutes> мин."
+  staff.warned: "<gray><player> получил варн."
+  staff.auto-ban: "<gray>У <player> второй варн — выдан автоматический бан."
+  staff.banned: "<gray><player> забанен на <days> дн."
+  staff.asms: "<gold>Сообщение администрации: <white><text>"
+  staff.asms-sent: "<gray>Отправлено игроку <player>."
+  staff.news: "<gold><bold>НОВОСТЬ<reset> <white><text>"
+  staff.tp: "<gray>Вы телепортированы к <player>."
+  staff.tphere: "<gray><player> телепортирован к вам."
+
+  check.started: "<red><bold>Вы вызваны на проверку администратором <admin>.<reset> <yellow>Не выходите из игры."
+  check.started-admin: "<gray>Проверка <player> начата."
+  check.passed: "<green>Проверка пройдена. Приятной игры."
+  check.failed: "<red>Проверка не пройдена."
+  check.left: "<red><player> вышел во время проверки (проверял <admin>)."
+
+  report.usage: "<yellow>/report <текст жалобы>"
+  report.created: "<green>Жалоба отправлена. Администрация уведомлена."
+  report.failed: "<red>Не удалось отправить. Попробуйте позже."
+  report.notify: "<gold>Новый репорт от <player>: <white><text> <gray>(/reports)"
+  report.empty: "<gray>Открытых репортов нет."
+  report.taken: "<yellow>Этот репорт уже взял другой администратор."
+  report.claimed: "<green>Репорт <player> закреплён за вами: <white><text>"
+  report.actions: "<gray>Телепорт: <white>/tp <player><gray>, к себе: <white>/tphere <player>"
+  report.author-offline: "<gray>Автор репорта не в сети."
+  report.closed: "<gray>Репорт закрыт."
+
+  economy.balance: "<gold>Баланс: <yellow><balance> VC<gold>. Уровень аккаунта: <yellow><level>"
+  economy.usage-promo: "<yellow>/promo <код>"
+  economy.usage-bonus: "<yellow>/bonus <код>"
+  economy.code-ok: "<green>Начислено <reward> VC. Баланс: <balance> VC."
+  economy.code-level: "<red>Нужен уровень аккаунта <required>, у вас <level>."
+  economy.code-used: "<red>Вы уже активировали код."
+  economy.code-bad: "<red>Код не найден."
+  economy.code-expired: "<red>Срок действия кода истёк."
+  economy.code-exhausted: "<red>Лимит активаций исчерпан."
+  economy.code-slow: "<red>Слишком часто. Подождите."
+  economy.api-down: "<red>Сайт не отвечает."

@@ -5,14 +5,14 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>host.vanilla</groupId>
-  <artifactId>demorgan</artifactId>
+  <artifactId>vanillacore</artifactId>
   <version>1.0.0</version>
   <packaging>jar</packaging>
-  <name>Demorgan</name>
-  <description>Исправительные работы вместо бана для ванильного сервера</description>
+  <name>VanillaCore</name>
+  <description>Ядро ванильного сервера: авторизация, наказания, экономика, админка</description>
 
   <properties>
-    <maven.compiler.release>21</maven.compiler.release>
+    <maven.compiler.release>25</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 
@@ -33,7 +33,7 @@
   </dependencies>
 
   <build>
-    <finalName>Demorgan-${project.version}</finalName>
+    <finalName>VanillaCore-${project.version}</finalName>
     <resources>
       <resource>
         <directory>src/main/resources</directory>

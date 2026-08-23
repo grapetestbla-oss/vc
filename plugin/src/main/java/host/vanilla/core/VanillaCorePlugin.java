@@ -1,0 +1,195 @@
+package host.vanilla.core;
+
+import com.google.gson.JsonObject;
+import host.vanilla.core.admin.CheckManager;
+import host.vanilla.core.admin.EspManager;
+import host.vanilla.core.admin.StaffCommands;
+import host.vanilla.core.admin.StaffListener;
+import host.vanilla.core.api.ApiClient;
+import host.vanilla.core.auth.AuthCommands;
+import host.vanilla.core.auth.AuthListener;
+import host.vanilla.core.auth.AuthManager;
+import host.vanilla.core.auth.Profile;
+import host.vanilla.core.config.PluginConfig;
+import host.vanilla.core.economy.PlayerCommands;
+import host.vanilla.core.punish.JailListener;
+import host.vanilla.core.punish.JailManager;
+import host.vanilla.core.punish.JailZone;
+import host.vanilla.core.report.ReportManager;
+import host.vanilla.core.report.ReportMenuListener;
+import host.vanilla.core.util.Messages;
+import net.kyori.adventure.text.Component;
+import org.bukkit.GameMode;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.entity.Player;
+import org.bukkit.plugin.java.JavaPlugin;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+/** Ядро сервера: авторизация, наказания, админка, репорты, экономика. */
+public final class VanillaCorePlugin extends JavaPlugin {
+
+    private PluginConfig config;
+    private Messages messages;
+    private ApiClient api;
+    private AuthManager auth;
+    private JailZone jailZone;
+    private JailManager jail;
+    private EspManager esp;
+    private CheckManager checks;
+    private ReportManager reports;
+
+    @Override
+    public void onEnable() {
+        saveDefaultConfig();
+        config = new PluginConfig(getConfig());
+        config.validate().forEach(problem -> getLogger().warning(problem));
+
+        messages = new Messages(getConfig());
+        api = new ApiClient(this, config.apiUrl, config.apiToken);
+        auth = new AuthManager(this, messages);
+
+        jailZone = new JailZone(this, config);
+        jailZone.prepare();
+        jail = new JailManager(this, jailZone, messages);
+
+        esp = new EspManager(this);
+        checks = new CheckManager(this, messages);
+        reports = new ReportManager(this, messages);
+
+        registerListeners();
+        registerCommands();
+        scheduleTasks();
+    }
+
+    private void registerListeners() {
+        var manager = getServer().getPluginManager();
+        manager.registerEvents(new AuthListener(this, auth, messages), this);
+        manager.registerEvents(new JailListener(this, jail, messages), this);
+        manager.registerEvents(new StaffListener(this, checks), this);
+        manager.registerEvents(new ReportMenuListener(this, reports), this);
+    }
+
+    private void registerCommands() {
+        AuthCommands authCommands = new AuthCommands(auth, messages);
+        bind("login", authCommands);
+        bind("2fa", authCommands);
+
+        StaffCommands staff = new StaffCommands(this, messages);
+        for (String name : List.of("spec", "esp", "ajail", "warn", "ban", "check", "asms", "news",
+                "reports", "tp", "tphere")) {
+            bind(name, staff);
+        }
+
+        PlayerCommands player = new PlayerCommands(this, messages);
+        for (String name : List.of("balance", "promo", "bonus", "report")) {
+            bind(name, player);
+        }
+    }
+
+    private void bind(String name, CommandExecutor executor) {
+        var command = getCommand(name);
+        if (command == null) {
+            getLogger().severe("Команда '" + name + "' не объявлена в plugin.yml");
+            return;
+        }
+        command.setExecutor(executor);
+        if (executor instanceof org.bukkit.command.TabCompleter completer) {
+            command.setTabCompleter(completer);
+        }
+    }
+
+    private void scheduleTasks() {
+        getServer().getScheduler().runTaskTimer(this, jail::tick, 20L, 20L);
+        getServer().getScheduler().runTaskTimer(this, esp::refresh,
+                config.espRefreshSeconds * 20L, config.espRefreshSeconds * 20L);
+        getServer().getScheduler().runTaskTimer(this, this::reportPlaytime, 1200L, 1200L);
+    }
+
+    /** Раз в минуту отправляем наигранное время — из него считается уровень аккаунта. */
+    private void reportPlaytime() {
+        List<Map<String, Object>> entries = new ArrayList<>();
+        for (Player player : getServer().getOnlinePlayers()) {
+            if (!auth.authenticated(player)) continue;
+            entries.add(Map.of("login", player.getName(), "seconds", 60));
+        }
+        if (!entries.isEmpty()) {
+            api.post("/api/mc/playtime", Map.of("entries", entries));
+        }
+    }
+
+    /** Игрок ввёл пароль: подтягиваем профиль и применяем всё, что из него следует. */
+    public void onPlayerAuthenticated(Player player) {
+        api.onMain(api.get("/api/mc/profile?login=" + player.getName()), response -> {
+            if (!player.isOnline() || response.get("_status").getAsInt() != 200) return;
+
+            Profile profile = auth.profile(player);
+            profile.setAdminLevel(response.get("adminLevel").getAsInt());
+            profile.setLevel(response.get("level").getAsInt());
+            profile.setBalanceVc(response.get("balanceVc").getAsInt());
+
+            applyRole(player, profile.adminLevel());
+
+            if (response.has("jail") && !response.get("jail").isJsonNull()) {
+                JsonObject jailData = response.getAsJsonObject("jail");
+                jail.restore(player, jailData);
+            }
+        });
+    }
+
+    private void applyRole(Player player, int adminLevel) {
+        esp.applyRole(player, adminLevel);
+
+        String prefix = switch (adminLevel) {
+            case 2 -> "<yellow>[HELPER]</yellow> ";
+            case 3 -> "<red>[ADMIN]</red> ";
+            case 4 -> "<light_purple>[PR]</light_purple> ";
+            case 5 -> "<dark_red>[Chief Admin]</dark_red> ";
+            default -> "";
+        };
+        Component name = Messages.mm(prefix + "<white>" + player.getName());
+        player.displayName(name);
+        player.playerListName(name);
+
+        // Администрация всегда в наблюдателе: так проверки не превращаются в игру
+        // за одну из сторон, а сам админ не может ничего сломать в мире.
+        if (adminLevel >= 2 && config.staffAlwaysSpectator && !jail.isJailed(player)) {
+            player.setGameMode(GameMode.SPECTATOR);
+        }
+    }
+
+    public void onPlayerQuit(Player player) {
+        jail.syncOnQuit(player);
+        checks.onQuit(player);
+        esp.disable(player);
+    }
+
+    /** Пишет действие администрации в журнал сайта. */
+    public void logAdminAction(Player admin, String action, String targetLogin, Map<String, ?> meta) {
+        Map<String, Object> body = new HashMap<>();
+        if (admin != null) body.put("actorLogin", admin.getName());
+        body.put("action", action);
+        if (targetLogin != null) body.put("targetLogin", targetLogin);
+        body.put("meta", meta);
+        api.post("/api/mc/audit", body);
+    }
+
+    @Override
+    public void onDisable() {
+        for (Player player : getServer().getOnlinePlayers()) {
+            jail.syncOnQuit(player);
+        }
+    }
+
+    public PluginConfig config() { return config; }
+    public ApiClient api() { return api; }
+    public AuthManager auth() { return auth; }
+    public JailManager jail() { return jail; }
+    public EspManager esp() { return esp; }
+    public CheckManager checks() { return checks; }
+    public ReportManager reports() { return reports; }
+    public Messages messages() { return messages; }
+}

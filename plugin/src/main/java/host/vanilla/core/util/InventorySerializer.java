@@ -1,4 +1,4 @@
-package host.vanilla.demorgan;
+package host.vanilla.core.util;
 
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.io.BukkitObjectInputStream;
@@ -8,7 +8,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.util.Base64;
 
-/** Сериализация инвентаря в Base64 — чтобы пережить рестарт сервера. */
+/** Инвентарь в Base64 — чтобы деморган пережил рестарт сервера. */
 public final class InventorySerializer {
 
     private InventorySerializer() {}
@@ -17,9 +17,7 @@ public final class InventorySerializer {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try (BukkitObjectOutputStream data = new BukkitObjectOutputStream(out)) {
             data.writeInt(contents.length);
-            for (ItemStack item : contents) {
-                data.writeObject(item);
-            }
+            for (ItemStack item : contents) data.writeObject(item);
         }
         return Base64.getEncoder().encodeToString(out.toByteArray());
     }
@@ -28,9 +26,7 @@ public final class InventorySerializer {
         byte[] bytes = Base64.getDecoder().decode(base64);
         try (BukkitObjectInputStream data = new BukkitObjectInputStream(new ByteArrayInputStream(bytes))) {
             ItemStack[] contents = new ItemStack[data.readInt()];
-            for (int i = 0; i < contents.length; i++) {
-                contents[i] = (ItemStack) data.readObject();
-            }
+            for (int i = 0; i < contents.length; i++) contents[i] = (ItemStack) data.readObject();
             return contents;
         }
     }
