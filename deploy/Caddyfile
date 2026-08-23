@@ -1,0 +1,15 @@
+# Замените домен на свой. Caddy сам получит сертификат Let's Encrypt.
+# Пока домена нет — оставьте :80 и работайте по IP (без HTTPS!).
+{$SITE_DOMAIN::80} {
+	encode gzip
+
+	# API для плагина: пускаем только с IP игрового сервера.
+	@mc path /api/mc/*
+	handle @mc {
+		@blocked not remote_ip {$MC_SERVER_IP:0.0.0.0/0}
+		respond @blocked 403
+		reverse_proxy 127.0.0.1:3000
+	}
+
+	reverse_proxy 127.0.0.1:3000
+}

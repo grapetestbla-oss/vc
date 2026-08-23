@@ -1,0 +1,381 @@
+// Схема базы VanillaCoins. Единственный источник правды для сайта и плагина.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────── Аккаунты ───────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  login        String   @unique // он же ник в игре
+  email        String   @unique
+  passwordHash String
+  balanceVc    Int      @default(0)
+  playtimeSec  Int      @default(0)
+  adminLevel   Int      @default(0) // 0 игрок, 1 media … 5 chief
+  createdAt    DateTime @default(now())
+  lastSeenAt   DateTime?
+  lastIp       String?
+
+  twoFactorCode      String?
+  twoFactorExpiresAt DateTime?
+
+  knownIps        KnownIp[]
+  sessions        Session[]
+  loginAttempts   LoginAttempt[]
+  punishments     Punishment[]     @relation("PunishedUser")
+  issued          Punishment[]     @relation("PunishedBy")
+  reports         Report[]         @relation("ReportAuthor")
+  claimedReports  Report[]         @relation("ReportClaimer")
+  transactions    Transaction[]
+  promoActivation PromoActivation[]
+  bonusUses       BonusUse[]
+  caseOpenings    CaseOpening[]
+  gameRounds      GameRound[]
+  seeds           Seed[]
+  cosmetics       UserCosmetic[]
+  auditEntries    AuditLog[]       @relation("AuditActor")
+  auditTargets    AuditLog[]       @relation("AuditTarget")
+  flags           SuspiciousFlag[]
+  payments        Payment[]
+  ownedPromos     Promo[]          @relation("PromoPartner")
+
+  @@index([adminLevel])
+}
+
+/// Уровень аккаунта считается из наигранного времени, а не хранится.
+model KnownIp {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ip        String
+  firstSeen DateTime @default(now())
+  lastSeen  DateTime @default(now())
+  hits      Int      @default(1)
+
+  @@unique([userId, ip])
+  @@index([ip])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([userId])
+}
+
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  login     String
+  ip        String
+  source    String   // "web" | "game"
+  success   Boolean
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@index([ip, createdAt])
+  @@index([login, createdAt])
+}
+
+// ─────────────────────────────── Наказания ───────────────────────────────
+
+enum PunishmentType {
+  JAIL
+  WARN
+  BAN
+}
+
+model Punishment {
+  id       String         @id @default(cuid())
+  type     PunishmentType
+  userId   String
+  user     User           @relation("PunishedUser", fields: [userId], references: [id], onDelete: Cascade)
+  byUserId String?
+  by       User?          @relation("PunishedBy", fields: [byUserId], references: [id], onDelete: SetNull)
+  reason   String
+
+  issuedAt  DateTime  @default(now())
+  expiresAt DateTime? // для WARN и BAN
+  active    Boolean   @default(true)
+  liftedAt  DateTime?
+  liftedBy  String?
+
+  // только для JAIL
+  totalSeconds     Int?
+  remainingSeconds Int?
+  blocksMined      Int? @default(0)
+  inventoryData    String?
+  returnLocation   String?
+
+  @@index([userId, type, active])
+}
+
+// ──────────────────────────────── Репорты ────────────────────────────────
+
+enum ReportStatus {
+  OPEN
+  CLAIMED
+  CLOSED
+}
+
+model Report {
+  id          String       @id @default(cuid())
+  authorId    String
+  author      User         @relation("ReportAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  text        String
+  status      ReportStatus @default(OPEN)
+  claimedById String?
+  claimedBy   User?        @relation("ReportClaimer", fields: [claimedById], references: [id], onDelete: SetNull)
+  claimedAt   DateTime?
+  closedAt    DateTime?
+  resolution  String?
+  createdAt   DateTime     @default(now())
+
+  @@index([status, createdAt])
+}
+
+// ─────────────────────────────── Экономика ───────────────────────────────
+
+enum TxType {
+  TOPUP
+  CASE_OPEN
+  CASE_REWARD
+  GAME_BET
+  GAME_WIN
+  PROMO
+  BONUS
+  DAILY
+  ADMIN_ADJUST
+}
+
+model Transaction {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type         TxType
+  amount       Int      // может быть отрицательным
+  balanceAfter Int
+  meta         Json?
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([type, createdAt])
+}
+
+model Payment {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amountRub  Int
+  vcAmount   Int
+  provider   String
+  providerId String?  @unique
+  status     String   @default("pending")
+  createdAt  DateTime @default(now())
+  paidAt     DateTime?
+
+  @@index([userId, createdAt])
+}
+
+// ──────────────────────────── Промо и бонусы ─────────────────────────────
+
+model Promo {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  partnerId     String?
+  partner       User?    @relation("PromoPartner", fields: [partnerId], references: [id], onDelete: SetNull)
+  rewardVc      Int      @default(500)
+  requiredLevel Int      @default(3)
+  active        Boolean  @default(true)
+  createdById   String?
+  createdAt     DateTime @default(now())
+
+  activations PromoActivation[]
+}
+
+model PromoActivation {
+  id        String   @id @default(cuid())
+  promoId   String
+  promo     Promo    @relation(fields: [promoId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([promoId, userId])
+  @@index([userId])
+}
+
+model BonusCode {
+  id          String    @id @default(cuid())
+  code        String    @unique
+  rewardVc    Int
+  maxUses     Int
+  usedCount   Int       @default(0)
+  expiresAt   DateTime?
+  active      Boolean   @default(true)
+  createdById String?
+  createdAt   DateTime  @default(now())
+
+  uses BonusUse[]
+}
+
+model BonusUse {
+  id        String    @id @default(cuid())
+  codeId    String
+  code      BonusCode @relation(fields: [codeId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+
+  @@unique([codeId, userId])
+}
+
+// ──────────────────────────── Кейсы и косметика ──────────────────────────
+
+model CaseType {
+  key      String  @id
+  name     String
+  priceVc  Int
+  active   Boolean @default(true)
+  imageUrl String?
+
+  items    CaseItem[]
+  openings CaseOpening[]
+}
+
+enum CaseItemKind {
+  VC
+  COSMETIC
+  XP_BOOST
+}
+
+model CaseItem {
+  id      String       @id @default(cuid())
+  caseKey String
+  case    CaseType     @relation(fields: [caseKey], references: [key], onDelete: Cascade)
+  name    String
+  kind    CaseItemKind
+  payload Json // {"vc":250} | {"cosmetic":"prefix_gold"} | {"hours":2}
+  weight  Int // вес в общей корзине, шанс = weight / sum(weight)
+  rarity  String @default("common")
+
+  openings CaseOpening[]
+
+  @@index([caseKey])
+}
+
+model CaseOpening {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  caseKey        String
+  case           CaseType @relation(fields: [caseKey], references: [key], onDelete: Cascade)
+  itemId         String
+  item           CaseItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  priceVc        Int
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model UserCosmetic {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key        String
+  equipped   Boolean  @default(false)
+  obtainedAt DateTime @default(now())
+
+  @@unique([userId, key])
+}
+
+// ─────────────────────────────── Мини-игры ───────────────────────────────
+
+enum GameKind {
+  ROULETTE
+  CRASH
+}
+
+model GameRound {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game           GameKind
+  betVc          Int
+  target         Float? // выбранный множитель (рулетка) или точка выхода (краш)
+  result         Float // выпавший множитель
+  payoutVc       Int
+  won            Boolean
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([game, createdAt])
+}
+
+/// Пара сидов для provably fair. Активный сид один на игрока.
+model Seed {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serverSeed     String
+  serverSeedHash String
+  clientSeed     String
+  nonce          Int      @default(0)
+  active         Boolean  @default(true)
+  revealedAt     DateTime?
+  createdAt      DateTime @default(now())
+
+  @@index([userId, active])
+}
+
+// ──────────────────────── Логи и антифрод ────────────────────────────────
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  actorId      String?
+  actor        User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  action       String
+  targetUserId String?
+  target       User?    @relation("AuditTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+  ip           String?
+  meta         Json?
+  createdAt    DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+}
+
+model SuspiciousFlag {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind       String // MULTI_ACCOUNT_IP | GAME_ANOMALY | VC_SPIKE | LOGIN_BRUTE | NEW_GEO
+  severity   Int      @default(1) // 1 низкая … 3 высокая
+  details    Json?
+  resolved   Boolean  @default(false)
+  resolvedBy String?
+  createdAt  DateTime @default(now())
+
+  @@index([resolved, severity, createdAt])
+  @@index([userId])
+}
