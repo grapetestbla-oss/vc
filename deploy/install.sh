@@ -32,8 +32,8 @@ if [ ! -f .env ]; then
   cat > .env <<ENV
 POSTGRES_PASSWORD=$(openssl rand -hex 24)
 MC_SERVER_TOKEN=$(openssl rand -hex 32)
-# Домен сайта. Пока пусто — Caddy слушает :80 по IP без сертификата.
-SITE_DOMAIN=
+# Домен сайта — Caddy получит сертификат Let's Encrypt автоматически.
+SITE_DOMAIN=vanillacraft.click
 # IP игрового сервера, которому разрешён доступ к /api/mc/*
 MC_SERVER_IP=5.83.140.208/32
 # Логин, который получит 5 уровень админки при регистрации на сайте.

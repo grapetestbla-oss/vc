@@ -189,35 +189,56 @@ const run = async () => {
   const alexMe = await api("/api/me", { cookie: alex.session });
   check("обычный игрок без админки", alexMe.json?.adminLevel === 0);
 
-  const topUp = await api("/api/admin/balance", {
+  const beforeVerify = await api("/api/panel/balance", {
+    method: "POST",
+    cookie: steve.session,
+    body: { userId: me.json.id, amount: 100, reason: "до входа в панель" },
+  });
+  check("панель закрыта без отдельного входа", beforeVerify.status === 403, beforeVerify.json);
+
+  const wrongPanelPass = await api("/api/panel/verify", {
+    method: "POST",
+    cookie: steve.session,
+    body: { password: "not-my-password" },
+  });
+  check("вход в панель проверяет пароль", wrongPanelPass.status === 401);
+
+  const panelVerify = await api("/api/panel/verify", {
+    method: "POST",
+    cookie: steve.session,
+    body: { password: "password123" },
+  });
+  check("вход в панель по паролю", panelVerify.json?.ok === true, panelVerify.json);
+
+  const topUp = await api("/api/panel/balance", {
     method: "POST",
     cookie: steve.session,
     body: { userId: me.json.id, amount: 3000, reason: "тестовое пополнение" },
   });
   check("chief правит баланс", topUp.json?.balance === 3000, topUp.json);
 
-  const topUpByPlayer = await api("/api/admin/balance", {
+  const topUpByPlayer = await api("/api/panel/balance", {
     method: "POST",
     cookie: alex.session,
     body: { userId: alexMe.json.id, amount: 100000, reason: "себе" },
   });
   check("игрок не правит баланс", topUpByPlayer.status === 403);
 
-  const negative = await api("/api/admin/balance", {
+  const negative = await api("/api/panel/balance", {
     method: "POST",
     cookie: steve.session,
     body: { userId: alexMe.json.id, amount: -100, reason: "в минус" },
   });
   check("баланс не уходит в минус", negative.status === 400, negative.json);
 
-  const promoCreate = await api("/api/admin/promo", {
+  const promoCreate = await api("/api/panel/promo", {
     method: "POST",
     cookie: steve.session,
     body: { code: "BLOGGER", partnerLogin: "Steve", rewardVc: 500, requiredLevel: 3 },
   });
   check("chief создаёт промокод", promoCreate.json?.ok === true, promoCreate.json);
 
-  const promoByPlayer = await api("/api/admin/promo", {
+  const promoByPlayer = await api("/api/panel/promo", {
     method: "POST",
     cookie: alex.session,
     body: { code: "HACK", rewardVc: 100000, requiredLevel: 0 },
@@ -231,7 +252,7 @@ const run = async () => {
   });
   check("промокод требует уровень аккаунта", lowLevel.json?.status === "level_too_low", lowLevel.json);
 
-  await api("/api/admin/promo", {
+  await api("/api/panel/promo", {
     method: "POST",
     cookie: steve.session,
     body: { code: "OPEN", rewardVc: 500, requiredLevel: 0 },
@@ -250,7 +271,7 @@ const run = async () => {
   });
   check("второй промокод не активируется", promoAgain.json?.status === "already_used");
 
-  const bonusCreate = await api("/api/admin/bonus", {
+  const bonusCreate = await api("/api/panel/bonus", {
     method: "POST",
     cookie: steve.session,
     body: { code: "ONESHOT", rewardVc: 100, maxUses: 1 },
@@ -345,21 +366,21 @@ const run = async () => {
   check("без входа играть нельзя", anonGame.status === 401);
 
   console.log("— Права —");
-  const punishAsPlayer = await api("/api/admin/punish", {
+  const punishAsPlayer = await api("/api/panel/punish", {
     method: "POST",
     cookie: alex.session,
     body: { userId: me.json.id, type: "BAN", reason: "просто так", days: 30 },
   });
   check("игрок не банит через панель", punishAsPlayer.status === 403);
 
-  const staffByPlayer = await api("/api/admin/staff", {
+  const staffByPlayer = await api("/api/panel/staff", {
     method: "POST",
     cookie: alex.session,
     body: { userId: alexMe.json.id, level: 5 },
   });
   check("игрок не выдаёт себе админку", staffByPlayer.status === 403);
 
-  const staffGrant = await api("/api/admin/staff", {
+  const staffGrant = await api("/api/panel/staff", {
     method: "POST",
     cookie: steve.session,
     body: { userId: alexMe.json.id, level: 2 },
@@ -394,6 +415,66 @@ const run = async () => {
     body: { type: "JAIL", targetLogin: "Steve", actorLogin: "Alex", reason: "месть", minutes: 10 },
   });
   check("нельзя наказать старшего по уровню", equalLevel.status === 403, equalLevel.json);
+
+  console.log("— Двухфакторная защита панели —");
+  const { createHmac } = await import("node:crypto");
+
+  function totpCode(secret, shift = 0) {
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+    let bits = "";
+    for (const char of secret.toUpperCase()) {
+      const index = alphabet.indexOf(char);
+      if (index >= 0) bits += index.toString(2).padStart(5, "0");
+    }
+    const bytes = [];
+    for (let i = 0; i + 8 <= bits.length; i += 8) bytes.push(parseInt(bits.slice(i, i + 8), 2));
+    const counter = Math.floor(Date.now() / 1000 / 30) + shift;
+    const buffer = Buffer.alloc(8);
+    buffer.writeBigUInt64BE(BigInt(counter));
+    const digest = createHmac("sha1", Buffer.from(bytes)).update(buffer).digest();
+    const offset = digest[digest.length - 1] & 0x0f;
+    const value =
+      ((digest[offset] & 0x7f) << 24) |
+      ((digest[offset + 1] & 0xff) << 16) |
+      ((digest[offset + 2] & 0xff) << 8) |
+      (digest[offset + 3] & 0xff);
+    return String(value % 1000000).padStart(6, "0");
+  }
+
+  const totpSetup = await api("/api/panel/totp", { method: "POST", cookie: steve.session });
+  check("секрет TOTP выдан", typeof totpSetup.json?.secret === "string", totpSetup.json);
+  check("ссылка otpauth сформирована", String(totpSetup.json?.otpauth).startsWith("otpauth://totp/"));
+
+  const totpBadCode = await api("/api/panel/totp", {
+    method: "PUT",
+    cookie: steve.session,
+    body: { code: "000000" },
+  });
+  check("неверный код TOTP не включает защиту", totpBadCode.status === 400);
+
+  const totpEnable = await api("/api/panel/totp", {
+    method: "PUT",
+    cookie: steve.session,
+    body: { code: totpCode(totpSetup.json.secret) },
+  });
+  check("TOTP включается верным кодом", totpEnable.json?.ok === true, totpEnable.json);
+
+  const verifyNoCode = await api("/api/panel/verify", {
+    method: "POST",
+    cookie: steve.session,
+    body: { password: "password123" },
+  });
+  check("после включения TOTP пароля мало", verifyNoCode.status === 401, verifyNoCode.json);
+
+  const verifyWithCode = await api("/api/panel/verify", {
+    method: "POST",
+    cookie: steve.session,
+    body: { password: "password123", code: totpCode(totpSetup.json.secret) },
+  });
+  check("код из приложения пускает в панель", verifyWithCode.json?.ok === true, verifyWithCode.json);
+
+  const totpByPlayer = await api("/api/panel/totp", { method: "POST", cookie: alex.session });
+  check("helper не трогает TOTP панели", totpByPlayer.status === 403, totpByPlayer.json);
 
   console.log("— Итог —");
   console.log(`Пройдено: ${passed}, провалено: ${failed}`);

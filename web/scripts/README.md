@@ -24,3 +24,15 @@ BASE=http://127.0.0.1:3000 MC_SERVER_TOKEN=... node scripts/e2e.mjs
 ```
 
 Требует чистую базу и `BOOTSTRAP_ADMIN_LOGIN=Steve` у запущенного сайта.
+
+## `screenshots.mjs`
+
+Снимает страницы сайта и панели через Chromium (playwright-core) — быстрый
+способ проверить вёрстку после правок.
+
+```
+BASE=http://127.0.0.1:3000 OUT=./shots node scripts/screenshots.mjs
+```
+
+Регистрирует аккаунт `Steve`, поэтому запускать против чистой базы с
+`BOOTSTRAP_ADMIN_LOGIN=Steve`.

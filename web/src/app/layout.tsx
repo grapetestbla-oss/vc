@@ -30,7 +30,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                     {user.login}
                   </Link>
                   {user.adminLevel >= 3 && (
-                    <Link href="/admin" className="btn-ghost text-sm">
+                    <Link href="/panel" className="btn-ghost text-sm">
                       Панель
                     </Link>
                   )}

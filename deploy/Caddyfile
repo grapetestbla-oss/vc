@@ -1,15 +1,30 @@
-# Замените домен на свой. Caddy сам получит сертификат Let's Encrypt.
-# Пока домена нет — оставьте :80 и работайте по IP (без HTTPS!).
-{$SITE_DOMAIN::80} {
+# Домен берётся из SITE_DOMAIN в deploy/.env. Caddy сам получает
+# сертификат Let's Encrypt, поэтому пароли игроков ходят по HTTPS.
+{$SITE_DOMAIN:localhost} {
 	encode gzip
 
 	# API для плагина: пускаем только с IP игрового сервера.
 	@mc path /api/mc/*
 	handle @mc {
-		@blocked not remote_ip {$MC_SERVER_IP:0.0.0.0/0}
-		respond @blocked 403
+		@foreign not remote_ip {$MC_SERVER_IP:0.0.0.0/0}
+		respond @foreign 403
+		reverse_proxy 127.0.0.1:3000
+	}
+
+	# Панель администрации — тоже за общим прокси, но с отдельным логом.
+	@panel path /panel*
+	handle @panel {
 		reverse_proxy 127.0.0.1:3000
 	}
 
 	reverse_proxy 127.0.0.1:3000
+
+	log {
+		output file /data/access.log
+		format json
+	}
+}
+
+www.{$SITE_DOMAIN:localhost} {
+	redir https://{$SITE_DOMAIN}{uri} permanent
 }

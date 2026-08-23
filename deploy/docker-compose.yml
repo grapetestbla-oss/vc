@@ -34,6 +34,9 @@ services:
     image: caddy:2-alpine
     restart: unless-stopped
     network_mode: host
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:-localhost}
+      MC_SERVER_IP: ${MC_SERVER_IP:-0.0.0.0/0}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddydata:/data

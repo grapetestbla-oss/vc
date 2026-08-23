@@ -26,6 +26,10 @@ model User {
   twoFactorCode      String?
   twoFactorExpiresAt DateTime?
 
+  /// TOTP для входа в админ-панель. У обычных игроков не используется.
+  totpSecret    String?
+  totpEnabledAt DateTime?
+
   knownIps        KnownIp[]
   sessions        Session[]
   loginAttempts   LoginAttempt[]
@@ -72,6 +76,9 @@ model Session {
   userAgent String?
   createdAt DateTime @default(now())
   expiresAt DateTime
+
+  /// Доступ в панель подтверждается отдельно и живёт меньше самой сессии.
+  panelVerifiedUntil DateTime?
 
   @@index([userId])
 }

@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function AuthForm({ mode }: { mode: "login" | "register" }) {
   const router = useRouter();
+  const params = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -27,7 +28,7 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
       setError(data.error ?? "Ошибка");
       return;
     }
-    router.push("/cabinet");
+    router.push(params.get("next") ?? "/cabinet");
     router.refresh();
   }
 

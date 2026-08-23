@@ -36,7 +36,7 @@ export default function UserActions({
         onSubmit={(event) => {
           event.preventDefault();
           const form = new FormData(event.currentTarget);
-          call("/api/admin/punish", {
+          call("/api/panel/punish", {
             type: form.get("type"),
             reason: form.get("reason"),
             minutes: Number(form.get("minutes") || 0),
@@ -62,7 +62,7 @@ export default function UserActions({
             onSubmit={(event) => {
               event.preventDefault();
               const form = new FormData(event.currentTarget);
-              call("/api/admin/balance", {
+              call("/api/panel/balance", {
                 amount: Number(form.get("amount")),
                 reason: form.get("reason"),
               });
@@ -78,7 +78,7 @@ export default function UserActions({
             onSubmit={(event) => {
               event.preventDefault();
               const form = new FormData(event.currentTarget);
-              call("/api/admin/staff", { level: Number(form.get("level")) });
+              call("/api/panel/staff", { level: Number(form.get("level")) });
             }}
           >
             <select name="level" className="input w-56">

@@ -3,7 +3,7 @@
 
 api:
   # Адрес сайта. Плагин ходит только сюда, в базу напрямую не лезет.
-  url: "http://127.0.0.1:3000"
+  url: "https://vanillacraft.click"
   # Тот же токен, что MC_SERVER_TOKEN в .env сайта.
   token: ""
 
