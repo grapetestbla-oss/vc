@@ -12,14 +12,16 @@ datasource db {
 // ─────────────────────────────── Аккаунты ───────────────────────────────
 
 model User {
-  id           String   @id @default(cuid())
-  login        String   @unique // он же ник в игре
-  email        String   @unique
+  id           String    @id @default(cuid())
+  login        String    @unique // он же ник в игре
+  email        String    @unique
   passwordHash String
-  balanceVc    Int      @default(0)
-  playtimeSec  Int      @default(0)
-  adminLevel   Int      @default(0) // 0 игрок, 1 media … 5 chief
-  createdAt    DateTime @default(now())
+  balanceVc    Int       @default(0)
+  /// Осколки: дубли из кейсов превращаются в них, за них покупают нужный предмет.
+  shards       Int       @default(0)
+  playtimeSec  Int       @default(0)
+  adminLevel   Int       @default(0) // 0 игрок, 1 media … 5 chief
+  createdAt    DateTime  @default(now())
   lastSeenAt   DateTime?
   lastIp       String?
 
@@ -33,10 +35,10 @@ model User {
   knownIps        KnownIp[]
   sessions        Session[]
   loginAttempts   LoginAttempt[]
-  punishments     Punishment[]     @relation("PunishedUser")
-  issued          Punishment[]     @relation("PunishedBy")
-  reports         Report[]         @relation("ReportAuthor")
-  claimedReports  Report[]         @relation("ReportClaimer")
+  punishments     Punishment[]      @relation("PunishedUser")
+  issued          Punishment[]      @relation("PunishedBy")
+  reports         Report[]          @relation("ReportAuthor")
+  claimedReports  Report[]          @relation("ReportClaimer")
   transactions    Transaction[]
   promoActivation PromoActivation[]
   bonusUses       BonusUse[]
@@ -44,12 +46,12 @@ model User {
   gameRounds      GameRound[]
   seeds           Seed[]
   cosmetics       UserCosmetic[]
-  auditEntries    AuditLog[]       @relation("AuditActor")
-  auditTargets    AuditLog[]       @relation("AuditTarget")
+  auditEntries    AuditLog[]        @relation("AuditActor")
+  auditTargets    AuditLog[]        @relation("AuditTarget")
   flags           SuspiciousFlag[]
   payments        Payment[]
-  ownedPromos     Promo[]          @relation("PromoPartner")
-  news            News[]           @relation("NewsAuthor")
+  ownedPromos     Promo[]           @relation("PromoPartner")
+  news            News[]            @relation("NewsAuthor")
 
   @@index([adminLevel])
 }
@@ -90,7 +92,7 @@ model LoginAttempt {
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   login     String
   ip        String
-  source    String   // "web" | "game"
+  source    String // "web" | "game"
   success   Boolean
   reason    String?
   createdAt DateTime @default(now())
@@ -125,7 +127,7 @@ model Punishment {
   // только для JAIL
   totalSeconds     Int?
   remainingSeconds Int?
-  blocksMined      Int? @default(0)
+  blocksMined      Int?    @default(0)
   inventoryData    String?
   returnLocation   String?
 
@@ -175,7 +177,7 @@ model Transaction {
   userId       String
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   type         TxType
-  amount       Int      // может быть отрицательным
+  amount       Int // может быть отрицательным
   balanceAfter Int
   meta         Json?
   createdAt    DateTime @default(now())
@@ -185,15 +187,15 @@ model Transaction {
 }
 
 model Payment {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   amountRub  Int
   vcAmount   Int
   provider   String
-  providerId String?  @unique
-  status     String   @default("pending")
-  createdAt  DateTime @default(now())
+  providerId String?   @unique
+  status     String    @default("pending")
+  createdAt  DateTime  @default(now())
   paidAt     DateTime?
 
   @@index([userId, createdAt])
@@ -255,11 +257,21 @@ model BonusUse {
 // ──────────────────────────── Кейсы и косметика ──────────────────────────
 
 model CaseType {
-  key      String  @id
-  name     String
-  priceVc  Int
-  active   Boolean @default(true)
-  imageUrl String?
+  key         String  @id
+  name        String
+  description String  @default("")
+  priceVc     Int
+  active      Boolean @default(true)
+  imageUrl    String?
+
+  seasonKey      String?
+  /// После этой даты кейс исчезает навсегда — вместе с шансом выбить его предметы.
+  availableUntil DateTime?
+  /// Бесплатное открытие раз в сутки.
+  freeDaily      Boolean   @default(false)
+  /// Гарант: столько открытий без легендарки — и она выпадает принудительно.
+  pityThreshold  Int       @default(0)
+  sortOrder      Int       @default(0)
 
   items    CaseItem[]
   openings CaseOpening[]
@@ -268,22 +280,79 @@ model CaseType {
 enum CaseItemKind {
   VC
   COSMETIC
-  XP_BOOST
+  SHARDS
+}
+
+/// Что косметика делает в игре. Плагин смотрит на kind и payload.
+enum CosmeticKind {
+  TRAIL
+  AURA
+  PET
+  HAT
+  JOIN_EFFECT
+  NAME_COLOR
+  TITLE
+  WORLD_MARK
+}
+
+model Cosmetic {
+  key           String       @id
+  name          String
+  description   String
+  kind          CosmeticKind
+  rarity        String       @default("common")
+  /// Параметры для плагина: частица, моб, звук, материал шляпы, цвет.
+  payload       Json
+  /// Сезон, в котором предмет выпадал. Прошедшие сезоны больше не выпадают.
+  seasonKey     String?
+  collectionKey String?
+  collection    Collection?  @relation(fields: [collectionKey], references: [key], onDelete: SetNull)
+  /// Лимит экземпляров: у первых владельцев будет номер #1, #2 и так далее.
+  serialLimit   Int?
+  /// Награда за коллекцию — в кейсах не выпадает.
+  obtainable    Boolean      @default(true)
+  shardPrice    Int?
+
+  owners    UserCosmetic[]
+  caseItems CaseItem[]
+  rewardFor Collection[]   @relation("CollectionReward")
+}
+
+model Collection {
+  key       String    @id
+  name      String
+  seasonKey String?
+  /// Что дают за полный сбор.
+  rewardKey String?
+  reward    Cosmetic? @relation("CollectionReward", fields: [rewardKey], references: [key], onDelete: SetNull)
+
+  items Cosmetic[]
 }
 
 model CaseItem {
-  id      String       @id @default(cuid())
-  caseKey String
-  case    CaseType     @relation(fields: [caseKey], references: [key], onDelete: Cascade)
-  name    String
-  kind    CaseItemKind
-  payload Json // {"vc":250} | {"cosmetic":"prefix_gold"} | {"hours":2}
-  weight  Int // вес в общей корзине, шанс = weight / sum(weight)
-  rarity  String @default("common")
+  id          String       @id @default(cuid())
+  caseKey     String
+  case        CaseType     @relation(fields: [caseKey], references: [key], onDelete: Cascade)
+  kind        CaseItemKind
+  /// Для COSMETIC — ссылка на каталог, для VC и SHARDS — количество.
+  cosmeticKey String?
+  cosmetic    Cosmetic?    @relation(fields: [cosmeticKey], references: [key], onDelete: Cascade)
+  amount      Int?
+  weight      Int // вес в общей корзине, шанс = weight / sum(weight)
 
   openings CaseOpening[]
 
   @@index([caseKey])
+}
+
+/// Счётчик открытий без легендарки — по игроку на каждый кейс.
+model PityCounter {
+  id      String @id @default(cuid())
+  userId  String
+  caseKey String
+  count   Int    @default(0)
+
+  @@unique([userId, caseKey])
 }
 
 model CaseOpening {
@@ -295,6 +364,10 @@ model CaseOpening {
   itemId         String
   item           CaseItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
   priceVc        Int
+  /// Дубль превратился в осколки, а не в предмет.
+  duplicate      Boolean  @default(false)
+  /// Выдано гарантом, а не броском.
+  fromPity       Boolean  @default(false)
   serverSeedHash String
   clientSeed     String
   nonce          Int
@@ -308,10 +381,14 @@ model UserCosmetic {
   userId     String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   key        String
+  cosmetic   Cosmetic @relation(fields: [key], references: [key], onDelete: Cascade)
   equipped   Boolean  @default(false)
+  /// Номер экземпляра для лимитированных предметов.
+  serial     Int?
   obtainedAt DateTime @default(now())
 
   @@unique([userId, key])
+  @@index([key])
 }
 
 // ─────────────────────────────── Мини-игры ───────────────────────────────
@@ -342,16 +419,16 @@ model GameRound {
 
 /// Пара сидов для provably fair. Активный сид один на игрока.
 model Seed {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   serverSeed     String
   serverSeedHash String
   clientSeed     String
-  nonce          Int      @default(0)
-  active         Boolean  @default(true)
+  nonce          Int       @default(0)
+  active         Boolean   @default(true)
   revealedAt     DateTime?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime  @default(now())
 
   @@index([userId, active])
 }
@@ -398,8 +475,8 @@ model News {
   body     String
   coverUrl String?
 
-  published Boolean   @default(true)
-  pinned    Boolean   @default(false)
+  published     Boolean   @default(true)
+  pinned        Boolean   @default(false)
   /// Объявить новость в игровом чате — плагин заберёт её сам.
   broadcast     Boolean   @default(false)
   broadcastedAt DateTime?

@@ -1,49 +1,79 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, type Prisma } from "@prisma/client";
+import { COSMETICS, COLLECTIONS } from "./catalogue";
+import { CASES } from "./cases";
 
 const db = new PrismaClient();
 
-/** Стартовые кейсы. Внутри только косметика и VC — никакого игрового преимущества. */
-const CASES = [
-  {
-    key: "starter",
-    name: "Стартовый кейс",
-    priceVc: 100,
-    items: [
-      { name: "50 VC", kind: "VC" as const, payload: { vc: 50 }, weight: 400, rarity: "common" },
-      { name: "100 VC", kind: "VC" as const, payload: { vc: 100 }, weight: 250, rarity: "common" },
-      { name: "250 VC", kind: "VC" as const, payload: { vc: 250 }, weight: 80, rarity: "rare" },
-      { name: "Серый ник", kind: "COSMETIC" as const, payload: { cosmetic: "name_gray" }, weight: 150, rarity: "common" },
-      { name: "Зелёный ник", kind: "COSMETIC" as const, payload: { cosmetic: "name_green" }, weight: 100, rarity: "rare" },
-      { name: "Золотой ник", kind: "COSMETIC" as const, payload: { cosmetic: "name_gold" }, weight: 20, rarity: "epic" },
-    ],
-  },
-  {
-    key: "prefix",
-    name: "Кейс префиксов",
-    priceVc: 300,
-    items: [
-      { name: "100 VC", kind: "VC" as const, payload: { vc: 100 }, weight: 350, rarity: "common" },
-      { name: "Префикс Ветеран", kind: "COSMETIC" as const, payload: { cosmetic: "prefix_veteran" }, weight: 200, rarity: "common" },
-      { name: "Префикс Шахтёр", kind: "COSMETIC" as const, payload: { cosmetic: "prefix_miner" }, weight: 200, rarity: "common" },
-      { name: "Префикс Легенда", kind: "COSMETIC" as const, payload: { cosmetic: "prefix_legend" }, weight: 40, rarity: "epic" },
-      { name: "1000 VC", kind: "VC" as const, payload: { vc: 1000 }, weight: 10, rarity: "legendary" },
-    ],
-  },
-];
-
 async function main() {
-  for (const caseType of CASES) {
-    await db.caseType.upsert({
-      where: { key: caseType.key },
-      create: { key: caseType.key, name: caseType.name, priceVc: caseType.priceVc },
-      update: { name: caseType.name, priceVc: caseType.priceVc },
-    });
-    await db.caseItem.deleteMany({ where: { caseKey: caseType.key } });
-    await db.caseItem.createMany({
-      data: caseType.items.map((item) => ({ ...item, caseKey: caseType.key })),
+  // Коллекции создаём без наград: награда — тоже косметика, её ещё нет.
+  for (const collection of COLLECTIONS) {
+    await db.collection.upsert({
+      where: { key: collection.key },
+      create: { key: collection.key, name: collection.name, seasonKey: collection.seasonKey },
+      update: { name: collection.name, seasonKey: collection.seasonKey },
     });
   }
-  console.log("Кейсы загружены");
+
+  for (const cosmetic of COSMETICS) {
+    const data = {
+      name: cosmetic.name,
+      description: cosmetic.description,
+      kind: cosmetic.kind,
+      rarity: cosmetic.rarity,
+      payload: cosmetic.payload as Prisma.InputJsonValue,
+      seasonKey: cosmetic.seasonKey ?? null,
+      collectionKey: cosmetic.collectionKey ?? null,
+      serialLimit: cosmetic.serialLimit ?? null,
+      obtainable: cosmetic.obtainable ?? true,
+      shardPrice: cosmetic.shardPrice ?? null,
+    };
+    await db.cosmetic.upsert({
+      where: { key: cosmetic.key },
+      create: { key: cosmetic.key, ...data },
+      update: data,
+    });
+  }
+
+  // Теперь награды за коллекции существуют — привязываем.
+  for (const collection of COLLECTIONS) {
+    await db.collection.update({
+      where: { key: collection.key },
+      data: { rewardKey: collection.rewardKey },
+    });
+  }
+
+  for (const caseSeed of CASES) {
+    const data = {
+      name: caseSeed.name,
+      description: caseSeed.description,
+      priceVc: caseSeed.priceVc,
+      seasonKey: caseSeed.seasonKey ?? null,
+      freeDaily: caseSeed.freeDaily ?? false,
+      pityThreshold: caseSeed.pityThreshold ?? 0,
+      sortOrder: caseSeed.sortOrder,
+      active: true,
+    };
+    await db.caseType.upsert({
+      where: { key: caseSeed.key },
+      create: { key: caseSeed.key, ...data },
+      update: data,
+    });
+
+    await db.caseItem.deleteMany({ where: { caseKey: caseSeed.key } });
+    await db.caseItem.createMany({
+      data: caseSeed.items.map((item) => ({
+        caseKey: caseSeed.key,
+        kind: item.kind,
+        cosmeticKey: item.kind === "COSMETIC" ? item.cosmeticKey : null,
+        amount: item.kind === "COSMETIC" ? null : item.amount,
+        weight: item.weight,
+      })),
+    });
+  }
+
+  console.log(
+    `Каталог загружен: косметики ${COSMETICS.length}, коллекций ${COLLECTIONS.length}, кейсов ${CASES.length}`,
+  );
 }
 
 main()

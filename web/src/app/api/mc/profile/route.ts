@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     where: { login },
     include: {
       punishments: { where: { active: true }, orderBy: { issuedAt: "desc" } },
-      cosmetics: { where: { equipped: true } },
+      cosmetics: { where: { equipped: true }, include: { cosmetic: true } },
     },
   });
   if (!user) return Response.json({ error: "not found" }, { status: 404 });
@@ -26,7 +26,12 @@ export async function GET(request: Request) {
     level: levelFromPlaytime(user.playtimeSec),
     playtimeSec: user.playtimeSec,
     adminLevel: user.adminLevel,
-    cosmetics: user.cosmetics.map((c) => c.key),
+    cosmetics: user.cosmetics.map((owned) => ({
+      key: owned.key,
+      kind: owned.cosmetic.kind,
+      payload: owned.cosmetic.payload,
+      serial: owned.serial,
+    })),
     warns: user.punishments.filter((p) => p.type === "WARN").length,
     jail: jail
       ? {

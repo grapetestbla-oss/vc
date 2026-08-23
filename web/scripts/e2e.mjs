@@ -292,21 +292,88 @@ const run = async () => {
   });
   check("лимит активаций держится", bonusSecond.json?.status === "exhausted", bonusSecond.json);
 
-  console.log("— Кейсы и игры —");
-  const beforeCase = await api("/api/me", { cookie: steve.session });
-  const opening = await api("/api/cases/open", {
+  console.log("— Кейсы —");
+  const freeOpen = await api("/api/cases/open", {
     method: "POST",
     cookie: steve.session,
-    body: { caseKey: "starter" },
+    body: { caseKey: "daily" },
   });
-  check("кейс открывается", opening.status === 200 && Boolean(opening.json?.item), opening.json);
-  check("кейс раскрывает fairness", typeof opening.json?.fairness?.serverSeedHash === "string");
+  check("бесплатный кейс открывается", freeOpen.status === 200, freeOpen.json);
+
+  const freeAgain = await api("/api/cases/open", {
+    method: "POST",
+    cookie: steve.session,
+    body: { caseKey: "daily" },
+  });
+  check("второе бесплатное открытие в сутки не проходит", freeAgain.status === 400, freeAgain.json);
+
+  const beforeCase = await api("/api/me", { cookie: steve.session });
+  const paidOpen = await api("/api/cases/open", {
+    method: "POST",
+    cookie: steve.session,
+    body: { caseKey: "wild" },
+  });
+  check("платный кейс открывается", paidOpen.status === 200, paidOpen.json);
+  check("кейс раскрывает fairness", typeof paidOpen.json?.fairness?.serverSeedHash === "string");
   check(
     "цена кейса списана",
-    opening.json?.balance === beforeCase.json.balanceVc - 100 + (opening.json?.rewardVc ?? 0),
-    { before: beforeCase.json.balanceVc, after: opening.json?.balance, reward: opening.json?.rewardVc },
+    paidOpen.json?.balanceVc ===
+      beforeCase.json.balanceVc - 250 + (paidOpen.json?.kind === "VC" ? paidOpen.json.amount : 0),
+    { before: beforeCase.json.balanceVc, after: paidOpen.json?.balanceVc, item: paidOpen.json?.kind },
   );
+  check("счётчик гаранта считает", paidOpen.json?.pity?.threshold === 40, paidOpen.json?.pity);
 
+  const noMoney = await api("/api/cases/open", {
+    method: "POST",
+    cookie: alex.session,
+    body: { caseKey: "legends" },
+  });
+  check("кейс без денег не открывается", noMoney.status === 400, noMoney.json);
+
+  // Гарант: у кейса легенд порог 20, поэтому за 20 открытий легендарка обязана выпасть.
+  await api("/api/panel/balance", {
+    method: "POST",
+    cookie: steve.session,
+    body: { userId: me.json.id, amount: 20000, reason: "проверка гаранта" },
+  });
+  let sawLegendary = false;
+  let opens = 0;
+  let lastSpin = null;
+  for (let i = 0; i < 20; i++) {
+    const spin = await api("/api/cases/open", {
+      method: "POST",
+      cookie: steve.session,
+      body: { caseKey: "legends" },
+    });
+    lastSpin = spin;
+    if (spin.status !== 200) break;
+    opens++;
+    if (spin.json.cosmetic?.rarity === "legendary") {
+      sawLegendary = true;
+      break;
+    }
+  }
+  check("двадцать открытий проходят", opens > 0, { opens, lastSpin: lastSpin?.json });
+  check("за двадцать открытий выпала легендарка", sawLegendary, { opens });
+
+  const afterOpens = await api("/api/me", { cookie: steve.session });
+  check("осколки начисляются", afterOpens.json.shards > 0, { shards: afterOpens.json.shards });
+
+  const buyMissing = await api("/api/cosmetics/buy", {
+    method: "POST",
+    cookie: alex.session,
+    body: { key: "trail_ash" },
+  });
+  check("без осколков покупка не проходит", buyMissing.status === 400, buyMissing.json);
+
+  const collectionReward = await api("/api/cosmetics/buy", {
+    method: "POST",
+    cookie: steve.session,
+    body: { key: "trail_eclipse" },
+  });
+  check("награду за коллекцию нельзя купить", collectionReward.status === 400, collectionReward.json);
+
+  console.log("— Игры —");
   const tinyBet = await api("/api/games/roulette", {
     method: "POST",
     cookie: steve.session,
@@ -364,6 +431,19 @@ const run = async () => {
     body: { bet: 10, multiplier: 2 },
   });
   check("без входа играть нельзя", anonGame.status === 401);
+
+  console.log("— Косметика —");
+  const catalogue = await fetch(BASE + "/collection", {
+    headers: { Cookie: steve.session },
+  });
+  check("страница коллекции открывается", catalogue.status === 200);
+
+  const equipForeign = await api("/api/cosmetics/equip", {
+    method: "POST",
+    cookie: alex.session,
+    body: { key: "trail_dragon", equipped: true },
+  });
+  check("чужую косметику надеть нельзя", equipForeign.status === 404, equipForeign.json);
 
   console.log("— Права —");
   const punishAsPlayer = await api("/api/panel/punish", {

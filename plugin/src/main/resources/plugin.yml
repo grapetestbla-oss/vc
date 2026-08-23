@@ -20,6 +20,9 @@ commands:
   bonus:
     description: Активировать бонус-код
     usage: /bonus <код>
+  cosmetics:
+    description: Активная косметика и ссылка на коллекцию
+    usage: /cosmetics [reload]
   report:
     description: Пожаловаться администрации
     usage: /report <текст>

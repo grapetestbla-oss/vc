@@ -16,6 +16,7 @@ export async function GET() {
     id: user.id,
     login: user.login,
     balanceVc: user.balanceVc,
+    shards: user.shards,
     level: levelFromPlaytime(user.playtimeSec),
     playtimeSec: user.playtimeSec,
     adminLevel: user.adminLevel,

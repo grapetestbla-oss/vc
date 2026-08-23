@@ -87,6 +87,17 @@ await shot("/panel/security", "08-panel-security");
 await shot("/panel/news", "09-panel-news");
 await shot("/news", "10-news");
 await shot("/cases", "11-cases");
+
+// открываем бесплатный кейс и ловим результат — видно ленту и карточку выпавшего
+await page.goto(BASE + "/cases", { waitUntil: "networkidle" });
+await page.click("section:has-text('Ежедневный ящик') button.btn");
+await page.waitForTimeout(5200);
+await page.evaluate(() => window.scrollTo(0, 0));
+await page.waitForTimeout(400);
+await page.screenshot({ path: `${OUT}/13-case-opened.png`, fullPage: true });
+console.log("13 case opened");
+
+await shot("/collection", "14-collection");
 await shot("/games", "12-games");
 await shot("/", "01-home");
 await shot("/cabinet", "02-cabinet");

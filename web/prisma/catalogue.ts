@@ -1,0 +1,409 @@
+/**
+ * Каталог косметики и кейсов.
+ *
+ * Правило одно: ничего, что даёт игровое преимущество. Всё, что тут есть, —
+ * это то, что видно другим игрокам. Шляпы надеваются в слот шлема и не дают
+ * брони, питомцы неуязвимы и ничего не подбирают, шлейфы и ауры — чистые
+ * частицы.
+ */
+
+export type CosmeticSeed = {
+  key: string;
+  name: string;
+  description: string;
+  kind: "TRAIL" | "AURA" | "PET" | "HAT" | "JOIN_EFFECT" | "NAME_COLOR" | "TITLE" | "WORLD_MARK";
+  rarity: "common" | "rare" | "epic" | "legendary";
+  payload: Record<string, unknown>;
+  seasonKey?: string;
+  collectionKey?: string;
+  serialLimit?: number;
+  obtainable?: boolean;
+  shardPrice?: number;
+};
+
+const SEASON = "season-1";
+
+export const COSMETICS: CosmeticSeed[] = [
+  // ───────────────────────────── шлейфы ─────────────────────────────
+  {
+    key: "trail_ash",
+    name: "Пепел",
+    description: "За вами тянется дорожка тлеющего пепла.",
+    kind: "TRAIL",
+    rarity: "common",
+    payload: { particle: "ASH", count: 3, speed: 0.01 },
+    seasonKey: SEASON,
+    collectionKey: "elements",
+    shardPrice: 40,
+  },
+  {
+    key: "trail_firefly",
+    name: "Светлячки",
+    description: "Мягкие огоньки, которые особенно хороши ночью.",
+    kind: "TRAIL",
+    rarity: "common",
+    payload: { particle: "END_ROD", count: 2, speed: 0.01 },
+    seasonKey: SEASON,
+    shardPrice: 40,
+  },
+  {
+    key: "trail_snowstorm",
+    name: "Метель",
+    description: "Снежный вихрь идёт за вами даже в пустыне.",
+    kind: "TRAIL",
+    rarity: "rare",
+    payload: { particle: "SNOWFLAKE", count: 6, speed: 0.02 },
+    seasonKey: SEASON,
+    collectionKey: "elements",
+    shardPrice: 120,
+  },
+  {
+    key: "trail_ember",
+    name: "Угли",
+    description: "Раскалённые искры, будто вы только что из Нижнего мира.",
+    kind: "TRAIL",
+    rarity: "rare",
+    payload: { particle: "FLAME", count: 4, speed: 0.01 },
+    seasonKey: SEASON,
+    collectionKey: "elements",
+    shardPrice: 120,
+  },
+  {
+    key: "trail_souls",
+    name: "Души",
+    description: "Голубое пламя душ. Выглядит недобро — и в этом смысл.",
+    kind: "TRAIL",
+    rarity: "epic",
+    payload: { particle: "SOUL_FIRE_FLAME", count: 5, speed: 0.015 },
+    seasonKey: SEASON,
+    collectionKey: "elements",
+    shardPrice: 400,
+  },
+  {
+    key: "trail_rift",
+    name: "Разлом",
+    description: "Пространство за спиной слегка рвётся.",
+    kind: "TRAIL",
+    rarity: "epic",
+    payload: { particle: "REVERSE_PORTAL", count: 8, speed: 0.05 },
+    seasonKey: SEASON,
+    collectionKey: "elements",
+    shardPrice: 400,
+  },
+  {
+    key: "trail_dragon",
+    name: "Дыхание дракона",
+    description: "Тот самый фиолетовый выдох. Только без урона.",
+    kind: "TRAIL",
+    rarity: "legendary",
+    payload: { particle: "DRAGON_BREATH", count: 6, speed: 0.02 },
+    seasonKey: SEASON,
+    shardPrice: 1200,
+  },
+  {
+    key: "trail_eclipse",
+    name: "Затмение",
+    description: "Награда за полный сбор «Стихий». В кейсах не выпадает.",
+    kind: "TRAIL",
+    rarity: "legendary",
+    payload: { particle: "SQUID_INK", count: 10, speed: 0.03, halo: true },
+    seasonKey: SEASON,
+    obtainable: false,
+  },
+
+  // ────────────────────────────── ауры ──────────────────────────────
+  {
+    key: "aura_glint",
+    name: "Блики",
+    description: "Символы зачарования кружат вокруг вас.",
+    kind: "AURA",
+    rarity: "common",
+    payload: { particle: "ENCHANT", radius: 0.9, count: 4 },
+    seasonKey: SEASON,
+    shardPrice: 40,
+  },
+  {
+    key: "aura_honey",
+    name: "Медовый круг",
+    description: "Капли мёда медленно стекают по невидимой сфере.",
+    kind: "AURA",
+    rarity: "rare",
+    payload: { particle: "FALLING_HONEY", radius: 1.1, count: 3 },
+    seasonKey: SEASON,
+    shardPrice: 120,
+  },
+  {
+    key: "aura_storm",
+    name: "Гроза",
+    description: "Электрические искры трещат в воздухе рядом.",
+    kind: "AURA",
+    rarity: "epic",
+    payload: { particle: "ELECTRIC_SPARK", radius: 1.2, count: 6 },
+    seasonKey: SEASON,
+    shardPrice: 400,
+  },
+  {
+    key: "aura_totem",
+    name: "Аура тотема",
+    description: "Вокруг вас вечно висит вспышка тотема бессмертия.",
+    kind: "AURA",
+    rarity: "legendary",
+    payload: { particle: "TOTEM_OF_UNDYING", radius: 1.0, count: 8 },
+    seasonKey: SEASON,
+    shardPrice: 1200,
+  },
+
+  // ───────────────────────────── питомцы ────────────────────────────
+  {
+    key: "pet_fox",
+    name: "Лисёнок",
+    description: "Бежит следом и не отстаёт. Неуязвим и ничего не подбирает.",
+    kind: "PET",
+    rarity: "rare",
+    payload: { entity: "FOX", name: "Лисёнок" },
+    seasonKey: SEASON,
+    collectionKey: "zoo",
+    shardPrice: 150,
+  },
+  {
+    key: "pet_axolotl",
+    name: "Аксолотль",
+    description: "Плывёт по воздуху рядом с вами. Не спрашивайте как.",
+    kind: "PET",
+    rarity: "rare",
+    payload: { entity: "AXOLOTL", name: "Аксолотль" },
+    seasonKey: SEASON,
+    collectionKey: "zoo",
+    shardPrice: 150,
+  },
+  {
+    key: "pet_bee",
+    name: "Пчела",
+    description: "Жужжит над плечом и никого не жалит.",
+    kind: "PET",
+    rarity: "epic",
+    payload: { entity: "BEE", name: "Пчела" },
+    seasonKey: SEASON,
+    collectionKey: "zoo",
+    shardPrice: 450,
+  },
+  {
+    key: "pet_allay",
+    name: "Аллай",
+    description: "Летает следом. Предметы не подбирает — это было бы нечестно.",
+    kind: "PET",
+    rarity: "legendary",
+    payload: { entity: "ALLAY", name: "Аллай" },
+    seasonKey: SEASON,
+    collectionKey: "zoo",
+    shardPrice: 1300,
+  },
+  {
+    key: "pet_phantom",
+    name: "Призрачный спутник",
+    description: "Награда за полный «Зверинец». В кейсах не выпадает.",
+    kind: "PET",
+    rarity: "legendary",
+    payload: { entity: "VEX", name: "Призрак", glowing: true },
+    seasonKey: SEASON,
+    obtainable: false,
+  },
+
+  // ────────────────────────────── шляпы ─────────────────────────────
+  {
+    key: "hat_cake",
+    name: "Торт на голове",
+    description: "Классика жанра. Брони не даёт, зато все смеются.",
+    kind: "HAT",
+    rarity: "common",
+    payload: { material: "CAKE" },
+    seasonKey: SEASON,
+    shardPrice: 50,
+  },
+  {
+    key: "hat_lantern",
+    name: "Фонарь",
+    description: "Светится сам, но темноту не разгоняет — только вид.",
+    kind: "HAT",
+    rarity: "rare",
+    payload: { material: "LANTERN" },
+    seasonKey: SEASON,
+    shardPrice: 130,
+  },
+  {
+    key: "hat_sunflower",
+    name: "Подсолнух",
+    description: "Растёт прямо из макушки.",
+    kind: "HAT",
+    rarity: "common",
+    payload: { material: "SUNFLOWER" },
+    seasonKey: SEASON,
+    shardPrice: 50,
+  },
+  {
+    key: "hat_beacon",
+    name: "Маяк",
+    description: "Тяжёлый и абсолютно бесполезный. Именно поэтому его хотят.",
+    kind: "HAT",
+    rarity: "epic",
+    payload: { material: "BEACON" },
+    seasonKey: SEASON,
+    shardPrice: 450,
+  },
+  {
+    key: "hat_dragon_egg",
+    name: "Яйцо дракона",
+    description: "Носить на голове то, ради чего убивают дракона.",
+    kind: "HAT",
+    rarity: "legendary",
+    payload: { material: "DRAGON_EGG" },
+    seasonKey: SEASON,
+    serialLimit: 50,
+    shardPrice: 1500,
+  },
+
+  // ──────────────────────── эффекты появления ───────────────────────
+  {
+    key: "join_levelup",
+    name: "Вход: уровень",
+    description: "Знакомый звук повышения уровня при входе на сервер.",
+    kind: "JOIN_EFFECT",
+    rarity: "common",
+    payload: { sound: "ENTITY_PLAYER_LEVELUP", particle: "HAPPY_VILLAGER" },
+    seasonKey: SEASON,
+    shardPrice: 40,
+  },
+  {
+    key: "join_thunder",
+    name: "Вход: гром",
+    description: "Молния бьёт рядом. Без урона и без пожара.",
+    kind: "JOIN_EFFECT",
+    rarity: "rare",
+    payload: { sound: "ENTITY_LIGHTNING_BOLT_THUNDER", lightning: true },
+    seasonKey: SEASON,
+    shardPrice: 130,
+  },
+  {
+    key: "join_totem",
+    name: "Вход: тотем",
+    description: "Вспышка тотема бессмертия на весь экран рядом стоящих.",
+    kind: "JOIN_EFFECT",
+    rarity: "epic",
+    payload: { sound: "ITEM_TOTEM_USE", particle: "TOTEM_OF_UNDYING" },
+    seasonKey: SEASON,
+    shardPrice: 450,
+  },
+  {
+    key: "join_dragon",
+    name: "Вход: рёв дракона",
+    description: "Весь сервер слышит, что вы зашли. Раз в две минуты максимум.",
+    kind: "JOIN_EFFECT",
+    rarity: "legendary",
+    payload: { sound: "ENTITY_ENDER_DRAGON_GROWL", global: true },
+    seasonKey: SEASON,
+    serialLimit: 25,
+    shardPrice: 1500,
+  },
+
+  // ───────────────────────── цвета и титулы ─────────────────────────
+  {
+    key: "name_mint",
+    name: "Мятный ник",
+    description: "Ник в списке игроков и в чате становится мятным.",
+    kind: "NAME_COLOR",
+    rarity: "common",
+    payload: { color: "#3ddc97" },
+    seasonKey: SEASON,
+    shardPrice: 40,
+  },
+  {
+    key: "name_gold",
+    name: "Золотой ник",
+    description: "Тёплое золото вместо серого.",
+    kind: "NAME_COLOR",
+    rarity: "rare",
+    payload: { color: "#f5c451" },
+    seasonKey: SEASON,
+    shardPrice: 120,
+  },
+  {
+    key: "name_crimson",
+    name: "Багровый ник",
+    description: "Для тех, кто чаще других бывает в деморгане.",
+    kind: "NAME_COLOR",
+    rarity: "rare",
+    payload: { color: "#ff6b6b" },
+    seasonKey: SEASON,
+    shardPrice: 120,
+  },
+  {
+    key: "title_miner",
+    name: "Титул «Шахтёр»",
+    description: "Висит над головой и виден всем вокруг.",
+    kind: "TITLE",
+    rarity: "common",
+    payload: { text: "Шахтёр", color: "#8d95a5" },
+    seasonKey: SEASON,
+    shardPrice: 60,
+  },
+  {
+    key: "title_survivor",
+    name: "Титул «Выживший»",
+    description: "Для тех, кто пережил первую неделю без единого варна.",
+    kind: "TITLE",
+    rarity: "rare",
+    payload: { text: "Выживший", color: "#3ddc97" },
+    seasonKey: SEASON,
+    shardPrice: 140,
+  },
+  {
+    key: "title_pioneer",
+    name: "Титул «Первопроходец»",
+    description: "Только для первого сезона. Больше его не выдадут никогда.",
+    kind: "TITLE",
+    rarity: "legendary",
+    payload: { text: "Первопроходец", color: "#f5c451" },
+    seasonKey: SEASON,
+    serialLimit: 100,
+    shardPrice: 1400,
+  },
+
+  // ─────────────────────────── метки в мире ─────────────────────────
+  {
+    key: "mark_beacon",
+    name: "Именной маяк на спавне",
+    description:
+      "Ваш ник загорается на маяке у спавна до конца сезона. Всего десять мест.",
+    kind: "WORLD_MARK",
+    rarity: "legendary",
+    payload: { placement: "spawn_beacon" },
+    seasonKey: SEASON,
+    serialLimit: 10,
+  },
+  {
+    key: "mark_chronicle",
+    name: "Строка в летописи",
+    description:
+      "Ваше имя навсегда попадает в летопись сервера — её не обнуляют между сезонами.",
+    kind: "WORLD_MARK",
+    rarity: "epic",
+    payload: { placement: "chronicle" },
+    seasonKey: SEASON,
+    serialLimit: 25,
+  },
+];
+
+export const COLLECTIONS = [
+  {
+    key: "elements",
+    name: "Стихии",
+    seasonKey: SEASON,
+    rewardKey: "trail_eclipse",
+  },
+  {
+    key: "zoo",
+    name: "Зверинец",
+    seasonKey: SEASON,
+    rewardKey: "pet_phantom",
+  },
+];

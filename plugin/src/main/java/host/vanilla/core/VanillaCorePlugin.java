@@ -11,6 +11,9 @@ import host.vanilla.core.auth.AuthListener;
 import host.vanilla.core.auth.AuthManager;
 import host.vanilla.core.auth.Profile;
 import host.vanilla.core.config.PluginConfig;
+import host.vanilla.core.cosmetics.CosmeticCommand;
+import host.vanilla.core.cosmetics.CosmeticEngine;
+import host.vanilla.core.cosmetics.CosmeticListener;
 import host.vanilla.core.economy.PlayerCommands;
 import host.vanilla.core.punish.JailListener;
 import host.vanilla.core.punish.JailManager;
@@ -21,6 +24,7 @@ import host.vanilla.core.report.ReportMenuListener;
 import host.vanilla.core.util.Messages;
 import net.kyori.adventure.text.Component;
 import org.bukkit.GameMode;
+import org.bukkit.NamespacedKey;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -43,6 +47,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
     private CheckManager checks;
     private ReportManager reports;
     private NewsBroadcaster news;
+    private CosmeticEngine cosmetics;
+    private NamespacedKey hatKey;
 
     @Override
     public void onEnable() {
@@ -62,6 +68,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
         checks = new CheckManager(this, messages);
         reports = new ReportManager(this, messages);
         news = new NewsBroadcaster(this, messages);
+        hatKey = new NamespacedKey(this, "cosmetic_hat");
+        cosmetics = new CosmeticEngine(this);
 
         registerListeners();
         registerCommands();
@@ -74,6 +82,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         manager.registerEvents(new JailListener(this, jail, messages), this);
         manager.registerEvents(new StaffListener(this, checks), this);
         manager.registerEvents(new ReportMenuListener(this, reports), this);
+        manager.registerEvents(new CosmeticListener(this, cosmetics), this);
     }
 
     private void registerCommands() {
@@ -86,6 +95,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
                 "reports", "tp", "tphere")) {
             bind(name, staff);
         }
+
+        bind("cosmetics", new CosmeticCommand(this, cosmetics));
 
         PlayerCommands player = new PlayerCommands(this, messages);
         for (String name : List.of("balance", "promo", "bonus", "report")) {
@@ -112,6 +123,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
         getServer().getScheduler().runTaskTimer(this, this::reportPlaytime, 1200L, 1200L);
         getServer().getScheduler().runTaskTimer(this, news::poll,
                 config.newsPollSeconds * 20L, config.newsPollSeconds * 20L);
+        // Частицы рисуем четыре раза в секунду: чаще — лишняя нагрузка, реже — рвано.
+        getServer().getScheduler().runTaskTimer(this, cosmetics::tick, 20L, 5L);
     }
 
     /** Раз в минуту отправляем наигранное время — из него считается уровень аккаунта. */
@@ -138,6 +151,11 @@ public final class VanillaCorePlugin extends JavaPlugin {
 
             applyRole(player, profile.adminLevel());
 
+            if (response.has("cosmetics") && response.get("cosmetics").isJsonArray()) {
+                cosmetics.apply(player, response.getAsJsonArray("cosmetics"));
+                cosmetics.playJoinEffect(player);
+            }
+
             if (response.has("jail") && !response.get("jail").isJsonNull()) {
                 JsonObject jailData = response.getAsJsonObject("jail");
                 jail.restore(player, jailData);
@@ -147,17 +165,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
 
     private void applyRole(Player player, int adminLevel) {
         esp.applyRole(player, adminLevel);
-
-        String prefix = switch (adminLevel) {
-            case 2 -> "<yellow>[HELPER]</yellow> ";
-            case 3 -> "<red>[ADMIN]</red> ";
-            case 4 -> "<light_purple>[PR]</light_purple> ";
-            case 5 -> "<dark_red>[Chief Admin]</dark_red> ";
-            default -> "";
-        };
-        Component name = Messages.mm(prefix + "<white>" + player.getName());
-        player.displayName(name);
-        player.playerListName(name);
+        refreshDisplayName(player);
 
         // Администрация всегда в наблюдателе: так проверки не превращаются в игру
         // за одну из сторон, а сам админ не может ничего сломать в мире.
@@ -166,8 +174,38 @@ public final class VanillaCorePlugin extends JavaPlugin {
         }
     }
 
+    /** Имя в чате и в списке: префикс админки плюс купленный цвет ника. */
+    public void refreshDisplayName(Player player) {
+        String prefix = switch (auth.adminLevel(player)) {
+            case 2 -> "<yellow>[HELPER]</yellow> ";
+            case 3 -> "<red>[ADMIN]</red> ";
+            case 4 -> "<light_purple>[PR]</light_purple> ";
+            case 5 -> "<dark_red>[Chief Admin]</dark_red> ";
+            default -> "";
+        };
+
+        Component nick = Component.text(player.getName());
+        net.kyori.adventure.text.format.TextColor color = cosmetics.nameColor(player);
+        nick = color != null ? nick.color(color) : nick.color(net.kyori.adventure.text.format.NamedTextColor.WHITE);
+
+        Component name = prefix.isEmpty() ? nick : Messages.mm(prefix).append(nick);
+        player.displayName(name);
+        player.playerListName(name);
+    }
+
+    /** Перечитывает косметику игрока с сайта — после покупки или смены предмета. */
+    public void reloadCosmetics(Player player) {
+        api.onMain(api.get("/api/mc/profile?login=" + player.getName()), response -> {
+            if (!player.isOnline() || response.get("_status").getAsInt() != 200) return;
+            if (response.has("cosmetics") && response.get("cosmetics").isJsonArray()) {
+                cosmetics.apply(player, response.getAsJsonArray("cosmetics"));
+            }
+        });
+    }
+
     public void onPlayerQuit(Player player) {
         jail.syncOnQuit(player);
+        cosmetics.forget(player);
         checks.onQuit(player);
         esp.disable(player);
     }
@@ -187,6 +225,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         for (Player player : getServer().getOnlinePlayers()) {
             jail.syncOnQuit(player);
         }
+        if (cosmetics != null) cosmetics.shutdown();
     }
 
     public PluginConfig config() { return config; }
@@ -197,5 +236,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
     public CheckManager checks() { return checks; }
     public ReportManager reports() { return reports; }
     public NewsBroadcaster news() { return news; }
+    public CosmeticEngine cosmetics() { return cosmetics; }
+    public NamespacedKey hatKey() { return hatKey; }
     public Messages messages() { return messages; }
 }

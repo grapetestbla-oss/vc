@@ -127,5 +127,11 @@ messages:
   economy.code-slow: "<red>Слишком часто. Подождите."
   economy.api-down: "<red>Сайт не отвечает."
 
+  cosmetics.header: "<gold>Ваша косметика:"
+  cosmetics.line: "<dark_gray>· <gray><kind>: <white><key><gold><serial>"
+  cosmetics.empty: "<gray>Ничего не надето. Загляните в коллекцию на сайте."
+  cosmetics.reloaded: "<green>Косметика обновлена."
+  cosmetics.hat-blocked: "<yellow>Шляпа не надета: снимите шлем, слот занят бронёй."
+
   news.header: "<dark_gray>▬▬▬ <gold><bold>НОВОСТЬ<reset> <dark_gray>▬▬▬\n<yellow><title>"
   news.text: "<white><text>"

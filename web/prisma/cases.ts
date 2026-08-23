@@ -1,0 +1,136 @@
+/**
+ * Кейсы. Шансы заданы весами: шанс предмета = вес / сумма весов кейса.
+ * Значения подобраны так, чтобы легендарка ощущалась событием, но гарант
+ * не давал уйти в бесконечное невезение.
+ */
+
+export type CaseSeed = {
+  key: string;
+  name: string;
+  description: string;
+  priceVc: number;
+  seasonKey?: string;
+  freeDaily?: boolean;
+  pityThreshold?: number;
+  sortOrder: number;
+  items: Array<
+    | { kind: "VC"; amount: number; weight: number }
+    | { kind: "SHARDS"; amount: number; weight: number }
+    | { kind: "COSMETIC"; cosmeticKey: string; weight: number }
+  >;
+};
+
+export const CASES: CaseSeed[] = [
+  {
+    key: "daily",
+    name: "Ежедневный ящик",
+    description:
+      "Одно бесплатное открытие в сутки. Заходите каждый день — осколки копятся сами.",
+    priceVc: 0,
+    freeDaily: true,
+    seasonKey: "season-1",
+    sortOrder: 0,
+    items: [
+      { kind: "SHARDS", amount: 15, weight: 300 },
+      { kind: "SHARDS", amount: 40, weight: 120 },
+      { kind: "VC", amount: 25, weight: 220 },
+      { kind: "VC", amount: 75, weight: 90 },
+      { kind: "COSMETIC", cosmeticKey: "trail_firefly", weight: 60 },
+      { kind: "COSMETIC", cosmeticKey: "hat_sunflower", weight: 60 },
+      { kind: "COSMETIC", cosmeticKey: "aura_glint", weight: 60 },
+      { kind: "COSMETIC", cosmeticKey: "join_levelup", weight: 50 },
+      { kind: "COSMETIC", cosmeticKey: "trail_snowstorm", weight: 25 },
+      { kind: "VC", amount: 300, weight: 15 },
+    ],
+  },
+  {
+    key: "wild",
+    name: "Дикий кейс",
+    description:
+      "Шлейфы, ауры и шляпы первого сезона. Гарант легендарки — сорок открытий.",
+    priceVc: 250,
+    seasonKey: "season-1",
+    pityThreshold: 40,
+    sortOrder: 1,
+    items: [
+      { kind: "SHARDS", amount: 40, weight: 260 },
+      { kind: "VC", amount: 100, weight: 150 },
+      { kind: "COSMETIC", cosmeticKey: "trail_ash", weight: 130 },
+      { kind: "COSMETIC", cosmeticKey: "trail_firefly", weight: 130 },
+      { kind: "COSMETIC", cosmeticKey: "aura_glint", weight: 130 },
+      { kind: "COSMETIC", cosmeticKey: "hat_cake", weight: 120 },
+      { kind: "COSMETIC", cosmeticKey: "hat_sunflower", weight: 120 },
+      { kind: "COSMETIC", cosmeticKey: "name_mint", weight: 110 },
+      { kind: "COSMETIC", cosmeticKey: "title_miner", weight: 100 },
+      { kind: "COSMETIC", cosmeticKey: "trail_snowstorm", weight: 70 },
+      { kind: "COSMETIC", cosmeticKey: "trail_ember", weight: 70 },
+      { kind: "COSMETIC", cosmeticKey: "aura_honey", weight: 60 },
+      { kind: "COSMETIC", cosmeticKey: "hat_lantern", weight: 60 },
+      { kind: "COSMETIC", cosmeticKey: "name_gold", weight: 55 },
+      { kind: "COSMETIC", cosmeticKey: "join_thunder", weight: 50 },
+      { kind: "COSMETIC", cosmeticKey: "trail_souls", weight: 18 },
+      { kind: "COSMETIC", cosmeticKey: "trail_rift", weight: 18 },
+      { kind: "COSMETIC", cosmeticKey: "aura_storm", weight: 16 },
+      { kind: "COSMETIC", cosmeticKey: "hat_beacon", weight: 14 },
+      { kind: "COSMETIC", cosmeticKey: "trail_dragon", weight: 5 },
+      { kind: "COSMETIC", cosmeticKey: "aura_totem", weight: 4 },
+    ],
+  },
+  {
+    key: "zoo",
+    name: "Зверинец",
+    description:
+      "Питомцы, которые ходят за вами по пятам. Гарант легендарки — тридцать открытий.",
+    priceVc: 400,
+    seasonKey: "season-1",
+    pityThreshold: 30,
+    sortOrder: 2,
+    items: [
+      { kind: "SHARDS", amount: 60, weight: 240 },
+      { kind: "VC", amount: 150, weight: 130 },
+      { kind: "COSMETIC", cosmeticKey: "hat_cake", weight: 110 },
+      { kind: "COSMETIC", cosmeticKey: "title_survivor", weight: 90 },
+      { kind: "COSMETIC", cosmeticKey: "pet_fox", weight: 85 },
+      { kind: "COSMETIC", cosmeticKey: "pet_axolotl", weight: 85 },
+      { kind: "COSMETIC", cosmeticKey: "hat_lantern", weight: 70 },
+      { kind: "COSMETIC", cosmeticKey: "name_crimson", weight: 60 },
+      { kind: "COSMETIC", cosmeticKey: "pet_bee", weight: 30 },
+      { kind: "COSMETIC", cosmeticKey: "aura_storm", weight: 20 },
+      { kind: "COSMETIC", cosmeticKey: "pet_allay", weight: 7 },
+      { kind: "COSMETIC", cosmeticKey: "hat_dragon_egg", weight: 3 },
+    ],
+  },
+  {
+    key: "legends",
+    name: "Кейс легенд",
+    description:
+      "Только редкое и выше, включая предметы с номерами экземпляров. Гарант — двадцать открытий.",
+    priceVc: 900,
+    seasonKey: "season-1",
+    pityThreshold: 20,
+    sortOrder: 3,
+    items: [
+      { kind: "SHARDS", amount: 150, weight: 200 },
+      { kind: "VC", amount: 400, weight: 120 },
+      { kind: "COSMETIC", cosmeticKey: "trail_snowstorm", weight: 90 },
+      { kind: "COSMETIC", cosmeticKey: "trail_ember", weight: 90 },
+      { kind: "COSMETIC", cosmeticKey: "aura_honey", weight: 85 },
+      { kind: "COSMETIC", cosmeticKey: "pet_fox", weight: 80 },
+      { kind: "COSMETIC", cosmeticKey: "pet_axolotl", weight: 80 },
+      { kind: "COSMETIC", cosmeticKey: "trail_souls", weight: 45 },
+      { kind: "COSMETIC", cosmeticKey: "trail_rift", weight: 45 },
+      { kind: "COSMETIC", cosmeticKey: "aura_storm", weight: 40 },
+      { kind: "COSMETIC", cosmeticKey: "hat_beacon", weight: 38 },
+      { kind: "COSMETIC", cosmeticKey: "pet_bee", weight: 35 },
+      { kind: "COSMETIC", cosmeticKey: "join_totem", weight: 30 },
+      { kind: "COSMETIC", cosmeticKey: "mark_chronicle", weight: 12 },
+      { kind: "COSMETIC", cosmeticKey: "trail_dragon", weight: 10 },
+      { kind: "COSMETIC", cosmeticKey: "aura_totem", weight: 9 },
+      { kind: "COSMETIC", cosmeticKey: "pet_allay", weight: 8 },
+      { kind: "COSMETIC", cosmeticKey: "hat_dragon_egg", weight: 7 },
+      { kind: "COSMETIC", cosmeticKey: "title_pioneer", weight: 6 },
+      { kind: "COSMETIC", cosmeticKey: "join_dragon", weight: 4 },
+      { kind: "COSMETIC", cosmeticKey: "mark_beacon", weight: 2 },
+    ],
+  },
+];
