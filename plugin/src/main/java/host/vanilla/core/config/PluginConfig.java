@@ -13,6 +13,8 @@ public final class PluginConfig {
 
     public final String apiUrl;
     public final String apiToken;
+    /// Адрес сайта для ссылок в чате — обычно совпадает с apiUrl.
+    public final String siteUrl;
 
     public final int authTimeoutSeconds;
     public final int maxLoginAttempts;
@@ -33,10 +35,12 @@ public final class PluginConfig {
 
     public final boolean staffAlwaysSpectator;
     public final int espRefreshSeconds;
+    public final int newsPollSeconds;
 
     public PluginConfig(FileConfiguration c) {
         apiUrl = c.getString("api.url", "http://127.0.0.1:3000");
         apiToken = c.getString("api.token", "");
+        siteUrl = c.getString("api.site-url", apiUrl);
 
         authTimeoutSeconds = Math.max(15, c.getInt("auth.timeout-seconds", 60));
         maxLoginAttempts = Math.max(1, c.getInt("auth.max-attempts", 3));
@@ -59,6 +63,7 @@ public final class PluginConfig {
 
         staffAlwaysSpectator = c.getBoolean("staff.always-spectator", true);
         espRefreshSeconds = Math.max(2, c.getInt("staff.esp-refresh-seconds", 5));
+        newsPollSeconds = Math.max(30, c.getInt("news.poll-seconds", 60));
     }
 
     private static Material material(String name, Material fallback) {

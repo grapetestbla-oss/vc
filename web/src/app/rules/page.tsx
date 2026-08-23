@@ -1,26 +1,59 @@
+import Reveal from "@/components/Reveal";
+
+const SECTIONS = [
+  {
+    title: "Запрещено",
+    items: [
+      "Читы, макросы и любые модификации клиента, дающие преимущество.",
+      "Гриферство и воровство: мелкое — деморган, масштабное — бан.",
+      "Оскорбления, разжигание, реклама сторонних проектов.",
+      "Обход наказания с другого аккаунта — бан обоих.",
+      "Отказ пройти проверку по команде /check приравнивается к признанию.",
+    ],
+  },
+  {
+    title: "Наказания",
+    items: [
+      "Деморган: исправительные работы. Время идёт 1 к 10 и только пока вы онлайн.",
+      "Варн: действует 7 дней. Два активных варна — автоматический бан на 5 дней.",
+      "Бан: закрывает вход по аккаунту и адресу на указанный срок.",
+    ],
+  },
+  {
+    title: "Донат",
+    items: [
+      "VanillaCoins не выводятся в деньги и не передаются между игроками.",
+      "За деньги продаётся только косметика и кейсы с косметикой.",
+      "Игрового преимущества за деньги на сервере нет и не будет.",
+    ],
+  },
+];
+
 export default function RulesPage() {
   return (
-    <article className="panel space-y-4 p-8">
-      <h1 className="text-2xl font-bold">Правила</h1>
-      <ol className="muted list-decimal space-y-2 pl-5">
-        <li>Читы, макросы и любые клиентские модификации, дающие преимущество, запрещены.</li>
-        <li>Гриферство и воровство наказываются деморганом; масштабное — баном.</li>
-        <li>Оскорбления, разжигание, реклама сторонних проектов — варн или бан.</li>
-        <li>Обход наказания с другого аккаунта — бан обоих аккаунтов.</li>
-        <li>Отказ пройти проверку на читы по команде /check приравнивается к признанию.</li>
-      </ol>
-      <h2 className="pt-4 text-xl font-semibold">Наказания</h2>
-      <ul className="muted list-disc space-y-2 pl-5">
-        <li>Деморган: исправительные работы, время идёт 1 к 10 и только онлайн.</li>
-        <li>Варн: действует 7 дней. Два активных варна — автоматический бан на 5 дней.</li>
-        <li>Бан: закрывает вход по аккаунту и адресу на указанный срок.</li>
-      </ul>
-      <h2 className="pt-4 text-xl font-semibold">Донат</h2>
-      <p className="muted">
-        VanillaCoins не выводятся в деньги и не передаются между игроками. Всё, что
-        можно купить, — косметика и кейсы с косметикой. Игрового преимущества за
-        деньги на сервере нет.
-      </p>
-    </article>
+    <div className="space-y-10">
+      <header className="space-y-3">
+        <p className="eyebrow fade-up">Коротко и без юридического тумана</p>
+        <h1 className="fade-up text-4xl font-bold tracking-tight md:text-5xl">Правила</h1>
+      </header>
+
+      <div className="grid gap-5 md:grid-cols-3">
+        {SECTIONS.map((section, index) => (
+          <Reveal key={section.title} delay={index * 80}>
+            <section className="panel panel-hover h-full p-6">
+              <h2 className="text-xl font-semibold">{section.title}</h2>
+              <ul className="muted mt-4 space-y-3 text-sm leading-6">
+                {section.items.map((item) => (
+                  <li key={item} className="flex gap-2">
+                    <span style={{ color: "var(--gold)" }}>—</span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </Reveal>
+        ))}
+      </div>
+    </div>
   );
 }

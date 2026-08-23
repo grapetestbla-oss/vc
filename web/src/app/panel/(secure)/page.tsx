@@ -2,6 +2,8 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { requirePanel } from "@/lib/panel";
 import { audit } from "@/lib/audit";
+import Reveal from "@/components/Reveal";
+import CountUp from "@/components/CountUp";
 
 export const dynamic = "force-dynamic";
 
@@ -63,33 +65,40 @@ export default async function PanelHome() {
 
   return (
     <div className="space-y-6">
+      <div>
+        <p className="eyebrow">Сводка за сутки</p>
+        <h1 className="mt-1 text-2xl font-bold tracking-tight">Обзор сервера</h1>
+      </div>
+
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {cards.map((card) => {
+        {cards.map((card, index) => {
           const body = (
             <>
-              <div className="muted text-xs">{card.label}</div>
+              <div className="eyebrow">{card.label}</div>
               <div
-                className="mt-1 text-2xl font-bold"
-                style={card.warn ? { color: "#f87171" } : undefined}
+                className="mt-2 text-2xl font-semibold tabular-nums"
+                style={card.warn ? { color: "var(--danger)" } : undefined}
               >
-                {card.value}
+                <CountUp value={card.value} />
               </div>
             </>
           );
-          return card.href ? (
-            <Link key={card.label} href={card.href} className="panel block p-4 hover:bg-white/5">
-              {body}
-            </Link>
-          ) : (
-            <div key={card.label} className="panel p-4">
-              {body}
-            </div>
+          return (
+            <Reveal key={card.label} delay={index * 50}>
+              {card.href ? (
+                <Link href={card.href} className="panel panel-hover block h-full p-5">
+                  {body}
+                </Link>
+              ) : (
+                <div className="panel panel-hover h-full p-5">{body}</div>
+              )}
+            </Reveal>
           );
         })}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section className="panel p-6">
+        <section className="panel panel-hover p-6">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold">Действия администрации</h2>
             <Link href="/panel/logs" className="muted text-sm underline">
@@ -109,7 +118,7 @@ export default async function PanelHome() {
           </ul>
         </section>
 
-        <section className="panel p-6">
+        <section className="panel panel-hover p-6">
           <h2 className="font-semibold">Последние наказания</h2>
           <ul className="mt-3 space-y-1 text-sm">
             {recentPunishments.map((punishment) => (

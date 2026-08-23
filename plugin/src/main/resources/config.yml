@@ -6,6 +6,8 @@ api:
   url: "https://vanillacraft.click"
   # Тот же токен, что MC_SERVER_TOKEN в .env сайта.
   token: ""
+  # Адрес для ссылок в чате. По умолчанию совпадает с url.
+  site-url: "https://vanillacraft.click"
 
 auth:
   # Сколько секунд даётся на ввод пароля до кика.
@@ -32,6 +34,10 @@ jail:
   allowed-commands:
     - balance
     - report
+
+news:
+  # Как часто проверять, не появилось ли новостей для объявления в игре.
+  poll-seconds: 60
 
 staff:
   # Администрация со 2 уровня всегда в режиме наблюдателя.
@@ -120,3 +126,6 @@ messages:
   economy.code-exhausted: "<red>Лимит активаций исчерпан."
   economy.code-slow: "<red>Слишком часто. Подождите."
   economy.api-down: "<red>Сайт не отвечает."
+
+  news.header: "<dark_gray>▬▬▬ <gold><bold>НОВОСТЬ<reset> <dark_gray>▬▬▬\n<yellow><title>"
+  news.text: "<white><text>"

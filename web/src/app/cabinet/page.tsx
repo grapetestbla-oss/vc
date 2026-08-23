@@ -5,23 +5,21 @@ import { currentUser } from "@/lib/session";
 import { levelFromPlaytime, nextLevelAt } from "@/lib/levels";
 import { ADMIN_LEVELS } from "@/lib/config";
 import TwoFactorCode from "@/components/TwoFactorCode";
+import Reveal from "@/components/Reveal";
+import CountUp from "@/components/CountUp";
 
 export const dynamic = "force-dynamic";
 
 export default async function CabinetPage() {
   const user = await currentUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/login?next=/cabinet");
 
-  const [transactions, punishments, promo, rounds] = await Promise.all([
-    db.transaction.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: "desc" },
-      take: 15,
-    }),
+  const [transactions, punishments, promo, rounds, cosmetics] = await Promise.all([
+    db.transaction.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 12 }),
     db.punishment.findMany({
       where: { userId: user.id },
       orderBy: { issuedAt: "desc" },
-      take: 10,
+      take: 8,
       include: { by: { select: { login: true } } },
     }),
     db.promo.findFirst({
@@ -29,107 +27,171 @@ export default async function CabinetPage() {
       include: { activations: { select: { createdAt: true, user: { select: { login: true } } } } },
     }),
     db.gameRound.findMany({ where: { userId: user.id }, select: { betVc: true, payoutVc: true } }),
+    db.userCosmetic.findMany({ where: { userId: user.id } }),
   ]);
 
   const level = levelFromPlaytime(user.playtimeSec);
   const hours = Math.floor(user.playtimeSec / 3600);
-  const wagered = rounds.reduce((sum, r) => sum + r.betVc, 0);
-  const net = rounds.reduce((sum, r) => sum + r.payoutVc - r.betVc, 0);
+  const levelStart = Math.pow(level, 2) * 3600;
+  const levelEnd = nextLevelAt(level);
+  const progress = Math.min(
+    100,
+    Math.round(((user.playtimeSec - levelStart) / (levelEnd - levelStart)) * 100),
+  );
+  const wagered = rounds.reduce((sum, round) => sum + round.betVc, 0);
+  const net = rounds.reduce((sum, round) => sum + round.payoutVc - round.betVc, 0);
 
   return (
     <div className="space-y-6">
-      <section className="panel p-6">
-        <div className="flex flex-wrap items-end gap-6">
-          <div>
-            <h1 className="text-2xl font-bold">{user.login}</h1>
-            <p className="muted text-sm">
-              Уровень {level} · {hours} ч в игре
-              {user.adminLevel > 0 && ` · ${ADMIN_LEVELS[user.adminLevel]?.title}`}
-            </p>
-          </div>
-          <div className="ml-auto text-right">
-            <div className="text-3xl font-bold" style={{ color: "var(--gold)" }}>
-              {user.balanceVc} VC
+      <Reveal>
+        <section className="panel relative overflow-hidden p-8">
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background:
+                "radial-gradient(70% 140% at 85% 0%, rgba(245,196,81,0.12), transparent 65%)",
+            }}
+          />
+          <div className="relative flex flex-wrap items-end gap-8">
+            <div>
+              <p className="eyebrow">Личный кабинет</p>
+              <h1 className="mt-1 text-4xl font-bold tracking-tight">{user.login}</h1>
+              <p className="muted mt-2 text-sm">
+                Уровень {level} · {hours} ч в игре
+                {user.adminLevel > 0 && ` · ${ADMIN_LEVELS[user.adminLevel]?.title}`}
+              </p>
             </div>
-            <Link href="/topup" className="muted text-sm underline">
-              пополнить
-            </Link>
-          </div>
-        </div>
-        <p className="muted mt-4 text-sm">
-          До уровня {level + 1}: ещё {Math.max(0, Math.ceil((nextLevelAt(level) - user.playtimeSec) / 3600))} ч
-        </p>
-      </section>
 
-      <section className="panel space-y-3 p-6">
-        <h2 className="font-semibold">Вход в игру</h2>
-        <p className="muted text-sm">
-          Заходите на сервер под ником {user.login} и введите /login с этим же паролем.
-          Если вход с нового адреса — сервер попросит код 2FA.
-        </p>
-        <TwoFactorCode />
-      </section>
+            <div className="ml-auto text-right">
+              <div className="text-4xl font-semibold tabular-nums" style={{ color: "var(--gold)" }}>
+                <CountUp value={user.balanceVc} /> VC
+              </div>
+              <Link href="/topup" className="muted text-sm underline hover:text-white">
+                пополнить
+              </Link>
+            </div>
+          </div>
+
+          <div className="relative mt-8">
+            <div className="flex justify-between text-xs">
+              <span className="muted">Уровень {level}</span>
+              <span className="muted">
+                до {level + 1}: {Math.max(0, Math.ceil((levelEnd - user.playtimeSec) / 3600))} ч
+              </span>
+            </div>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.07)" }}>
+              <div
+                className="h-full rounded-full transition-[width] duration-1000"
+                style={{
+                  width: `${progress}%`,
+                  background: "linear-gradient(90deg, var(--gold), var(--mint))",
+                }}
+              />
+            </div>
+          </div>
+        </section>
+      </Reveal>
+
+      <Reveal delay={60}>
+        <section className="panel space-y-3 p-6">
+          <h2 className="font-semibold">Вход в игру</h2>
+          <p className="muted text-sm">
+            Заходите на сервер под ником {user.login} и введите /login с этим же паролем.
+            С нового адреса сервер попросит код 2FA.
+          </p>
+          <TwoFactorCode />
+        </section>
+      </Reveal>
 
       {promo && (
-        <section className="panel p-6">
-          <h2 className="font-semibold">Ваш промокод: {promo.code}</h2>
-          <p className="muted mt-1 text-sm">
-            Активаций: {promo.activations.length} · награда игроку {promo.rewardVc} VC ·
-            требуется уровень {promo.requiredLevel}
-          </p>
-          <ul className="muted mt-3 space-y-1 text-sm">
-            {promo.activations.slice(0, 10).map((a) => (
-              <li key={`${a.user.login}-${a.createdAt.toISOString()}`}>
-                {a.user.login} — {a.createdAt.toLocaleDateString("ru")}
-              </li>
-            ))}
-          </ul>
-        </section>
+        <Reveal delay={90}>
+          <section className="panel p-6">
+            <p className="eyebrow">Промокод партнёра</p>
+            <h2 className="mt-1 text-2xl font-semibold tracking-tight">{promo.code}</h2>
+            <p className="muted mt-2 text-sm">
+              Активаций: {promo.activations.length} · награда {promo.rewardVc} VC ·
+              нужен уровень {promo.requiredLevel}
+            </p>
+            <ul className="muted mt-4 grid gap-1 text-sm sm:grid-cols-2">
+              {promo.activations.slice(0, 10).map((activation) => (
+                <li key={`${activation.user.login}-${activation.createdAt.toISOString()}`}>
+                  {activation.user.login} — {activation.createdAt.toLocaleDateString("ru")}
+                </li>
+              ))}
+            </ul>
+          </section>
+        </Reveal>
       )}
 
       <div className="grid gap-6 md:grid-cols-2">
-        <section className="panel p-6">
-          <h2 className="font-semibold">Операции</h2>
-          <table className="mt-3 w-full text-sm">
-            <tbody>
-              {transactions.map((tx) => (
-                <tr key={tx.id} className="border-t" style={{ borderColor: "var(--border)" }}>
-                  <td className="py-2">{tx.type}</td>
-                  <td className={tx.amount < 0 ? "text-red-400" : "text-green-400"}>
-                    {tx.amount > 0 ? "+" : ""}
-                    {tx.amount}
-                  </td>
-                  <td className="muted text-right">{tx.createdAt.toLocaleString("ru")}</td>
-                </tr>
-              ))}
-              {transactions.length === 0 && (
-                <tr>
-                  <td className="muted py-2">Пока пусто</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-          {wagered > 0 && (
-            <p className="muted mt-3 text-sm">
-              В играх поставлено {wagered} VC, итог {net > 0 ? "+" : ""}
-              {net} VC
-            </p>
-          )}
-        </section>
+        <Reveal delay={120}>
+          <section className="panel h-full p-6">
+            <h2 className="font-semibold">Операции</h2>
+            <table className="mt-3 w-full text-sm">
+              <tbody>
+                {transactions.map((tx) => (
+                  <tr key={tx.id} className="border-t" style={{ borderColor: "var(--border)" }}>
+                    <td className="py-2">{tx.type}</td>
+                    <td
+                      className="tabular-nums"
+                      style={{ color: tx.amount < 0 ? "var(--danger)" : "var(--mint)" }}
+                    >
+                      {tx.amount > 0 ? "+" : ""}
+                      {tx.amount}
+                    </td>
+                    <td className="muted text-right text-xs">{tx.createdAt.toLocaleString("ru")}</td>
+                  </tr>
+                ))}
+                {transactions.length === 0 && (
+                  <tr>
+                    <td className="muted py-2">Пока пусто</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            {wagered > 0 && (
+              <p className="muted mt-4 text-sm">
+                В играх поставлено {wagered} VC, итог {net > 0 ? "+" : ""}
+                {net} VC
+              </p>
+            )}
+          </section>
+        </Reveal>
 
-        <section className="panel p-6">
-          <h2 className="font-semibold">Наказания</h2>
-          <ul className="mt-3 space-y-2 text-sm">
-            {punishments.map((p) => (
-              <li key={p.id} className="border-t pt-2" style={{ borderColor: "var(--border)" }}>
-                <span className={p.active ? "text-red-400" : "muted"}>{p.type}</span> — {p.reason}
-                <span className="muted"> · {p.issuedAt.toLocaleDateString("ru")}</span>
-                {p.by && <span className="muted"> · выдал {p.by.login}</span>}
-              </li>
-            ))}
-            {punishments.length === 0 && <li className="muted">Чисто</li>}
-          </ul>
-        </section>
+        <Reveal delay={150}>
+          <section className="panel h-full p-6">
+            <h2 className="font-semibold">Наказания</h2>
+            <ul className="mt-3 space-y-2 text-sm">
+              {punishments.map((punishment) => (
+                <li key={punishment.id} className="border-t pt-2" style={{ borderColor: "var(--border)" }}>
+                  <span style={{ color: punishment.active ? "var(--danger)" : "var(--muted)" }}>
+                    {punishment.type}
+                  </span>{" "}
+                  — {punishment.reason}
+                  <span className="muted"> · {punishment.issuedAt.toLocaleDateString("ru")}</span>
+                </li>
+              ))}
+              {punishments.length === 0 && <li className="muted">Чисто</li>}
+            </ul>
+
+            {cosmetics.length > 0 && (
+              <>
+                <h3 className="mt-6 font-semibold">Косметика</h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {cosmetics.map((item) => (
+                    <span
+                      key={item.id}
+                      className="rounded-full px-3 py-1 text-xs"
+                      style={{ background: "var(--panel-strong)", border: "1px solid var(--border)" }}
+                    >
+                      {item.key}
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
+          </section>
+        </Reveal>
       </div>
     </div>
   );

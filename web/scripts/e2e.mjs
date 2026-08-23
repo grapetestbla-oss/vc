@@ -476,6 +476,53 @@ const run = async () => {
   const totpByPlayer = await api("/api/panel/totp", { method: "POST", cookie: alex.session });
   check("helper не трогает TOTP панели", totpByPlayer.status === 403, totpByPlayer.json);
 
+  console.log("— Новости —");
+  const newsByHelper = await api("/api/panel/news", {
+    method: "POST",
+    cookie: alex.session,
+    body: { title: "Не должно пройти", body: "текст" },
+  });
+  check("новость публикует только 5 уровень", newsByHelper.status === 403, newsByHelper.json);
+
+  const newsCreate = await api("/api/panel/news", {
+    method: "POST",
+    cookie: steve.session,
+    body: {
+      title: "Открытие сервера",
+      summary: "Заходите, мир уже сгенерирован",
+      body: "Сервер открыт. Приваты не появятся, деморган работает.",
+      pinned: true,
+      broadcast: true,
+    },
+  });
+  check("новость создаётся", newsCreate.json?.ok === true, newsCreate.json);
+  check("адрес новости транслитерируется", newsCreate.json?.slug === "otkrytie-servera", newsCreate.json);
+
+  const pending = await api("/api/mc/news", { serverToken: TOKEN });
+  check("плагин видит новость для объявления", pending.json?.news?.length === 1, pending.json);
+
+  const ack = await api("/api/mc/news", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { ids: [pending.json.news[0].id] },
+  });
+  check("доставка подтверждается", ack.json?.marked === 1, ack.json);
+
+  const pendingAgain = await api("/api/mc/news", { serverToken: TOKEN });
+  check("объявленная новость не повторяется", pendingAgain.json?.news?.length === 0);
+
+  const newsPage = await fetch(BASE + "/news");
+  const newsHtml = await newsPage.text();
+  check("новость видна на сайте", newsHtml.includes("Открытие сервера"));
+
+  const draft = await api("/api/panel/news", {
+    method: "POST",
+    cookie: steve.session,
+    body: { title: "Черновик", body: "пока не показываем", published: false },
+  });
+  const draftPage = await fetch(BASE + "/news/" + draft.json.slug);
+  check("черновик не открывается публично", draftPage.status === 404, { status: draftPage.status });
+
   console.log("— Итог —");
   console.log(`Пройдено: ${passed}, провалено: ${failed}`);
   process.exit(failed === 0 ? 0 : 1);

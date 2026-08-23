@@ -1,50 +1,54 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 import { currentUser } from "@/lib/session";
+import SiteHeader from "@/components/SiteHeader";
+import BackdropLines from "@/components/BackdropLines";
+
+const inter = Inter({ subsets: ["latin", "cyrillic"], display: "swap" });
 
 export const metadata: Metadata = {
-  title: "VanillaCoins",
-  description: "Ванильный Minecraft-сервер без приватов",
+  title: "VanillaCraft — ванилла без приватов",
+  description:
+    "Чистое выживание без китов за донат и приватов. Деморган вместо бана, честные кейсы и мини-игры.",
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const user = await currentUser();
 
   return (
-    <html lang="ru">
+    <html lang="ru" className={inter.className}>
+      <head>
+        {/* Ставим метку до первой отрисовки: без JS анимации появления
+            выключаются целиком, и контент виден сразу. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: "document.documentElement.classList.add('js')",
+          }}
+        />
+      </head>
       <body>
-        <header className="border-b" style={{ borderColor: "var(--border)" }}>
-          <nav className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-4 py-3">
-            <Link href="/" className="text-lg font-bold" style={{ color: "var(--gold)" }}>
-              VanillaCoins
-            </Link>
-            <Link href="/cases">Кейсы</Link>
-            <Link href="/games">Игры</Link>
-            <Link href="/rules">Правила</Link>
-            <div className="ml-auto flex items-center gap-3">
-              {user ? (
-                <>
-                  <span className="muted text-sm">{user.balanceVc} VC</span>
-                  <Link href="/cabinet" className="btn-ghost text-sm">
-                    {user.login}
-                  </Link>
-                  {user.adminLevel >= 3 && (
-                    <Link href="/panel" className="btn-ghost text-sm">
-                      Панель
-                    </Link>
-                  )}
-                </>
-              ) : (
-                <>
-                  <Link href="/login" className="btn-ghost text-sm">Вход</Link>
-                  <Link href="/register" className="btn text-sm">Регистрация</Link>
-                </>
-              )}
+        <BackdropLines />
+        <SiteHeader
+          user={
+            user
+              ? { login: user.login, balanceVc: user.balanceVc, adminLevel: user.adminLevel }
+              : null
+          }
+        />
+        <main className="mx-auto max-w-6xl px-4 py-10">{children}</main>
+
+        <footer className="mt-20 border-t" style={{ borderColor: "var(--border)" }}>
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-4 py-8 text-sm">
+            <span className="muted">VanillaCraft · vanillacraft.click</span>
+            <div className="ml-auto flex flex-wrap gap-4">
+              <Link href="/rules" className="muted hover:text-white">Правила</Link>
+              <Link href="/news" className="muted hover:text-white">Новости</Link>
+              <Link href="/topup" className="muted hover:text-white">Пополнение</Link>
             </div>
-          </nav>
-        </header>
-        <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+          </div>
+        </footer>
       </body>
     </html>
   );

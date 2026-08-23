@@ -49,6 +49,7 @@ model User {
   flags           SuspiciousFlag[]
   payments        Payment[]
   ownedPromos     Promo[]          @relation("PromoPartner")
+  news            News[]           @relation("NewsAuthor")
 
   @@index([adminLevel])
 }
@@ -385,4 +386,28 @@ model SuspiciousFlag {
 
   @@index([resolved, severity, createdAt])
   @@index([userId])
+}
+
+// ──────────────────────────────── Новости ────────────────────────────────
+
+model News {
+  id       String  @id @default(cuid())
+  slug     String  @unique
+  title    String
+  summary  String
+  body     String
+  coverUrl String?
+
+  published Boolean   @default(true)
+  pinned    Boolean   @default(false)
+  /// Объявить новость в игровом чате — плагин заберёт её сам.
+  broadcast     Boolean   @default(false)
+  broadcastedAt DateTime?
+
+  authorId  String?
+  author    User?    @relation("NewsAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([published, pinned, createdAt])
 }

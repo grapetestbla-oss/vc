@@ -15,6 +15,7 @@ import host.vanilla.core.economy.PlayerCommands;
 import host.vanilla.core.punish.JailListener;
 import host.vanilla.core.punish.JailManager;
 import host.vanilla.core.punish.JailZone;
+import host.vanilla.core.news.NewsBroadcaster;
 import host.vanilla.core.report.ReportManager;
 import host.vanilla.core.report.ReportMenuListener;
 import host.vanilla.core.util.Messages;
@@ -41,6 +42,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
     private EspManager esp;
     private CheckManager checks;
     private ReportManager reports;
+    private NewsBroadcaster news;
 
     @Override
     public void onEnable() {
@@ -59,6 +61,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         esp = new EspManager(this);
         checks = new CheckManager(this, messages);
         reports = new ReportManager(this, messages);
+        news = new NewsBroadcaster(this, messages);
 
         registerListeners();
         registerCommands();
@@ -107,6 +110,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
         getServer().getScheduler().runTaskTimer(this, esp::refresh,
                 config.espRefreshSeconds * 20L, config.espRefreshSeconds * 20L);
         getServer().getScheduler().runTaskTimer(this, this::reportPlaytime, 1200L, 1200L);
+        getServer().getScheduler().runTaskTimer(this, news::poll,
+                config.newsPollSeconds * 20L, config.newsPollSeconds * 20L);
     }
 
     /** Раз в минуту отправляем наигранное время — из него считается уровень аккаунта. */
@@ -191,5 +196,6 @@ public final class VanillaCorePlugin extends JavaPlugin {
     public EspManager esp() { return esp; }
     public CheckManager checks() { return checks; }
     public ReportManager reports() { return reports; }
+    public NewsBroadcaster news() { return news; }
     public Messages messages() { return messages; }
 }

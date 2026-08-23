@@ -1,49 +1,216 @@
 @import "tailwindcss";
 
+/* ─────────────────────────── дизайн-система ─────────────────────────── */
+
 :root {
-  --bg: #0b0d10;
-  --panel: #14181d;
-  --border: #232a32;
-  --text: #e6e9ee;
-  --muted: #98a2b3;
-  --gold: #f5b700;
+  --bg: #07080b;
+  --bg-soft: #0b0d12;
+  --panel: rgba(255, 255, 255, 0.025);
+  --panel-strong: rgba(255, 255, 255, 0.045);
+  --border: rgba(255, 255, 255, 0.07);
+  --border-bright: rgba(255, 255, 255, 0.16);
+  --text: #eef1f6;
+  --muted: #8d95a5;
+  --gold: #f5c451;
+  --mint: #3ddc97;
+  --danger: #ff6b6b;
+
+  --radius: 18px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-feature-settings: "ss01", "cv01";
+  overflow-x: hidden;
 }
 
-.panel {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+/* Мягкое свечение за контентом — глубина без единой картинки. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -20% -10% auto -10%;
+  height: 70vh;
+  background:
+    radial-gradient(50% 60% at 20% 0%, rgba(245, 196, 81, 0.09), transparent 70%),
+    radial-gradient(45% 55% at 80% 10%, rgba(61, 220, 151, 0.07), transparent 70%);
+  pointer-events: none;
+  z-index: -2;
+  animation: drift 24s var(--ease) infinite alternate;
 }
 
-.btn {
-  background: var(--gold);
-  color: #1a1200;
-  font-weight: 600;
-  border-radius: 8px;
-  padding: 0.55rem 1.1rem;
-  cursor: pointer;
-}
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.btn-ghost {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.5rem 1rem;
-  cursor: pointer;
+@keyframes drift {
+  from { transform: translate3d(-2%, -1%, 0) scale(1); }
+  to   { transform: translate3d(3%, 2%, 0) scale(1.08); }
 }
 
-.input {
-  background: #0e1216;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.55rem 0.8rem;
-  width: 100%;
+@layer components {
+  /* ──────────────────────────── компоненты ────────────────────────────── */
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    backdrop-filter: blur(12px);
+    transition: border-color 0.35s var(--ease), background 0.35s var(--ease),
+      transform 0.35s var(--ease);
+  }
+
+  .panel-hover:hover {
+    border-color: var(--border-bright);
+    background: var(--panel-strong);
+    transform: translateY(-2px);
+  }
+
+  .btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background: linear-gradient(135deg, var(--gold), #ffdc8a);
+    color: #221a05;
+    font-weight: 650;
+    border-radius: 12px;
+    padding: 0.62rem 1.25rem;
+    cursor: pointer;
+    overflow: hidden;
+    transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease), opacity 0.2s;
+    box-shadow: 0 6px 24px -12px rgba(245, 196, 81, 0.9);
+  }
+
+  .btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 32px -12px rgba(245, 196, 81, 0.95);
+  }
+
+  .btn:active:not(:disabled) { transform: translateY(0); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+
+  /* Блик, пробегающий по кнопке при наведении. */
+  .btn::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(110deg, transparent 25%, rgba(255, 255, 255, 0.55) 50%, transparent 75%);
+    transform: translateX(-120%);
+    transition: transform 0.7s var(--ease);
+  }
+  .btn:hover:not(:disabled)::after { transform: translateX(120%); }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0.55rem 1.1rem;
+    cursor: pointer;
+    transition: border-color 0.25s var(--ease), background 0.25s var(--ease), transform 0.25s var(--ease);
+  }
+
+  .btn-ghost:hover {
+    border-color: var(--border-bright);
+    background: var(--panel);
+    transform: translateY(-1px);
+  }
+
+  .input {
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0.62rem 0.85rem;
+    width: 100%;
+    color: var(--text);
+    transition: border-color 0.25s var(--ease), box-shadow 0.25s var(--ease);
+  }
+
+  .input:focus {
+    outline: none;
+    border-color: rgba(245, 196, 81, 0.55);
+    box-shadow: 0 0 0 3px rgba(245, 196, 81, 0.12);
+  }
+
+  .muted { color: var(--muted); }
+
+  /* Надзаголовок секции: разрядка и капс, как на дашбордах. */
+  .eyebrow {
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .gradient-text {
+    background: linear-gradient(120deg, #fff 20%, var(--gold) 55%, var(--mint) 90%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
 }
 
-.muted { color: var(--muted); }
+/* ──────────────────────────── анимации ──────────────────────────────── */
+
+.reveal {
+  transition: opacity 0.7s var(--ease), transform 0.7s var(--ease);
+}
+
+.js .reveal {
+  opacity: 0;
+  transform: translateY(18px);
+}
+
+.js .reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.fade-up { animation: fade-up 0.6s var(--ease) both; }
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.45; transform: scale(0.82); }
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--mint);
+  box-shadow: 0 0 12px var(--mint);
+  animation: pulse-dot 2.2s ease-in-out infinite;
+}
+
+/* Линии на фоне «рисуются» при загрузке страницы. */
+@keyframes draw {
+  from { stroke-dashoffset: 1200; }
+  to   { stroke-dashoffset: 0; }
+}
+
+.bg-line {
+  stroke-dasharray: 1200;
+  animation: draw 3.5s var(--ease) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .reveal { opacity: 1; transform: none; }
+}
