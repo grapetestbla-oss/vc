@@ -42,6 +42,19 @@ BOOTSTRAP_ADMIN_LOGIN=
 ENV
 fi
 
+echo "==> Проверка DNS"
+set +u
+source .env
+set -u
+if [ -n "${SITE_DOMAIN:-}" ] && bash check-dns.sh "$SITE_DOMAIN"; then
+  cp Caddyfile.domain Caddyfile
+  SITE_MODE="https://$SITE_DOMAIN"
+else
+  cp Caddyfile.ip Caddyfile
+  SITE_MODE="http://$(curl -s --max-time 10 https://api.ipify.org || echo IP)"
+  echo "Работаем по IP без HTTPS до починки DNS."
+fi
+
 echo "==> Сборка и запуск"
 docker compose --env-file .env up -d --build
 
@@ -53,7 +66,7 @@ echo
 echo "Готово. Токен для плагина (config.yml → api.token):"
 grep MC_SERVER_TOKEN .env
 echo
-echo "Сайт: http://$(curl -s ifconfig.me 2>/dev/null || echo IP)"
+echo "Сайт: $SITE_MODE"
 echo "Впишите свой ник в BOOTSTRAP_ADMIN_LOGIN в deploy/.env, перезапустите"
 echo "(docker compose --env-file .env up -d) и зарегистрируйтесь — аккаунт"
 echo "сразу получит 5 уровень админки. После этого уберите переменную."
