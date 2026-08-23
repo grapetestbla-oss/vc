@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
-# Установка сайта VanillaCoins на чистый VPS (Debian/Ubuntu).
+# Установка сайта VanillaCoins на VPS (Debian/Ubuntu).
 # Запускать от root:  bash install.sh
+#
+# Переменные:
+#   FORCE_DOMAIN=1  — не проверять DNS, сразу поднимать домен с сертификатом
+#   BRANCH=...      — другая ветка репозитория
 set -euo pipefail
 
 REPO_URL="${REPO_URL:-https://github.com/grapetestbla-oss/vc.git}"
@@ -15,6 +19,29 @@ if ! command -v docker >/dev/null; then
   echo "==> Docker"
   curl -fsSL https://get.docker.com | sh
 fi
+
+# Compose бывает трёх видов: плагин (docker compose), отдельный бинарник
+# (docker-compose) и вовсе отсутствует — на серверах, где Docker ставили из
+# репозитория дистрибутива. Разбираемся, что здесь.
+if docker compose version >/dev/null 2>&1; then
+  COMPOSE="docker compose"
+elif command -v docker-compose >/dev/null 2>&1; then
+  COMPOSE="docker-compose"
+else
+  echo "==> Docker Compose"
+  if ! apt-get install -y -qq docker-compose-plugin >/dev/null 2>&1; then
+    # Репозиторий дистрибутива плагина не знает — подключаем официальный.
+    curl -fsSL https://get.docker.com | sh
+  fi
+  if docker compose version >/dev/null 2>&1; then
+    COMPOSE="docker compose"
+  else
+    echo "Не удалось поставить Docker Compose. Поставьте вручную:"
+    echo "  curl -fsSL https://get.docker.com | sh"
+    exit 1
+  fi
+fi
+echo "Compose: $($COMPOSE version | head -1)"
 
 echo "==> Код"
 if [ -d "$APP_DIR/.git" ]; then
@@ -52,7 +79,8 @@ echo "==> Проверка DNS"
 set +u
 source .env
 set -u
-if [ -n "${SITE_DOMAIN:-}" ] && bash check-dns.sh "$SITE_DOMAIN"; then
+
+if [ -n "${SITE_DOMAIN:-}" ] && { [ "${FORCE_DOMAIN:-0}" = "1" ] || bash check-dns.sh "$SITE_DOMAIN"; }; then
   cp Caddyfile.domain Caddyfile
   # www добавляем, только если на него есть A-запись: иначе Caddy будет
   # бесконечно просить сертификат для несуществующего имени.
@@ -70,16 +98,16 @@ else
 fi
 
 echo "==> Сборка и запуск"
-docker compose --env-file .env up -d --build
+$COMPOSE --env-file .env up -d --build
 
 echo "==> Схема базы"
-docker compose --env-file .env run --rm web npx prisma db push
-docker compose --env-file .env run --rm web npx tsx prisma/seed.ts || true
+$COMPOSE --env-file .env run --rm web npx prisma db push
+$COMPOSE --env-file .env run --rm web npx tsx prisma/seed.ts || true
 
 # Администратора заводим, только если данные заданы в .env.
 if [ -n "${ADMIN_LOGIN:-}" ] && [ -n "${ADMIN_EMAIL:-}" ] && [ -n "${ADMIN_PASSWORD:-}" ]; then
   echo "==> Администратор $ADMIN_LOGIN"
-  docker compose --env-file .env run --rm \
+  $COMPOSE --env-file .env run --rm \
     -e ADMIN_LOGIN="$ADMIN_LOGIN" \
     -e ADMIN_EMAIL="$ADMIN_EMAIL" \
     -e ADMIN_PASSWORD="$ADMIN_PASSWORD" \
@@ -92,6 +120,7 @@ echo "Готово. Токен для плагина (config.yml → api.token):
 grep MC_SERVER_TOKEN .env
 echo
 echo "Сайт: $SITE_MODE"
-echo "Впишите свой ник в BOOTSTRAP_ADMIN_LOGIN в deploy/.env, перезапустите"
-echo "(docker compose --env-file .env up -d) и зарегистрируйтесь — аккаунт"
-echo "сразу получит 5 уровень админки. После этого уберите переменную."
+echo "Администратор заводится командой:"
+echo "  cd $APP_DIR/deploy && $COMPOSE --env-file .env run --rm \\"
+echo "    -e ADMIN_LOGIN=ник -e ADMIN_EMAIL=почта -e ADMIN_PASSWORD=пароль \\"
+echo "    web node prisma/create-admin.mjs"

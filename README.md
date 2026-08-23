@@ -30,6 +30,12 @@
 curl -fsSL https://raw.githubusercontent.com/grapetestbla-oss/vc/claude/minecraft-server-demorgan-16y10o/deploy/install.sh | bash
 ```
 
+Скрипт сам разберётся, каким видом Compose располагает сервер (плагин
+`docker compose`, отдельный `docker-compose` или ничего — тогда доустановит),
+и проверит, что A-запись домена указывает сюда. Если запись уже верна, а кэш
+резолверов ещё отдаёт старый адрес, проверку можно пропустить:
+`FORCE_DOMAIN=1 bash install.sh`.
+
 Скрипт поставит Docker, поднимет PostgreSQL и сайт, создаст схему, загрузит
 каталог кейсов и выведет `MC_SERVER_TOKEN` — его нужно вписать в
 `plugins/VanillaCore/config.yml` на игровом сервере.
