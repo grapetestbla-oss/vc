@@ -40,7 +40,7 @@ export default async function ShopPage() {
       {categories.map((category) => (
         <section key={category} className="space-y-4">
           <h2 className="text-xl font-semibold">{CATEGORY_LABEL[category] ?? category}</h2>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {items
               .filter((item) => item.category === category)
               .map((item, index) => {
@@ -57,13 +57,14 @@ export default async function ShopPage() {
                       : null;
 
                 return (
-                  <Reveal key={item.key} delay={index * 60}>
-                    <article className="panel panel-hover flex h-full flex-col p-6">
-                      <div className="flex items-baseline justify-between gap-3">
-                        <h3 className="text-lg font-semibold">{item.title}</h3>
-                        <span className="shrink-0 text-sm font-semibold" style={{ color: "var(--gold)" }}>
-                          {item.priceVc.toLocaleString("ru")} VC
-                        </span>
+                  <Reveal key={item.key} delay={index * 60} className="h-full">
+                    <article className="panel panel-hover flex h-full flex-col p-5 sm:p-6">
+                      <h3 className="text-lg font-semibold">{item.title}</h3>
+                      <div
+                        className="mt-2 self-start rounded-full px-3 py-1 text-sm font-semibold"
+                        style={{ background: "rgba(245,196,81,0.1)", color: "var(--gold)" }}
+                      >
+                        {item.priceVc.toLocaleString("ru")} VC
                       </div>
                       <p className="muted mt-2 flex-1 text-sm">{item.description}</p>
 

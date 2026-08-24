@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 
 const METHODS = ["СБП", "Карта", "ЮMoney", "Крипта", "Другое"];
 
+/** Готовые суммы в рублях: на телефоне это основной способ выбрать сумму. */
+const PACKS = [100, 250, 500, 1000];
+
 export default function TopUpForm({
   vcPerRub,
   minRub,
@@ -24,7 +27,7 @@ export default function TopUpForm({
 
   if (hasPending) {
     return (
-      <div className="panel p-6">
+      <div className="panel p-5 sm:p-6">
         <p className="muted text-sm">
           У вас уже есть заявка на рассмотрении. Дождитесь ответа администрации — новую можно
           создать после того, как эту одобрят или отклонят.
@@ -34,8 +37,29 @@ export default function TopUpForm({
   }
 
   return (
+    <>
+      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {PACKS.map((rub) => {
+          const active = amount === rub;
+          return (
+            <button
+              key={rub}
+              type="button"
+              onClick={() => setAmount(rub)}
+              className="panel panel-hover p-4 text-center transition-colors"
+              style={active ? { borderColor: "var(--gold)" } : undefined}
+            >
+              <div className="text-xl font-semibold" style={{ color: "var(--gold)" }}>
+                {(rub * vcPerRub).toLocaleString("ru")} VC
+              </div>
+              <div className="muted mt-1 text-sm">{rub} ₽</div>
+            </button>
+          );
+        })}
+      </div>
+
     <form
-      className="panel space-y-4 p-6"
+      className="panel space-y-4 p-5 sm:p-6"
       onSubmit={async (event) => {
         event.preventDefault();
         const form = new FormData(event.currentTarget);
@@ -68,6 +92,7 @@ export default function TopUpForm({
           <input
             name="amountRub"
             type="number"
+            inputMode="numeric"
             className="input mt-1 w-full"
             min={minRub}
             max={maxRub}
@@ -116,16 +141,20 @@ export default function TopUpForm({
         />
       </label>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <button className="btn" disabled={busy}>
+      <div className="space-y-3 sm:flex sm:flex-wrap sm:items-center sm:gap-3 sm:space-y-0">
+        <button className="btn w-full sm:w-auto" disabled={busy}>
           {busy ? "Отправляем…" : "Отправить заявку"}
         </button>
         {message && (
-          <span className="text-sm" style={{ color: ok ? "var(--gold)" : "var(--danger)" }}>
+          <span
+            className="block text-sm"
+            style={{ color: ok ? "var(--gold)" : "var(--danger)" }}
+          >
             {message}
           </span>
         )}
       </div>
     </form>
+    </>
   );
 }

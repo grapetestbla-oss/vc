@@ -26,20 +26,30 @@ export default function PaymentReview({ paymentId }: { paymentId: string }) {
   }
 
   return (
-    <div className="mt-4 flex flex-wrap items-center gap-2">
+    <div className="mt-4 space-y-2 sm:flex sm:flex-wrap sm:items-center sm:gap-2 sm:space-y-0">
       <input
-        className="input min-w-48 flex-1"
+        className="input sm:min-w-48 sm:flex-1"
         placeholder="Комментарий к решению"
         value={note}
         onChange={(event) => setNote(event.target.value)}
       />
-      <button className="btn" disabled={busy} onClick={() => decide("approve")}>
-        Одобрить
-      </button>
-      <button className="btn-ghost" disabled={busy} onClick={() => decide("reject")}>
-        Отклонить
-      </button>
-      {message && <span className="muted text-sm">{message}</span>}
+      <div className="flex gap-2">
+        <button
+          className="btn flex-1 sm:flex-none"
+          disabled={busy}
+          onClick={() => decide("approve")}
+        >
+          Одобрить
+        </button>
+        <button
+          className="btn-ghost flex-1 justify-center sm:flex-none"
+          disabled={busy}
+          onClick={() => decide("reject")}
+        >
+          Отклонить
+        </button>
+      </div>
+      {message && <span className="muted block text-sm">{message}</span>}
     </div>
   );
 }

@@ -50,7 +50,7 @@ export default async function PanelPaymentsPage() {
         {pending.length === 0 && <p className="muted text-sm">Разобрано всё.</p>}
 
         {pending.map((payment) => (
-          <div key={payment.id} className="panel p-6">
+          <div key={payment.id} className="panel p-5 sm:p-6">
             <div className="flex flex-wrap items-baseline gap-3">
               <h3 className="text-lg font-semibold">{payment.user.login}</h3>
               <span className="text-sm" style={{ color: "var(--gold)" }}>
@@ -62,16 +62,16 @@ export default async function PanelPaymentsPage() {
 
             <dl className="mt-4 space-y-2 text-sm">
               <div className="flex gap-3">
-                <dt className="muted w-28 shrink-0">Способ</dt>
+                <dt className="muted w-24 shrink-0 sm:w-28">Способ</dt>
                 <dd>{payment.method ?? "—"}</dd>
               </div>
               <div className="flex gap-3">
-                <dt className="muted w-28 shrink-0">Контакт</dt>
+                <dt className="muted w-24 shrink-0 sm:w-28">Контакт</dt>
                 <dd className="min-w-0 break-all">{payment.contact ?? "—"}</dd>
               </div>
               {payment.comment && (
                 <div className="flex gap-3">
-                  <dt className="muted w-28 shrink-0">Комментарий</dt>
+                  <dt className="muted w-24 shrink-0 sm:w-28">Комментарий</dt>
                   <dd className="min-w-0 break-words">{payment.comment}</dd>
                 </div>
               )}
@@ -82,7 +82,7 @@ export default async function PanelPaymentsPage() {
         ))}
       </section>
 
-      <section className="panel p-6">
+      <section className="panel p-5 sm:p-6">
         <h2 className="text-lg font-semibold">История решений</h2>
         {history.length === 0 && <p className="muted mt-3 text-sm">Пока пусто.</p>}
         <div className="mt-4 space-y-3">

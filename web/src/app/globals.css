@@ -134,6 +134,22 @@ body::before {
     transition: border-color 0.25s var(--ease), box-shadow 0.25s var(--ease);
   }
 
+  /* На телефоне поле не должно быть мельче 16px: iOS иначе зумит страницу при
+     фокусе и вёрстка «уезжает». Кнопкам даём 44px — минимальная цель пальца. */
+  @media (max-width: 640px) {
+    .input,
+    select.input,
+    textarea.input {
+      font-size: 16px;
+    }
+
+    .btn,
+    .btn-ghost {
+      min-height: 44px;
+      padding-block: 0.72rem;
+    }
+  }
+
   .input:focus {
     outline: none;
     border-color: rgba(245, 196, 81, 0.55);

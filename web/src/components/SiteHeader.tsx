@@ -109,15 +109,39 @@ export default function SiteHeader({
       </nav>
 
       {open && (
-        <div className="fade-up border-t px-4 pb-4 md:hidden" style={{ borderColor: "var(--border)" }}>
+        <div
+          className="fade-up border-t px-4 pb-5 md:hidden"
+          style={{ borderColor: "var(--border)", background: "rgba(7,8,11,0.96)" }}
+        >
+          {user && (
+            <div className="flex items-center justify-between gap-3 py-3">
+              <span className="text-sm" style={{ color: "var(--gold)" }}>
+                {user.balanceVc.toLocaleString("ru")} VC
+              </span>
+              <Link href="/topup" className="btn text-sm">
+                Пополнить
+              </Link>
+            </div>
+          )}
           {LINKS.map((link) => (
-            <Link key={link.href} href={link.href} className="muted block py-2 text-sm">
+            <Link key={link.href} href={link.href} className="muted block py-3 text-base">
               {link.label}
             </Link>
           ))}
-          {user && user.adminLevel >= 3 && (
-            <Link href="/panel" className="muted block py-2 text-sm">
-              Панель
+          {user ? (
+            <>
+              <Link href="/cabinet" className="muted block py-3 text-base">
+                Личный кабинет
+              </Link>
+              {user.adminLevel >= 3 && (
+                <Link href="/panel" className="muted block py-3 text-base">
+                  Панель
+                </Link>
+              )}
+            </>
+          ) : (
+            <Link href="/login" className="muted block py-3 text-base">
+              Вход
             </Link>
           )}
         </div>

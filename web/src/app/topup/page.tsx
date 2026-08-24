@@ -8,8 +8,6 @@ import Reveal from "@/components/Reveal";
 
 export const dynamic = "force-dynamic";
 
-const PACKS = [100, 250, 500, 1000];
-
 const STATUS_LABEL: Record<string, string> = {
   pending: "На рассмотрении",
   paid: "Начислено",
@@ -39,19 +37,6 @@ export default async function TopUpPage() {
         </p>
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {PACKS.map((rub, index) => (
-          <Reveal key={rub} delay={index * 70}>
-            <div className="panel panel-hover h-full p-6 text-center">
-              <div className="text-2xl font-semibold" style={{ color: "var(--gold)" }}>
-                {(rub * CONFIG.vcPerRub).toLocaleString("ru")} VC
-              </div>
-              <div className="muted mt-1 text-sm">{rub} ₽</div>
-            </div>
-          </Reveal>
-        ))}
-      </div>
-
       <Reveal>
         <TopUpForm
           vcPerRub={CONFIG.vcPerRub}
@@ -63,35 +48,37 @@ export default async function TopUpPage() {
 
       {payments.length > 0 && (
         <Reveal>
-          <section className="panel p-6">
+          <section className="panel p-5 sm:p-6">
             <h2 className="text-lg font-semibold">Мои заявки</h2>
             <div className="mt-4 space-y-3">
               {payments.map((payment) => (
                 <div
                   key={payment.id}
-                  className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b pb-3 text-sm last:border-0 last:pb-0"
+                  className="border-b pb-3 text-sm last:border-0 last:pb-0"
                   style={{ borderColor: "var(--border)" }}
                 >
-                  <span className="tabular-nums">
-                    {payment.amountRub} ₽ → {payment.vcAmount.toLocaleString("ru")} VC
-                  </span>
-                  <span className="muted">{payment.method ?? "—"}</span>
-                  <span
-                    style={{
-                      color:
-                        payment.status === "paid"
-                          ? "var(--gold)"
-                          : payment.status === "rejected"
-                            ? "var(--danger)"
-                            : undefined,
-                    }}
-                  >
-                    {STATUS_LABEL[payment.status] ?? payment.status}
-                  </span>
-                  {payment.reviewNote && <span className="muted">{payment.reviewNote}</span>}
-                  <span className="muted ml-auto text-xs">
-                    {payment.createdAt.toLocaleString("ru")}
-                  </span>
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <span className="tabular-nums">
+                      {payment.amountRub} ₽ → {payment.vcAmount.toLocaleString("ru")} VC
+                    </span>
+                    <span
+                      style={{
+                        color:
+                          payment.status === "paid"
+                            ? "var(--gold)"
+                            : payment.status === "rejected"
+                              ? "var(--danger)"
+                              : undefined,
+                      }}
+                    >
+                      {STATUS_LABEL[payment.status] ?? payment.status}
+                    </span>
+                  </div>
+                  <div className="muted mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs">
+                    <span>{payment.method ?? "—"}</span>
+                    <span>{payment.createdAt.toLocaleString("ru")}</span>
+                    {payment.reviewNote && <span className="w-full">{payment.reviewNote}</span>}
+                  </div>
                 </div>
               ))}
             </div>

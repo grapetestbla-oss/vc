@@ -102,7 +102,7 @@ export default function ServerControl({ configured }: { configured: boolean }) {
 
   if (!configured) {
     return (
-      <div className="panel p-6">
+      <div className="panel p-5 sm:p-6">
         <p className="muted text-sm">
           Управление сервером выключено. Задайте в <code>.env</code> переменные{" "}
           <code>GAME_PANEL_URL</code>, <code>GAME_PANEL_KEY</code> и{" "}
@@ -146,7 +146,7 @@ export default function ServerControl({ configured }: { configured: boolean }) {
         </p>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         {cards.map((card) => (
           <div key={card.label} className="panel p-4">
             <div className="eyebrow">{card.label}</div>
@@ -161,25 +161,33 @@ export default function ServerControl({ configured }: { configured: boolean }) {
         {!status && !error && <div className="panel muted p-4 text-sm">Опрашиваем панель…</div>}
       </div>
 
-      <div className="panel p-6">
+      <div className="panel p-5 sm:p-6">
         <p className="eyebrow">Питание</p>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           <button className="btn" disabled={busy} onClick={() => power("start")}>
             Запустить
           </button>
-          <button className="btn-ghost" disabled={busy} onClick={() => power("restart")}>
-            {confirm === "restart" ? "Точно перезапустить?" : "Перезапустить"}
-          </button>
-          <button className="btn-ghost" disabled={busy} onClick={() => power("stop")}>
-            {confirm === "stop" ? "Точно остановить?" : "Остановить"}
+          <button
+            className="btn-ghost justify-center"
+            disabled={busy}
+            onClick={() => power("restart")}
+          >
+            {confirm === "restart" ? "Точно?" : "Перезапустить"}
           </button>
           <button
-            className="btn-ghost"
+            className="btn-ghost justify-center"
+            disabled={busy}
+            onClick={() => power("stop")}
+          >
+            {confirm === "stop" ? "Точно?" : "Остановить"}
+          </button>
+          <button
+            className="btn-ghost justify-center"
             style={{ color: "var(--danger)" }}
             disabled={busy}
             onClick={() => power("kill")}
           >
-            {confirm === "kill" ? "Точно убить процесс?" : "Убить процесс"}
+            {confirm === "kill" ? "Точно?" : "Убить процесс"}
           </button>
         </div>
         <p className="muted mt-3 text-xs">
@@ -187,17 +195,20 @@ export default function ServerControl({ configured }: { configured: boolean }) {
         </p>
       </div>
 
-      <form className="panel p-6" onSubmit={runCommand}>
+      <form className="panel p-5 sm:p-6" onSubmit={runCommand}>
         <p className="eyebrow">Консоль сервера</p>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3 space-y-2 sm:flex sm:flex-wrap sm:gap-2 sm:space-y-0">
           <input
-            className="input min-w-64 flex-1 font-mono"
+            className="input font-mono sm:min-w-64 sm:flex-1"
             placeholder="say Привет, сервер перезапустится через 5 минут"
             value={command}
             onChange={(event) => setCommand(event.target.value)}
             disabled={busy || status?.state !== "running"}
           />
-          <button className="btn" disabled={busy || status?.state !== "running"}>
+          <button
+            className="btn w-full sm:w-auto"
+            disabled={busy || status?.state !== "running"}
+          >
             Выполнить
           </button>
         </div>

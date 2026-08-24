@@ -18,7 +18,7 @@ async function shot(path, name) {
     const step = window.innerHeight / 2;
     for (let y = 0; y < document.body.scrollHeight; y += step) {
       window.scrollTo(0, y);
-      await new Promise((resolve) => setTimeout(resolve, 120));
+      await new Promise((resolve) => setTimeout(resolve, 220));
     }
     window.scrollTo(0, 0);
     await new Promise((resolve) => setTimeout(resolve, 400));
