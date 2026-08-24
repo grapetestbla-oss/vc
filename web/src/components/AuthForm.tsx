@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
 export default function AuthForm({ mode }: { mode: "login" | "register" }) {
@@ -40,8 +41,14 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
     router.refresh();
   }
 
+  /** Куда шли до формы — переносим на соседнюю страницу, чтобы не терять цель. */
+  function next(path: string): string {
+    const target = params.get("next");
+    return target ? `${path}?next=${encodeURIComponent(target)}` : path;
+  }
+
   return (
-    <form onSubmit={submit} className="panel mx-auto max-w-md space-y-4 p-8">
+    <form onSubmit={submit} className="panel mx-auto max-w-md space-y-4 p-6 sm:p-8">
       <h1 className="text-xl font-bold">
         {mode === "login" ? "Вход" : "Регистрация"}
       </h1>
@@ -94,6 +101,24 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
       <button className="btn w-full" disabled={busy}>
         {busy ? "…" : mode === "login" ? "Войти" : "Создать аккаунт"}
       </button>
+
+      <p className="muted text-center text-sm">
+        {mode === "login" ? (
+          <>
+            Нет аккаунта?{" "}
+            <Link href={next("/register")} className="underline hover:text-white">
+              Зарегистрироваться
+            </Link>
+          </>
+        ) : (
+          <>
+            Уже есть аккаунт?{" "}
+            <Link href={next("/login")} className="underline hover:text-white">
+              Войти в существующий
+            </Link>
+          </>
+        )}
+      </p>
     </form>
   );
 }

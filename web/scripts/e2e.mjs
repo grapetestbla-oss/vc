@@ -1055,6 +1055,24 @@ const run = async () => {
     actionsAgain.json,
   );
 
+  console.log("— Выход из аккаунта —");
+  const guest = await register("Guest");
+  const guestMe = await api("/api/me", { cookie: guest.session });
+  check("сессия работает до выхода", guestMe.status === 200, guestMe.json);
+
+  const logout = await api("/api/auth/logout", { method: "POST", cookie: guest.session });
+  check("выход проходит", logout.json?.ok === true, logout.json);
+
+  const afterLogout = await api("/api/me", { cookie: guest.session });
+  check("после выхода сессия недействительна", afterLogout.status === 401, afterLogout.json);
+
+  const backIn = await api("/api/auth/login", {
+    method: "POST",
+    ip: "203.0.113.201",
+    body: { login: "Guest", password: "password123" },
+  });
+  check("вход в существующий аккаунт работает", backIn.status === 200, backIn.json);
+
   console.log("— Итог —");
   console.log(`Пройдено: ${passed}, провалено: ${failed}`);
   process.exit(failed === 0 ? 0 : 1);

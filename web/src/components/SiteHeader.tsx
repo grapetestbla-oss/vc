@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import LogoutButton from "./LogoutButton";
 
 const LINKS = [
   { href: "/news", label: "Новости" },
@@ -87,14 +88,15 @@ export default function SiteHeader({
                   Панель
                 </Link>
               )}
+              <LogoutButton className="btn-ghost hidden text-sm md:inline-flex" />
             </>
           ) : (
             <>
               <Link href="/login" className="btn-ghost text-sm">
-                Вход
+                Войти
               </Link>
               <Link href="/register" className="btn text-sm">
-                Играть
+                Регистрация
               </Link>
             </>
           )}
@@ -138,11 +140,17 @@ export default function SiteHeader({
                   Панель
                 </Link>
               )}
+              <LogoutButton className="btn-ghost mt-3 w-full justify-center" />
             </>
           ) : (
-            <Link href="/login" className="muted block py-3 text-base">
-              Вход
-            </Link>
+            <div className="mt-3 flex gap-2">
+              <Link href="/login" className="btn-ghost flex-1 justify-center">
+                Войти
+              </Link>
+              <Link href="/register" className="btn flex-1">
+                Регистрация
+              </Link>
+            </div>
           )}
         </div>
       )}

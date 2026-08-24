@@ -11,6 +11,7 @@ import { CONFIG } from "@/lib/config";
 import { PLATFORM_LABEL, STATUS_LABEL } from "@/lib/partners";
 import Reveal from "@/components/Reveal";
 import CountUp from "@/components/CountUp";
+import LogoutButton from "@/components/LogoutButton";
 
 export const dynamic = "force-dynamic";
 
@@ -77,9 +78,12 @@ export default async function CabinetPage() {
               <div className="text-4xl font-semibold tabular-nums" style={{ color: "var(--gold)" }}>
                 <CountUp value={user.balanceVc} /> VC
               </div>
-              <Link href="/topup" className="muted text-sm underline hover:text-white">
-                пополнить
-              </Link>
+              <div className="mt-1 flex flex-wrap items-center justify-end gap-3">
+                <Link href="/topup" className="muted text-sm underline hover:text-white">
+                  пополнить
+                </Link>
+                <LogoutButton />
+              </div>
             </div>
           </div>
 
