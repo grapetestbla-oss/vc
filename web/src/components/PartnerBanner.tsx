@@ -25,13 +25,14 @@ const REWARD_LINE = { x: 96, y: 220, width: 1184, height: 62 };
 /** Что зашито в саму картинку — при совпадении её не трогаем. */
 const BAKED = { reward: 1000, level: 3 };
 
-const GOLD = "#ffd633";
-const WHITE = "#ffffff";
+/** Заливки букв: сверху светлее, снизу темнее — как на макете. */
+const WHITE = { top: "#ffffff", bottom: "#cbd2e0" };
+const GOLD = { top: "#ffec96", bottom: "#f0a414" };
 
-type Segment = { text: string; color: string };
+type Segment = { text: string; top: string; bottom: string };
 
 function font(size: number): string {
-  return `700 ${size}px "Pixelify Sans", sans-serif`;
+  return `400 ${size}px "Russo One", sans-serif`;
 }
 
 function scratch(width: number, height: number): CanvasRenderingContext2D {
@@ -43,74 +44,86 @@ function scratch(width: number, height: number): CanvasRenderingContext2D {
 
 /**
  * Подбирает кегль: строка должна влезть в ширину плашки, а прописные — занять
- * заданную долю её высоты. Размер округляем до чётного — пиксельный шрифт на
- * дробных размерах плывёт, буквы получаются разной толщины.
+ * заданную высоту. Дальше ограничения не идём: на макете буквы крупные, и
+ * мелкий текст в широкой табличке выглядит потерянным.
  */
 function fitFontSize(segments: Segment[], maxWidth: number, capHeight: number): number {
   const ctx = scratch(8, 8);
   let size = 8;
-  for (let candidate = 8; candidate <= 200; candidate += 2) {
+  for (let candidate = 8; candidate <= 200; candidate += 1) {
     ctx.font = font(candidate);
     const width = segments.reduce((sum, part) => sum + ctx.measureText(part.text).width, 0);
-    const metrics = ctx.measureText("П");
-    if (width > maxWidth || metrics.actualBoundingBoxAscent > capHeight) break;
+    const caps = ctx.measureText("П").actualBoundingBoxAscent;
+    if (width > maxWidth || caps > capHeight) break;
     size = candidate;
   }
   return size;
 }
 
+type Rendered = { canvas: HTMLCanvasElement; capTop: number; capHeight: number };
+
 /**
- * Рисует строку на прозрачном слое и убирает сглаживание: полупрозрачные
- * пиксели по краям либо становятся сплошными, либо исчезают. Без этого
- * пиксельный шрифт выглядит замыленным, особенно под обводкой.
+ * Рисует строку на прозрачном слое. Каждый кусок заливается вертикальным
+ * градиентом — на макете буквы светлее сверху и темнее снизу, плоская заливка
+ * рядом с ними выглядит дёшево.
  */
-function renderMask(segments: Segment[], size: number): HTMLCanvasElement {
+function renderText(segments: Segment[], size: number): Rendered {
   const measure = scratch(8, 8);
   measure.font = font(size);
   const widths = segments.map((part) => measure.measureText(part.text).width);
   const total = widths.reduce((sum, width) => sum + width, 0);
-  // Метрики берём у самой строки, а не у образцовых букв: иначе пустое место
-  // под несуществующие «хвосты» уводит текст вверх от центра плашки.
   const metrics = measure.measureText(segments.map((part) => part.text).join(""));
   const ascent = Math.ceil(metrics.actualBoundingBoxAscent);
   const descent = Math.ceil(Math.max(0, metrics.actualBoundingBoxDescent));
-  const pad = 2;
+  const pad = 4;
 
   const ctx = scratch(total + pad * 2, ascent + descent + pad * 2);
   ctx.font = font(size);
   ctx.textBaseline = "alphabetic";
+
+  const top = pad;
+  const bottom = pad + ascent;
   let x = pad;
   segments.forEach((part, index) => {
-    ctx.fillStyle = part.color;
+    const gradient = ctx.createLinearGradient(0, top, 0, bottom);
+    gradient.addColorStop(0, part.top);
+    gradient.addColorStop(1, part.bottom);
+    ctx.fillStyle = gradient;
     ctx.fillText(part.text, x, pad + ascent);
     x += widths[index];
   });
 
-  const image = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
-  const data = image.data;
-  for (let i = 3; i < data.length; i += 4) {
-    data[i] = data[i] >= 128 ? 255 : 0;
-  }
-  ctx.putImageData(image, 0, 0);
+  return { canvas: ctx.canvas, capTop: pad, capHeight: ascent };
+}
+
+/** Копия строки, залитая одним цветом — из неё собираем обводку и «объём». */
+function tint(source: HTMLCanvasElement, color: string): HTMLCanvasElement {
+  const ctx = scratch(source.width, source.height);
+  ctx.drawImage(source, 0, 0);
+  ctx.globalCompositeOperation = "source-in";
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, source.width, source.height);
   return ctx.canvas;
 }
 
-/** Обводка: та же маска, залитая чёрным и размноженная по кругу под текстом. */
-function withOutline(mask: HTMLCanvasElement, radius: number): HTMLCanvasElement {
-  const shadow = scratch(mask.width, mask.height);
-  shadow.drawImage(mask, 0, 0);
-  shadow.globalCompositeOperation = "source-in";
-  shadow.fillStyle = "#120a04";
-  shadow.fillRect(0, 0, mask.width, mask.height);
+/**
+ * Собирает надпись как на макете: чёрный контур по кругу, тёмная копия со
+ * сдвигом вниз-вправо вместо объёма и сам текст сверху.
+ */
+function withOutline(text: HTMLCanvasElement, radius: number, depth: number): HTMLCanvasElement {
+  const black = tint(text, "#100903");
+  const shade = tint(text, "#4a2c0c");
+  const margin = radius + depth;
 
-  const out = scratch(mask.width + radius * 2, mask.height + radius * 2);
+  const out = scratch(text.width + margin * 2, text.height + margin * 2);
   for (let dy = -radius; dy <= radius; dy++) {
     for (let dx = -radius; dx <= radius; dx++) {
       if (dx * dx + dy * dy > radius * radius) continue;
-      out.drawImage(shadow.canvas, radius + dx, radius + dy);
+      out.drawImage(black, margin + dx, margin + dy);
     }
   }
-  out.drawImage(mask, radius, radius);
+  if (depth > 0) out.drawImage(shade, margin + depth, margin + depth);
+  out.drawImage(text, margin, margin);
   return out.canvas;
 }
 
@@ -120,13 +133,17 @@ function drawSegments(
   segments: Segment[],
   box: { x: number; y: number; width: number; height: number },
 ) {
-  const size = fitFontSize(segments, box.width - 40, box.height * 0.66);
-  const mask = renderMask(segments, size);
-  const outlined = withOutline(mask, Math.max(2, Math.round(size / 14)));
+  const size = fitFontSize(segments, box.width - 32, box.height * 0.68);
+  const text = renderText(segments, size);
+  const radius = Math.max(3, Math.round(size / 11));
+  const depth = Math.max(2, Math.round(size / 14));
+  const outlined = withOutline(text.canvas, radius, depth);
 
-  // Кладём в целые пиксели: половинка пикселя снова включила бы сглаживание.
+  // Центрируем по прописным, а не по всей картинке: иначе строка с «хвостами»
+  // (буква «У» в «УРОВНЯ») уезжает вверх относительно строки без них.
+  const capCenter = text.capTop + text.capHeight / 2 + radius + depth;
   const x = Math.round(box.x + (box.width - outlined.width) / 2);
-  const y = Math.round(box.y + (box.height - outlined.height) / 2);
+  const y = Math.round(box.y + box.height / 2 - capCenter);
   ctx.drawImage(outlined, x, y);
 }
 
@@ -174,7 +191,7 @@ export default function PartnerBanner({
     try {
       await base.decode();
       // Без явной загрузки шрифта первый кадр уходит системным начертанием.
-      await document.fonts.load('700 48px "Pixelify Sans"', "ПРОМОКОД 0123");
+      await document.fonts.load('400 48px "Russo One"', "ПРОМОКОД 0123");
       await document.fonts.ready;
     } catch {
       setError("Не удалось загрузить картинку баннера");
@@ -201,8 +218,8 @@ export default function PartnerBanner({
     drawSegments(
       ctx,
       [
-        { text: "ПРОМОКОД: ", color: WHITE },
-        { text: code, color: GOLD },
+        { text: "ПРОМОКОД: ", ...WHITE },
+        { text: code, ...GOLD },
       ],
       PLAQUE,
     );
@@ -213,11 +230,11 @@ export default function PartnerBanner({
       drawSegments(
         ctx,
         [
-          { text: "ПОЛУЧИ ", color: WHITE },
-          { text: `${rewardVc} VC`, color: GOLD },
-          { text: " ПРИ ДОСТИЖЕНИИ ", color: WHITE },
-          { text: String(requiredLevel), color: GOLD },
-          { text: " УРОВНЯ!", color: WHITE },
+          { text: "ПОЛУЧИ ", ...WHITE },
+          { text: `${rewardVc} VC`, ...GOLD },
+          { text: " ПРИ ДОСТИЖЕНИИ ", ...WHITE },
+          { text: String(requiredLevel), ...GOLD },
+          { text: " УРОВНЯ!", ...WHITE },
         ],
         REWARD_LINE,
       );

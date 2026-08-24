@@ -19,7 +19,7 @@ export function PromoForm() {
           body: JSON.stringify({
             code: form.get("code"),
             partnerLogin: form.get("partner"),
-            rewardVc: Number(form.get("reward") || 500),
+            rewardVc: Number(form.get("reward") || 1000),
             requiredLevel: Number(form.get("level") || 3),
           }),
         });
@@ -30,7 +30,7 @@ export function PromoForm() {
     >
       <input name="code" className="input w-40" placeholder="КОД" required />
       <input name="partner" className="input w-40" placeholder="Логин партнёра" />
-      <input name="reward" type="number" className="input w-28" defaultValue={500} />
+      <input name="reward" type="number" className="input w-28" defaultValue={1000} />
       <input name="level" type="number" className="input w-28" defaultValue={3} />
       <button className="btn">Создать промокод</button>
       {message && <span className="muted text-sm">{message}</span>}

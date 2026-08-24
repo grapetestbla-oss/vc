@@ -21,7 +21,7 @@ export const CONFIG = {
   /** Границы заявки на пополнение, рубли. */
   minTopUpRub: num("TOPUP_MIN_RUB", 50),
   maxTopUpRub: num("TOPUP_MAX_RUB", 100_000),
-  promoReward: num("PROMO_REWARD_VC", 500),
+  promoReward: num("PROMO_REWARD_VC", 1000),
   /** Доля медиапартнёра от пополнений его рефералов, проценты. */
   partnerSharePercent: num("PARTNER_SHARE_PERCENT", 10),
   promoRequiredLevel: num("PROMO_REQUIRED_LEVEL", 3),

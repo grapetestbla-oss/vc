@@ -1,26 +1,25 @@
 @import "tailwindcss";
 
-/* Пиксельный шрифт для генератора баннеров. Файлы лежат у нас, не у Google:
+/* Шрифт заголовков баннера партнёра. Файлы лежат у нас, не у Google:
    сборка в контейнере не должна зависеть от сети, а баннер — от чужого CDN. */
 @font-face {
-  font-family: "Pixelify Sans";
+  font-family: "Russo One";
   font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url("/fonts/pixelify-sans-700-cyrillic.woff2") format("woff2");
+  font-weight: 400;
+  font-display: block;
+  src: url("/fonts/russo-one-cyrillic.woff2") format("woff2");
   unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
 }
 
 @font-face {
-  font-family: "Pixelify Sans";
+  font-family: "Russo One";
   font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url("/fonts/pixelify-sans-700-latin.woff2") format("woff2");
+  font-weight: 400;
+  font-display: block;
+  src: url("/fonts/russo-one-latin.woff2") format("woff2");
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
-    U+2000-206F, U+2122, U+2212, U+FEFF, U+FFFD;
+    U+2000-206F, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD;
 }
-
 
 /* ─────────────────────────── дизайн-система ─────────────────────────── */
 

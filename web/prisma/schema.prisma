@@ -323,7 +323,7 @@ model Promo {
   code          String   @unique
   partnerId     String?
   partner       User?    @relation("PromoPartner", fields: [partnerId], references: [id], onDelete: SetNull)
-  rewardVc      Int      @default(500)
+  rewardVc      Int      @default(1000)
   requiredLevel Int      @default(3)
   active        Boolean  @default(true)
   createdById   String?

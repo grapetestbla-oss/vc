@@ -1102,8 +1102,8 @@ const run = async () => {
     { status: bannerAsset.status },
   );
 
-  const fontAsset = await fetch(BASE + "/fonts/pixelify-sans-700-cyrillic.woff2");
-  check("пиксельный шрифт отдаётся сайтом", fontAsset.status === 200, { status: fontAsset.status });
+  const fontAsset = await fetch(BASE + "/fonts/russo-one-cyrillic.woff2");
+  check("шрифт баннера отдаётся сайтом", fontAsset.status === 200, { status: fontAsset.status });
 
   console.log("— Итог —");
   console.log(`Пройдено: ${passed}, провалено: ${failed}`);
