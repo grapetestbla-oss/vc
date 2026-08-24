@@ -14,24 +14,23 @@ export const BETTING_MS = Math.min(CONFIG.liveBettingMs, ROUND_MS - 1000);
 const EPOCH = Date.UTC(2026, 0, 1);
 
 /**
- * Сектора колеса. «Мимо» нет: каждый раунд платит, но чаще меньше ставки.
- * Веса подобраны так, что средняя выплата равна RTP — 0.95 при настройке по
- * умолчанию. Менять множители в отрыве от весов нельзя: сломается экономика.
+ * Раскладка колеса: 41 равный сектор — 20 по x2, 15 по x3, 5 по x5 и один x10,
+ * перемешанные вручную, чтобы одинаковые не стояли блоками. Порядок жёстко
+ * зафиксирован: колесо должно выглядеть одинаково у всех и не меняться между
+ * перезапусками сайта.
+ *
+ * Внимание: средняя выплата такой раскладки — 2.93 ставки, то есть колесо
+ * всегда отдаёт больше, чем принимает. Это осознанное решение владельца
+ * сервера, а не ошибка расчёта: RTP из настроек здесь не действует.
  */
-export const ROULETTE_SECTORS = [
-  { multiplier: 0.2, weight: 0.325 },
-  { multiplier: 0.5, weight: 0.24 },
-  { multiplier: 1, weight: 0.18 },
-  { multiplier: 1.5, weight: 0.12 },
-  { multiplier: 2, weight: 0.065 },
-  { multiplier: 3, weight: 0.05 },
-  { multiplier: 5, weight: 0.015 },
-  { multiplier: 10, weight: 0.005 },
+export const ROULETTE_LAYOUT = [
+  2, 3, 2, 5, 2, 5, 3, 2, 2, 3, 2, 5, 2, 2, 10, 3, 2, 2, 3, 2, 3,
+  5, 2, 3, 2, 3, 2, 3, 5, 2, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 3,
 ] as const;
 
-/** Возврат колеса при текущих весах — считаем, а не верим на слово. */
+/** Средняя выплата колеса на единицу ставки. */
 export function rouletteRtp(): number {
-  return ROULETTE_SECTORS.reduce((sum, sector) => sum + sector.multiplier * sector.weight, 0);
+  return ROULETTE_LAYOUT.reduce((sum, multiplier) => sum + multiplier, 0) / ROULETTE_LAYOUT.length;
 }
 
 export type Phase = "betting" | "resolving";
@@ -49,23 +48,23 @@ export function roundWindow(number: number) {
   };
 }
 
-/** Множитель раунда: бросок [0,1) попадает в сектор по накопленному весу. */
+/** Множитель раунда: бросок [0,1) выбирает сектор — все они одинаковой ширины. */
 export function rouletteResult(value: number): number {
-  let edge = 0;
-  for (const sector of ROULETTE_SECTORS) {
-    edge += sector.weight;
-    if (value < edge) return sector.multiplier;
-  }
-  return ROULETTE_SECTORS[ROULETTE_SECTORS.length - 1].multiplier;
+  const index = Math.min(
+    ROULETTE_LAYOUT.length - 1,
+    Math.floor(value * ROULETTE_LAYOUT.length),
+  );
+  return ROULETTE_LAYOUT[index];
 }
 
 /** Границы секторов для отрисовки колеса: клиент рисует ровно то, что считаем здесь. */
 export function rouletteZones() {
-  let edge = 0;
-  return ROULETTE_SECTORS.map((sector) => {
-    edge += sector.weight;
-    return { multiplier: sector.multiplier, until: edge, chance: sector.weight };
-  });
+  const size = 1 / ROULETTE_LAYOUT.length;
+  return ROULETTE_LAYOUT.map((multiplier, index) => ({
+    multiplier,
+    until: (index + 1) * size,
+    chance: size,
+  }));
 }
 
 async function createRound(game: LiveGame, number: number) {

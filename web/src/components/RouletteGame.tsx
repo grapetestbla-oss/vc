@@ -70,6 +70,14 @@ export default function RouletteGame() {
   const betting = state.round.phase === "betting";
   const mine = state.bets.find((item) => item.mine);
 
+  // Легенда: 41 сектор перечислять незачем, показываем сколько каких.
+  const groups = [...new Set(zones.map((zone) => zone.multiplier))]
+    .sort((a, b) => a - b)
+    .map((multiplier) => ({
+      multiplier,
+      count: zones.filter((zone) => zone.multiplier === multiplier).length,
+    }));
+
   // Сектора рисуем градиентом: конус из долей броска даёт ровно те же границы.
   const stops: string[] = [];
   let from = 0;
@@ -112,6 +120,15 @@ export default function RouletteGame() {
                 boxShadow: "inset 0 0 0 6px rgba(0,0,0,0.35), 0 20px 60px -30px rgba(0,0,0,0.9)",
               }}
             />
+            {/* Спицы между секторами: без них 41 сектор сливается в сплошное кольцо. */}
+            <div
+              className="pointer-events-none absolute inset-0 rounded-full"
+              style={{
+                background: `repeating-conic-gradient(rgba(0,0,0,0.55) 0deg 0.6deg, transparent 0.6deg ${360 / zones.length}deg)`,
+                transform: `rotate(${-angle}deg)`,
+                transition: "transform 4.5s cubic-bezier(0.12, 0.75, 0.1, 1)",
+              }}
+            />
             <div
               className="absolute inset-[22%] flex flex-col items-center justify-center rounded-full text-center"
               style={{ background: "rgba(10,11,15,0.92)", border: "1px solid var(--border)" }}
@@ -133,14 +150,17 @@ export default function RouletteGame() {
         </div>
 
         <div className="mt-5 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs">
-          {zones.map((zone) => (
-            <span key={zone.multiplier} className="flex items-center gap-1.5">
+          {groups.map((group) => (
+            <span key={group.multiplier} className="flex items-center gap-1.5">
               <span
                 className="inline-block h-3 w-3 rounded"
-                style={{ background: colorFor(zone.multiplier) }}
+                style={{ background: colorFor(group.multiplier) }}
               />
-              x{zone.multiplier}
-              <span className="muted">{Math.round((zone.chance ?? 0) * 1000) / 10}%</span>
+              x{group.multiplier}
+              <span className="muted">
+                {group.count} {group.count === 1 ? "сектор" : group.count < 5 ? "сектора" : "секторов"} ·{" "}
+                {Math.round((group.count / zones.length) * 1000) / 10}%
+              </span>
             </span>
           ))}
         </div>
@@ -187,8 +207,8 @@ export default function RouletteGame() {
           </p>
         )}
         <p className="muted mt-3 text-xs">
-          Множитель один на всех: выпавший сектор умножает ставку каждого. Пустых секторов нет —
-          но в половине из них выплата меньше ставки.
+          Множитель один на всех: выпавший сектор умножает ставку каждого. Пустых секторов нет,
+          минимальный — x2.
         </p>
       </div>
 

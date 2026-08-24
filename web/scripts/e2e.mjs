@@ -1148,7 +1148,25 @@ const run = async () => {
   console.log("— Общие раунды —");
   const table = await api("/api/games/live?game=ROULETTE", { cookie: steve.session });
   check("стол рулетки отдаётся", table.status === 200 && typeof table.json?.round?.number === "number", table.json);
-  check("сектора колеса приходят", Array.isArray(table.json?.zones) && table.json.zones.length === 8, table.json?.zones);
+  check("сектора колеса приходят", Array.isArray(table.json?.zones) && table.json.zones.length === 41, table.json?.zones?.length);
+  const sectorCounts = (table.json?.zones ?? []).reduce((acc, zone) => {
+    acc[zone.multiplier] = (acc[zone.multiplier] ?? 0) + 1;
+    return acc;
+  }, {});
+  check(
+    "раскладка колеса — 20/15/5/1",
+    sectorCounts[2] === 20 && sectorCounts[3] === 15 && sectorCounts[5] === 5 && sectorCounts[10] === 1,
+    sectorCounts,
+  );
+  check(
+    "одинаковые секторы не стоят длинными блоками",
+    (table.json?.zones ?? []).every((zone, index, all) => {
+      const a = all[(index + 1) % all.length]?.multiplier;
+      const b = all[(index + 2) % all.length]?.multiplier;
+      return !(zone.multiplier === a && a === b);
+    }),
+    table.json?.zones?.map((zone) => zone.multiplier),
+  );
   check(
     "в колесе нет пустых секторов",
     table.json?.zones?.every((zone) => zone.multiplier > 0),
@@ -1160,9 +1178,9 @@ const run = async () => {
     table.json?.zones?.at(-1),
   );
   check(
-    "средняя выплата колеса равна возврату 95%",
+    "средняя выплата колеса совпадает с раскладкой",
     Math.abs(
-      table.json.zones.reduce((sum, zone) => sum + zone.multiplier * zone.chance, 0) - 0.95,
+      table.json.zones.reduce((sum, zone) => sum + zone.multiplier * zone.chance, 0) - 120 / 41,
     ) < 1e-9,
     table.json?.zones,
   );
@@ -1225,7 +1243,7 @@ const run = async () => {
   check("раунд разыгрывается сам", resolved !== null, resolved);
   check("в истории раскрыт сид раунда", typeof resolved?.serverSeed === "string" && resolved.serverSeed.length === 64, resolved);
   check("бросок записан", typeof resolved?.roll === "number" && resolved.roll >= 0 && resolved.roll < 1, resolved);
-  check("раунд всегда заканчивается множителем", (resolved?.result ?? 0) > 0, resolved);
+  check("раунд всегда заканчивается множителем не ниже x2", (resolved?.result ?? 0) >= 2, resolved);
 
   const paid = await api("/api/me", { cookie: steve.session });
   check("выплата по колесу пришла на баланс", typeof paid.json?.balanceVc === "number", paid.json);
