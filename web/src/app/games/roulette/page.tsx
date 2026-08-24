@@ -7,16 +7,22 @@ export const dynamic = "force-dynamic";
 
 export default async function RoulettePage() {
   const user = await currentUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/login?next=/games/roulette");
 
   return (
-    <div className="panel space-y-4 p-6">
-      <h1 className="text-2xl font-bold">Рулетка</h1>
-      <p className="muted text-sm">
-        Баланс: {user.balanceVc} VC. Шанс выигрыша — {Math.round(CONFIG.rtp * 100)}% делить
-        на множитель.
-      </p>
-      <RouletteGame rtp={CONFIG.rtp} />
+    <div className="space-y-5">
+      <header className="space-y-2">
+        <p className="eyebrow">
+          Баланс: {user.balanceVc.toLocaleString("ru")} VC · возврат {Math.round(CONFIG.rtp * 100)}%
+        </p>
+        <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Рулетка</h1>
+        <p className="muted max-w-2xl text-sm">
+          Стол общий: раунд идёт 30 секунд — 20 на ставки и 10 на розыгрыш. Видно, кто и сколько
+          поставил, а результат каждого прошедшего раунда можно пересчитать по сиду.
+        </p>
+      </header>
+
+      <RouletteGame />
     </div>
   );
 }

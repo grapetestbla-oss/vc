@@ -3,6 +3,7 @@ package host.vanilla.core;
 import com.google.gson.JsonObject;
 import host.vanilla.core.admin.ActionRunner;
 import host.vanilla.core.admin.CheckManager;
+import host.vanilla.core.admin.MaintenanceWatcher;
 import host.vanilla.core.admin.EspManager;
 import host.vanilla.core.admin.StaffCommands;
 import host.vanilla.core.admin.StaffListener;
@@ -56,6 +57,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
     private NewsBroadcaster news;
     private CosmeticEngine cosmetics;
     private ActionRunner actions;
+    private MaintenanceWatcher maintenance;
     private TabList tabList;
     private SparkManager sparks;
     private ShopManager shop;
@@ -84,6 +86,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         hatKey = new NamespacedKey(this, "cosmetic_hat");
         cosmetics = new CosmeticEngine(this);
         actions = new ActionRunner(this, messages);
+        maintenance = new MaintenanceWatcher(this, messages);
         tabList = new TabList(this);
         sparks = new SparkManager(this, messages);
         shop = new ShopManager(this);
@@ -147,6 +150,9 @@ public final class VanillaCorePlugin extends JavaPlugin {
         getServer().getScheduler().runTaskTimer(this, this::reportPlaytime, 1200L, 1200L);
         getServer().getScheduler().runTaskTimer(this, news::poll,
                 config.newsPollSeconds * 20L, config.newsPollSeconds * 20L);
+        // Техработы проверяем чаще новостей: закрытие сервера не должно ждать минуту.
+        getServer().getScheduler().runTaskTimer(this, maintenance::poll, 100L,
+                config.maintenancePollSeconds * 20L);
         // Поручения с сайта (очистка инвентаря) забираем в том же ритме, что и новости.
         getServer().getScheduler().runTaskTimer(this, actions::poll,
                 config.newsPollSeconds * 20L + 40L, config.newsPollSeconds * 20L);
@@ -187,6 +193,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
             profile.setBalanceVc(response.get("balanceVc").getAsInt());
 
             applyRole(player, profile.adminLevel());
+            // Проверяем сразу после входа: уровень админки известен только теперь.
+            if (maintenance.kickIfNeeded(player)) return;
             tabList.welcome(player);
 
             if (response.has("cosmetics") && response.get("cosmetics").isJsonArray()) {
@@ -280,6 +288,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
     public CosmeticEngine cosmetics() { return cosmetics; }
     public ShopManager shop() { return shop; }
     public ActionRunner actions() { return actions; }
+    public MaintenanceWatcher maintenance() { return maintenance; }
     public SparkManager sparks() { return sparks; }
     public TabList tabList() { return tabList; }
     public NamespacedKey hatKey() { return hatKey; }

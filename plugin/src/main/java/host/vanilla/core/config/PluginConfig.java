@@ -38,6 +38,7 @@ public final class PluginConfig {
     public final boolean staffAlwaysSpectator;
     public final int espRefreshSeconds;
     public final int newsPollSeconds;
+    public final int maintenancePollSeconds;
 
     /// Название сезона в списке игроков и в приветствии.
     public final String seasonName;
@@ -87,6 +88,7 @@ public final class PluginConfig {
         staffAlwaysSpectator = c.getBoolean("staff.always-spectator", true);
         espRefreshSeconds = Math.max(2, c.getInt("staff.esp-refresh-seconds", 5));
         newsPollSeconds = Math.max(30, c.getInt("news.poll-seconds", 60));
+        maintenancePollSeconds = Math.max(5, c.getInt("maintenance.poll-seconds", 10));
 
         seasonName = c.getString("season.name", "Season I");
         tabEnabled = c.getBoolean("season.tab-enabled", true);

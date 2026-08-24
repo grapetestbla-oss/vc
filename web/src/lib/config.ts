@@ -10,6 +10,9 @@ export const CONFIG = {
   rtp: num("GAME_RTP", 0.95),
   minBet: num("GAME_MIN_BET", 10),
   rouletteMultipliers: [2, 3, 5, 10] as const,
+  /** Длина общего раунда и окна ставок, миллисекунды. */
+  liveRoundMs: num("LIVE_ROUND_MS", 30_000),
+  liveBettingMs: num("LIVE_BETTING_MS", 20_000),
   /** Курс пополнения: сколько VC даёт один рубль. 1 ₽ = 2 VC. */
   vcPerRub: num("VC_PER_RUB", 2),
   /** Границы заявки на пополнение, рубли. */

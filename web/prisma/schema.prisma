@@ -58,6 +58,8 @@ model User {
   appeals              Appeal[]             @relation("AppealAuthor")
   reviewedAppeals      Appeal[]             @relation("AppealReviewer")
   serverActions        ServerAction[]
+  liveBets             LiveBet[]
+  settings             Setting[]            @relation("SettingEditor")
   shopPurchases        ShopPurchase[]
   ownedPromos          Promo[]              @relation("PromoPartner")
   news                 News[]               @relation("NewsAuthor")
@@ -226,6 +228,69 @@ model Payment {
 
   @@index([userId, createdAt])
   @@index([status, createdAt])
+}
+
+// ──────────────────── Общие раунды мини-игр ─────────────────────────────
+
+enum LiveGame {
+  ROULETTE
+  CRASH
+}
+
+/// Раунд, общий для всех игроков. Номер считается от эпохи, поэтому расписание
+/// одинаковое для любого процесса сайта и не требует отдельного планировщика.
+model LiveRound {
+  id     String   @id @default(cuid())
+  game   LiveGame
+  number Int
+
+  /// Ставки принимаются от startedAt до lockAt, дальше розыгрыш и показ.
+  startedAt DateTime
+  lockAt    DateTime
+  endsAt    DateTime
+
+  serverSeed     String
+  serverSeedHash String
+
+  /// Бросок [0,1). Заполняется при розыгрыше — до него результата нет ни у кого.
+  roll       Float?
+  /// Рулетка: максимальный выигравший множитель (0 — мимо). Краш: точка краха.
+  result     Float?
+  resolvedAt DateTime?
+
+  bets LiveBet[]
+
+  @@unique([game, number])
+  @@index([game, startedAt])
+}
+
+model LiveBet {
+  id      String    @id @default(cuid())
+  roundId String
+  round   LiveRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  userId  String
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  betVc     Int
+  /// Множитель ставки в рулетке или точка авто-вывода в краше.
+  target    Float
+  payoutVc  Int      @default(0)
+  won       Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@unique([roundId, userId])
+  @@index([userId, createdAt])
+}
+
+// ──────────────────────── Настройки сайта ────────────────────────────────
+
+/// Служебные настройки, которые меняются на ходу: например, техработы.
+model Setting {
+  key         String   @id
+  value       Json
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+  updatedBy   User?    @relation("SettingEditor", fields: [updatedById], references: [id], onDelete: SetNull)
 }
 
 // ─────────────────────── Заявления о разбане ─────────────────────────────

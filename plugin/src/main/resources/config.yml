@@ -39,6 +39,11 @@ jail:
     - balance
     - report
 
+maintenance:
+  # Как часто спрашивать сайт, не включены ли техработы. Пока включены, сервер
+  # никого не пускает, кроме 5 уровня.
+  poll-seconds: 10
+
 news:
   # Как часто проверять, не появилось ли новостей для объявления в игре.
   poll-seconds: 60
@@ -149,6 +154,8 @@ messages:
   report.actions: "<gray>Телепорт: <white>/tp <player><gray>, к себе: <white>/tphere <player>"
   report.author-offline: "<gray>Автор репорта не в сети."
   report.closed: "<gray>Репорт закрыт."
+
+  maintenance.kick: "<red><bold>Технические работы<reset>\n<white><reason>\n<gray>Загляните позже — прогресс и вещи на месте."
 
   season.welcome: "<gray>Добро пожаловать на <gold>VanillaCraft <season><gray>. Следите за искрами сезона — в них осколки и VC."
   spark.spawned: "<aqua>✦ Искра сезона<gray> вспыхнула в <white><distance> блоках<gray> — <white><x>, <y>, <z>"

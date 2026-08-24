@@ -384,82 +384,6 @@ const run = async () => {
   });
   check("награду за коллекцию нельзя купить", collectionReward.status === 400, collectionReward.json);
 
-  console.log("— Игры —");
-  const tinyBet = await api("/api/games/roulette", {
-    method: "POST",
-    cookie: steve.session,
-    body: { bet: 1, multiplier: 2 },
-  });
-  check("минимальная ставка проверяется", tinyBet.status === 400, tinyBet.json);
-
-  // Потолка ставки нет: крупную ставку отклоняет только нехватка VC.
-  const hugeBet = await api("/api/games/roulette", {
-    method: "POST",
-    cookie: steve.session,
-    body: { bet: 999999, multiplier: 2 },
-  });
-  check(
-    "ставка больше баланса отклоняется по нехватке VC",
-    hugeBet.status === 400 && hugeBet.json?.error === "Недостаточно VC",
-    hugeBet.json,
-  );
-
-  // Серия подряд без пауз: раньше здесь включался перерыв после проигрышей.
-  let streak = null;
-  for (let i = 0; i < 12; i++) {
-    streak = await api("/api/games/roulette", {
-      method: "POST",
-      cookie: steve.session,
-      body: { bet: 10, multiplier: 10 },
-    });
-    if (streak.status !== 200) break;
-  }
-  check("двенадцать ставок подряд проходят без перерыва", streak?.status === 200, streak?.json);
-
-  const badMultiplier = await api("/api/games/roulette", {
-    method: "POST",
-    cookie: steve.session,
-    body: { bet: 10, multiplier: 7 },
-  });
-  check("чужой множитель отклоняется", badMultiplier.status === 400);
-
-  const beforeSpin = await api("/api/me", { cookie: steve.session });
-  const spin = await api("/api/games/roulette", {
-    method: "POST",
-    cookie: steve.session,
-    body: { bet: 100, multiplier: 2 },
-  });
-  check("рулетка играет", spin.status === 200 && typeof spin.json?.balance === "number", spin.json);
-  check("рулетка раскрывает fairness", typeof spin.json?.fairness?.serverSeedHash === "string");
-  check(
-    "ставка списана, выигрыш начислен",
-    spin.json?.balance === beforeSpin.json.balanceVc - 100 + (spin.json?.won ? 200 : 0),
-    { before: beforeSpin.json.balanceVc, after: spin.json?.balance, won: spin.json?.won },
-  );
-
-  const crash = await api("/api/games/crash", {
-    method: "POST",
-    cookie: steve.session,
-    body: { bet: 10, cashOutAt: 2 },
-  });
-  check("краш играет", crash.status === 200 && typeof crash.json?.crashPoint === "number", crash.json);
-
-  const noFunds = await api("/api/games/roulette", {
-    method: "POST",
-    cookie: alex.session,
-    body: { bet: 5000, multiplier: 2 },
-  });
-  check("игра без денег отклоняется", noFunds.status === 400, noFunds.json);
-
-  const alexAfter = await api("/api/me", { cookie: alex.session });
-  check("баланс не ушёл в минус", alexAfter.json.balanceVc >= 0, alexAfter.json);
-
-  const anonGame = await api("/api/games/roulette", {
-    method: "POST",
-    body: { bet: 10, multiplier: 2 },
-  });
-  check("без входа играть нельзя", anonGame.status === 401);
-
   console.log("— Косметика —");
   const catalogue = await fetch(BASE + "/collection", {
     headers: { Cookie: steve.session },
@@ -1220,6 +1144,141 @@ const run = async () => {
     });
   }
   check("серия искр упирается в часовой лимит", limited?.json?.status === "rate_limited", limited?.json);
+
+  console.log("— Общие раунды —");
+  const table = await api("/api/games/live?game=ROULETTE", { cookie: steve.session });
+  check("стол рулетки отдаётся", table.status === 200 && typeof table.json?.round?.number === "number", table.json);
+  check("сектора колеса приходят", Array.isArray(table.json?.zones) && table.json.zones.length === 4, table.json?.zones);
+  check("результат текущего раунда скрыт до розыгрыша",
+    table.json?.round?.phase !== "betting" || table.json?.round?.result === null, table.json?.round);
+
+  const unknownGame = await api("/api/games/live?game=POKER", { cookie: steve.session });
+  check("неизвестная игра отклоняется", unknownGame.status === 400);
+
+  // Ждём начала окна ставок, чтобы ставка гарантированно попала в раунд.
+  async function waitForBetting(game) {
+    for (let i = 0; i < 40; i++) {
+      const state = await api(`/api/games/live?game=${game}`, { cookie: steve.session });
+      if (state.json?.round?.phase === "betting") return state.json;
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+    return null;
+  }
+
+  const bettingRound = await waitForBetting("ROULETTE");
+  check("окно ставок открывается", bettingRound !== null, bettingRound);
+
+  const liveBet = await api("/api/games/live/bet", {
+    method: "POST",
+    cookie: steve.session,
+    body: { game: "ROULETTE", bet: 100, target: 2 },
+  });
+  check("ставка принимается", liveBet.json?.ok === true, liveBet.json);
+
+  const twice = await api("/api/games/live/bet", {
+    method: "POST",
+    cookie: steve.session,
+    body: { game: "ROULETTE", bet: 50, target: 3 },
+  });
+  check("вторая ставка в тот же раунд отклоняется", twice.status === 400, twice.json);
+
+  const seen = await api("/api/games/live?game=ROULETTE", { cookie: alex.session });
+  const foreignBet = seen.json?.bets?.find((item) => item.login === "Steve");
+  check("чужие ставки видны всем", foreignBet?.betVc === 100, seen.json?.bets);
+  check("своя ставка помечена только у автора", foreignBet?.mine === false, foreignBet);
+
+  const badTarget = await api("/api/games/live/bet", {
+    method: "POST",
+    cookie: alex.session,
+    body: { game: "ROULETTE", bet: 100, target: 7 },
+  });
+  check("чужой множитель отклоняется", badTarget.status === 400, badTarget.json);
+
+  const smallBet = await api("/api/games/live/bet", {
+    method: "POST",
+    cookie: alex.session,
+    body: { game: "ROULETTE", bet: 1, target: 2 },
+  });
+  check("минимальная ставка проверяется и на общем столе", smallBet.status === 400, smallBet.json);
+
+  // Дожидаемся розыгрыша: раунд обязан разрешиться сам, без чьей-либо кнопки.
+  let resolved = null;
+  for (let i = 0; i < 60; i++) {
+    const state = await api("/api/games/live?game=ROULETTE", { cookie: steve.session });
+    const done = state.json?.history?.find((item) => item.number === bettingRound.round.number);
+    if (done) {
+      resolved = done;
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  }
+  check("раунд разыгрывается сам", resolved !== null, resolved);
+  check("в истории раскрыт сид раунда", typeof resolved?.serverSeed === "string" && resolved.serverSeed.length === 64, resolved);
+  check("бросок записан", typeof resolved?.roll === "number" && resolved.roll >= 0 && resolved.roll < 1, resolved);
+
+  const lateBet = await api("/api/games/live/bet", {
+    method: "POST",
+    cookie: alex.session,
+    body: { game: "CRASH", bet: 20, target: 1.005 },
+  });
+  check("точка вывода ниже 1.01 отклоняется", lateBet.status === 400, lateBet.json);
+
+  const crashBetting = await waitForBetting("CRASH");
+  const crashBet = await api("/api/games/live/bet", {
+    method: "POST",
+    cookie: alex.session,
+    body: { game: "CRASH", bet: 20, target: 1.5 },
+  });
+  check("ставка в краш принимается", crashBet.json?.ok === true, { crashBet: crashBet.json, round: crashBetting?.round });
+
+  console.log("— Технические работы —");
+  const maintByPlayer = await api("/api/panel/maintenance", {
+    method: "POST",
+    cookie: alex.session,
+    body: { enabled: true, reason: "хочу" },
+  });
+  check("не-чиф не включает техработы", maintByPlayer.status === 403);
+
+  const maintOn = await api("/api/panel/maintenance", {
+    method: "POST",
+    cookie: steve.session,
+    body: { enabled: true, reason: "Обновляем ядро сервера" },
+  });
+  check("чиф включает техработы", maintOn.json?.enabled === true, maintOn.json);
+
+  const forPlugin = await api("/api/mc/maintenance", { serverToken: TOKEN });
+  check("плагин видит техработы", forPlugin.json?.enabled === true, forPlugin.json);
+  check("причина доходит до плагина", forPlugin.json?.reason === "Обновляем ядро сервера", forPlugin.json);
+
+  const forPluginNoToken = await api("/api/mc/maintenance");
+  check("статус техработ закрыт без токена", forPluginNoToken.status === 401);
+
+  const stub = await fetch(BASE + "/shop", { headers: { Cookie: alex.session } });
+  const stubHtml = await stub.text();
+  check("игрок видит заглушку вместо страницы", stubHtml.includes("Технические работы"), {
+    status: stub.status,
+  });
+  check("содержимое страницы скрыто", !stubHtml.includes("Карманный эндер-сундук"), null);
+
+  const chief = await fetch(BASE + "/shop", { headers: { Cookie: steve.session } });
+  const chiefHtml = await chief.text();
+  check("чиф-администратор работает как обычно", chiefHtml.includes("Карманный эндер-сундук"), {
+    status: chief.status,
+  });
+
+  const loginOpen = await fetch(BASE + "/login");
+  const loginHtml = await loginOpen.text();
+  check("вход остаётся открытым", loginHtml.includes("Логин"), { status: loginOpen.status });
+
+  const maintOff = await api("/api/panel/maintenance", {
+    method: "POST",
+    cookie: steve.session,
+    body: { enabled: false, reason: "" },
+  });
+  check("техработы выключаются", maintOff.json?.enabled === false, maintOff.json);
+
+  const backOnline = await fetch(BASE + "/shop", { headers: { Cookie: alex.session } });
+  check("после выключения сайт открыт", (await backOnline.text()).includes("Карманный эндер-сундук"));
 
   console.log("— Итог —");
   console.log(`Пройдено: ${passed}, провалено: ${failed}`);

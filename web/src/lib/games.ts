@@ -27,14 +27,3 @@ export async function nextRoll(userId: string) {
     nonce: updated.nonce,
   };
 }
-
-/**
- * Проверка ставки. Потолка ставки, дневного лимита проигрыша и паузы после
- * серии проигрышей нет — так решил владелец сервера. Осталась только нижняя
- * граница: ставка должна быть целым положительным числом, иначе раунд
- * бессмысленен, а нулевой ставкой можно бесконечно крутить сид.
- */
-export async function checkLimits(_userId: string, bet: number): Promise<string | null> {
-  if (!Number.isFinite(bet) || bet < CONFIG.minBet) return `Минимальная ставка ${CONFIG.minBet} VC`;
-  return null;
-}
