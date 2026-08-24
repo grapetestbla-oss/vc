@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { requirePanel } from "@/lib/panel";
 import { BonusForm, PromoForm } from "@/components/CodeForms";
+import PromoRow from "@/components/PromoRow";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,12 @@ export default async function PromosPage() {
         ) : (
           <p className="muted text-sm">Создавать промокоды может только chief administrator.</p>
         )}
-        <table className="w-full text-sm">
+        <p className="muted text-sm">
+          Награда правится прямо в таблице: на баннере партнёра и в игре она берётся отсюда.
+          Уже выданные награды пересчёт не затрагивает.
+        </p>
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-sm">
           <thead className="muted text-left">
             <tr>
               <th className="py-2">Код</th>
@@ -36,20 +42,25 @@ export default async function PromosPage() {
               <th>Награда</th>
               <th>Уровень</th>
               <th>Активаций</th>
+              <th />
             </tr>
           </thead>
           <tbody>
             {promos.map((promo) => (
-              <tr key={promo.id} className="border-t" style={{ borderColor: "var(--border)" }}>
-                <td className="py-1 font-mono">{promo.code}</td>
-                <td>{promo.partner?.login ?? "—"}</td>
-                <td>{promo.rewardVc} VC</td>
-                <td>{promo.requiredLevel}</td>
-                <td>{promo._count.activations}</td>
-              </tr>
+              <PromoRow
+                key={promo.id}
+                code={promo.code}
+                partner={promo.partner?.login ?? null}
+                rewardVc={promo.rewardVc}
+                requiredLevel={promo.requiredLevel}
+                active={promo.active}
+                activations={promo._count.activations}
+                editable={admin.adminLevel >= 5}
+              />
             ))}
           </tbody>
         </table>
+        </div>
       </section>
 
       <section className="panel space-y-4 p-6">

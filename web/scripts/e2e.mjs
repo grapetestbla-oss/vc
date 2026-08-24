@@ -1105,6 +1105,50 @@ const run = async () => {
   const fontAsset = await fetch(BASE + "/fonts/russo-one-cyrillic.woff2");
   check("шрифт баннера отдаётся сайтом", fontAsset.status === 200, { status: fontAsset.status });
 
+  console.log("— Правка промокода —");
+  const editable = await api("/api/panel/promo", {
+    method: "POST",
+    cookie: steve.session,
+    body: { code: "EDITME", partnerLogin: "Streamer", rewardVc: 5000, requiredLevel: 3 },
+  });
+  check("промокод создан", editable.json?.ok === true, editable.json);
+
+  const editByPlayer = await api("/api/panel/promo", {
+    method: "PATCH",
+    cookie: alex.session,
+    body: { code: "EDITME", rewardVc: 1000 },
+  });
+  check("не-чиф не правит промокоды", editByPlayer.status === 403);
+
+  const edited = await api("/api/panel/promo", {
+    method: "PATCH",
+    cookie: steve.session,
+    body: { code: "EDITME", rewardVc: 1000, requiredLevel: 2 },
+  });
+  check("награда промокода правится", edited.json?.rewardVc === 1000, edited.json);
+  check("уровень промокода правится", edited.json?.requiredLevel === 2, edited.json);
+
+  const insane = await api("/api/panel/promo", {
+    method: "PATCH",
+    cookie: steve.session,
+    body: { code: "EDITME", rewardVc: 999999 },
+  });
+  check("абсурдная награда отклоняется", insane.status === 400, insane.json);
+
+  const switched = await api("/api/panel/promo", {
+    method: "PATCH",
+    cookie: steve.session,
+    body: { code: "EDITME", active: false },
+  });
+  check("промокод выключается", switched.json?.active === false, switched.json);
+
+  const missing = await api("/api/panel/promo", {
+    method: "PATCH",
+    cookie: steve.session,
+    body: { code: "НЕТТАКОГО", rewardVc: 100 },
+  });
+  check("правка несуществующего кода отклоняется", missing.status === 404, missing.json);
+
   console.log("— Итог —");
   console.log(`Пройдено: ${passed}, провалено: ${failed}`);
   process.exit(failed === 0 ? 0 : 1);
