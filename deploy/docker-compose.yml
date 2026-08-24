@@ -30,6 +30,21 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
 
+  # Служебный контейнер для схемы и каталога: у него полные node_modules со
+  # сборочной стадии, поэтому Prisma CLI запускается как положено. В обычном
+  # up не поднимается — только через --profile tools run.
+  migrator:
+    build:
+      context: ../web
+      target: builder
+    profiles: ["tools"]
+    environment:
+      DATABASE_URL: postgresql://vanilla:${POSTGRES_PASSWORD}@postgres:5432/vanilla
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["node", "--version"]
+
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped

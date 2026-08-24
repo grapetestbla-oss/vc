@@ -44,10 +44,15 @@ curl -fsSL https://raw.githubusercontent.com/grapetestbla-oss/vc/claude/minecraf
 
 ```
 cd /opt/vanillacoins/deploy
-docker compose --env-file .env run --rm \
+docker compose --env-file .env --profile tools run --rm \
   -e ADMIN_LOGIN=nick -e ADMIN_EMAIL=mail@example.com -e ADMIN_PASSWORD=... \
-  web node prisma/create-admin.mjs
+  migrator node prisma/create-admin.mjs
 ```
+
+`migrator` — служебный контейнер со сборочной стадии: в нём полные
+`node_modules`, поэтому там работают Prisma CLI и скрипты. Рабочий образ
+намеренно лёгкий и CLI-инструментов не содержит. В обычном `up` этот
+контейнер не поднимается — только через `--profile tools run`.
 
 Повторный запуск с тем же логином меняет пароль и уровень — так же
 восстанавливают доступ.

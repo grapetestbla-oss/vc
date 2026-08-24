@@ -117,19 +117,20 @@ echo "==> Сборка и запуск"
 $COMPOSE --env-file .env up -d --build
 
 echo "==> Схема базы"
-# В рабочем образе нет обёрток из node_modules/.bin, поэтому зовём CLI напрямую.
-$COMPOSE --env-file .env run --rm web node node_modules/prisma/build/index.js db push
-$COMPOSE --env-file .env run --rm web node prisma/seed.mjs
+# Prisma CLI тянет свои зависимости, которых нет в лёгком рабочем образе,
+# поэтому схему и каталог накатываем из сборочной стадии.
+$COMPOSE --env-file .env --profile tools run --rm migrator npx prisma db push
+$COMPOSE --env-file .env --profile tools run --rm migrator node prisma/seed.mjs
 
 # Администратора заводим, только если данные заданы в .env.
 if [ -n "${ADMIN_LOGIN:-}" ] && [ -n "${ADMIN_EMAIL:-}" ] && [ -n "${ADMIN_PASSWORD:-}" ]; then
   echo "==> Администратор $ADMIN_LOGIN"
-  $COMPOSE --env-file .env run --rm \
+  $COMPOSE --env-file .env --profile tools run --rm \
     -e ADMIN_LOGIN="$ADMIN_LOGIN" \
     -e ADMIN_EMAIL="$ADMIN_EMAIL" \
     -e ADMIN_PASSWORD="$ADMIN_PASSWORD" \
     -e ADMIN_LEVEL="${ADMIN_LEVEL:-5}" \
-    web node prisma/create-admin.mjs
+    migrator node prisma/create-admin.mjs
 fi
 
 echo
@@ -138,6 +139,6 @@ grep MC_SERVER_TOKEN .env
 echo
 echo "Сайт: $SITE_MODE"
 echo "Администратор заводится командой:"
-echo "  cd $APP_DIR/deploy && $COMPOSE --env-file .env run --rm \\"
+echo "  cd $APP_DIR/deploy && $COMPOSE --env-file .env --profile tools run --rm \\"
 echo "    -e ADMIN_LOGIN=ник -e ADMIN_EMAIL=почта -e ADMIN_PASSWORD=пароль \\"
-echo "    web node prisma/create-admin.mjs"
+echo "    migrator node prisma/create-admin.mjs"
