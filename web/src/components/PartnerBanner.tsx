@@ -13,8 +13,11 @@ const BASE = { width: 1376, height: 768 };
 /** Внутренность таблички «ПРОМОКОД» — сюда пишем свой текст. */
 const PLAQUE = { x: 802, y: 353, width: 478, height: 74 };
 
-/** Чистый кусочек той же таблички справа от текста: им и затираем. */
-const CLEAN = { x: 1272, y: 353, width: 6, height: 74 };
+/**
+ * Чистый столбец той же таблички справа от текста: им и затираем.
+ * Ширина ровно в один пиксель — иначе при растягивании появляются полосы.
+ */
+const CLEAN = { x: 1274, y: 353, width: 1, height: 74 };
 
 /** Строка с наградой. На картинке она нарисована поверх неба. */
 const REWARD_LINE = { x: 96, y: 220, width: 1184, height: 62 };
@@ -27,47 +30,104 @@ const WHITE = "#ffffff";
 
 type Segment = { text: string; color: string };
 
-function fitFontSize(
-  ctx: CanvasRenderingContext2D,
-  segments: Segment[],
-  maxWidth: number,
-  maxHeight: number,
-): number {
-  let size = maxHeight;
-  for (; size > 8; size -= 1) {
-    ctx.font = `700 ${size}px "Pixelify Sans", sans-serif`;
+function font(size: number): string {
+  return `700 ${size}px "Pixelify Sans", sans-serif`;
+}
+
+function scratch(width: number, height: number): CanvasRenderingContext2D {
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.ceil(width));
+  canvas.height = Math.max(1, Math.ceil(height));
+  return canvas.getContext("2d")!;
+}
+
+/**
+ * Подбирает кегль: строка должна влезть в ширину плашки, а прописные — занять
+ * заданную долю её высоты. Размер округляем до чётного — пиксельный шрифт на
+ * дробных размерах плывёт, буквы получаются разной толщины.
+ */
+function fitFontSize(segments: Segment[], maxWidth: number, capHeight: number): number {
+  const ctx = scratch(8, 8);
+  let size = 8;
+  for (let candidate = 8; candidate <= 200; candidate += 2) {
+    ctx.font = font(candidate);
     const width = segments.reduce((sum, part) => sum + ctx.measureText(part.text).width, 0);
-    if (width <= maxWidth) break;
+    const metrics = ctx.measureText("П");
+    if (width > maxWidth || metrics.actualBoundingBoxAscent > capHeight) break;
+    size = candidate;
   }
   return size;
 }
 
-/** Рисует строку из разноцветных кусков по центру прямоугольника. */
+/**
+ * Рисует строку на прозрачном слое и убирает сглаживание: полупрозрачные
+ * пиксели по краям либо становятся сплошными, либо исчезают. Без этого
+ * пиксельный шрифт выглядит замыленным, особенно под обводкой.
+ */
+function renderMask(segments: Segment[], size: number): HTMLCanvasElement {
+  const measure = scratch(8, 8);
+  measure.font = font(size);
+  const widths = segments.map((part) => measure.measureText(part.text).width);
+  const total = widths.reduce((sum, width) => sum + width, 0);
+  // Метрики берём у самой строки, а не у образцовых букв: иначе пустое место
+  // под несуществующие «хвосты» уводит текст вверх от центра плашки.
+  const metrics = measure.measureText(segments.map((part) => part.text).join(""));
+  const ascent = Math.ceil(metrics.actualBoundingBoxAscent);
+  const descent = Math.ceil(Math.max(0, metrics.actualBoundingBoxDescent));
+  const pad = 2;
+
+  const ctx = scratch(total + pad * 2, ascent + descent + pad * 2);
+  ctx.font = font(size);
+  ctx.textBaseline = "alphabetic";
+  let x = pad;
+  segments.forEach((part, index) => {
+    ctx.fillStyle = part.color;
+    ctx.fillText(part.text, x, pad + ascent);
+    x += widths[index];
+  });
+
+  const image = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
+  const data = image.data;
+  for (let i = 3; i < data.length; i += 4) {
+    data[i] = data[i] >= 128 ? 255 : 0;
+  }
+  ctx.putImageData(image, 0, 0);
+  return ctx.canvas;
+}
+
+/** Обводка: та же маска, залитая чёрным и размноженная по кругу под текстом. */
+function withOutline(mask: HTMLCanvasElement, radius: number): HTMLCanvasElement {
+  const shadow = scratch(mask.width, mask.height);
+  shadow.drawImage(mask, 0, 0);
+  shadow.globalCompositeOperation = "source-in";
+  shadow.fillStyle = "#120a04";
+  shadow.fillRect(0, 0, mask.width, mask.height);
+
+  const out = scratch(mask.width + radius * 2, mask.height + radius * 2);
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      if (dx * dx + dy * dy > radius * radius) continue;
+      out.drawImage(shadow.canvas, radius + dx, radius + dy);
+    }
+  }
+  out.drawImage(mask, radius, radius);
+  return out.canvas;
+}
+
+/** Ставит готовую строку по центру прямоугольника — уже без масштабирования. */
 function drawSegments(
   ctx: CanvasRenderingContext2D,
   segments: Segment[],
   box: { x: number; y: number; width: number; height: number },
 ) {
-  // Pixelify Sans рисует прописные примерно на 0,7 кегля, поэтому берём
-  // высоту плашки целиком: иначе текст болтается в ней мелким.
-  const size = fitFontSize(ctx, segments, box.width - 28, box.height);
-  ctx.font = `700 ${size}px "Pixelify Sans", sans-serif`;
-  ctx.textBaseline = "middle";
-  ctx.lineJoin = "round";
-  ctx.miterLimit = 2;
+  const size = fitFontSize(segments, box.width - 40, box.height * 0.66);
+  const mask = renderMask(segments, size);
+  const outlined = withOutline(mask, Math.max(2, Math.round(size / 14)));
 
-  const total = segments.reduce((sum, part) => sum + ctx.measureText(part.text).width, 0);
-  let x = box.x + (box.width - total) / 2;
-  const y = box.y + box.height / 2 + 1;
-
-  for (const part of segments) {
-    ctx.lineWidth = Math.max(4, size * 0.16);
-    ctx.strokeStyle = "#120a04";
-    ctx.strokeText(part.text, x, y);
-    ctx.fillStyle = part.color;
-    ctx.fillText(part.text, x, y);
-    x += ctx.measureText(part.text).width;
-  }
+  // Кладём в целые пиксели: половинка пикселя снова включила бы сглаживание.
+  const x = Math.round(box.x + (box.width - outlined.width) / 2);
+  const y = Math.round(box.y + (box.height - outlined.height) / 2);
+  ctx.drawImage(outlined, x, y);
 }
 
 /** Тёмная плашка в стиле баннера — под строку с наградой, если её надо переписать. */
