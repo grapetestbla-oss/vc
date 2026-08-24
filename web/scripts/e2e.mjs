@@ -392,12 +392,29 @@ const run = async () => {
   });
   check("минимальная ставка проверяется", tinyBet.status === 400, tinyBet.json);
 
+  // Потолка ставки нет: крупную ставку отклоняет только нехватка VC.
   const hugeBet = await api("/api/games/roulette", {
     method: "POST",
     cookie: steve.session,
     body: { bet: 999999, multiplier: 2 },
   });
-  check("максимальная ставка проверяется", hugeBet.status === 400);
+  check(
+    "ставка больше баланса отклоняется по нехватке VC",
+    hugeBet.status === 400 && hugeBet.json?.error === "Недостаточно VC",
+    hugeBet.json,
+  );
+
+  // Серия подряд без пауз: раньше здесь включался перерыв после проигрышей.
+  let streak = null;
+  for (let i = 0; i < 12; i++) {
+    streak = await api("/api/games/roulette", {
+      method: "POST",
+      cookie: steve.session,
+      body: { bet: 10, multiplier: 10 },
+    });
+    if (streak.status !== 200) break;
+  }
+  check("двенадцать ставок подряд проходят без перерыва", streak?.status === 200, streak?.json);
 
   const badMultiplier = await api("/api/games/roulette", {
     method: "POST",

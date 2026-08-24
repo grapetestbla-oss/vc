@@ -9,12 +9,6 @@ export const CONFIG = {
   /** Возврат игроку в мини-играх. 0.95 = 5% преимущества заведения. */
   rtp: num("GAME_RTP", 0.95),
   minBet: num("GAME_MIN_BET", 10),
-  maxBet: num("GAME_MAX_BET", 5000),
-  /** Дневной лимит проигрыша на аккаунт. Не даёт спустить всё за один вечер. */
-  dailyLossLimit: num("GAME_DAILY_LOSS_LIMIT", 20000),
-  /** Пауза после серии проигрышей подряд, секунды. */
-  coolDownAfterLosses: num("GAME_COOLDOWN_LOSSES", 10),
-  coolDownSeconds: num("GAME_COOLDOWN_SECONDS", 300),
   rouletteMultipliers: [2, 3, 5, 10] as const,
   /** Курс пополнения: сколько VC даёт один рубль. 1 ₽ = 2 VC. */
   vcPerRub: num("VC_PER_RUB", 2),

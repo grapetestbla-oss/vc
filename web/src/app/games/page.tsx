@@ -22,10 +22,9 @@ export default function GamesPage() {
         <p className="eyebrow fade-up">Внутренняя валюта, без вывода</p>
         <h1 className="fade-up text-4xl font-bold tracking-tight md:text-5xl">Мини-игры</h1>
         <p className="fade-up muted max-w-2xl">
-          Возврат игроку {Math.round(CONFIG.rtp * 100)}%. Ставки от {CONFIG.minBet} до{" "}
-          {CONFIG.maxBet} VC, дневной лимит проигрыша {CONFIG.dailyLossLimit.toLocaleString("ru")} VC,
-          после серии проигрышей включается пауза. VanillaCoins не выводятся в деньги
-          и не передаются между игроками.
+          Возврат игроку {Math.round(CONFIG.rtp * 100)}%. Ставка — от {CONFIG.minBet} VC и до всего
+          баланса, потолка и перерывов нет. VanillaCoins не выводятся в деньги и не передаются
+          между игроками.
         </p>
       </header>
 
