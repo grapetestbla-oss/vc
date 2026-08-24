@@ -6,6 +6,8 @@ import { levelFromPlaytime, nextLevelAt } from "@/lib/levels";
 import { ADMIN_LEVELS } from "@/lib/config";
 import TwoFactorCode from "@/components/TwoFactorCode";
 import { promoStatus } from "@/lib/promo";
+import { partnerEarnings } from "@/lib/partnershare";
+import { CONFIG } from "@/lib/config";
 import { PLATFORM_LABEL, STATUS_LABEL } from "@/lib/partners";
 import Reveal from "@/components/Reveal";
 import CountUp from "@/components/CountUp";
@@ -16,7 +18,8 @@ export default async function CabinetPage() {
   const user = await currentUser();
   if (!user) redirect("/login?next=/cabinet");
 
-  const [transactions, punishments, promo, rounds, cosmetics, myPromo, application] = await Promise.all([
+  const [transactions, punishments, promo, rounds, cosmetics, myPromo, application, earnings] =
+    await Promise.all([
     db.transaction.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 12 }),
     db.punishment.findMany({
       where: { userId: user.id },
@@ -35,6 +38,7 @@ export default async function CabinetPage() {
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
     }),
+    partnerEarnings(user.id),
   ]);
 
   const level = levelFromPlaytime(user.playtimeSec);
@@ -162,6 +166,25 @@ export default async function CabinetPage() {
             <p className="muted mt-2 text-sm">
               Активаций: {promo.activations.length} · награда {promo.rewardVc} VC ·
               нужен уровень {promo.requiredLevel}
+            </p>
+            <div className="mt-4 flex flex-wrap gap-6">
+              <div>
+                <div className="eyebrow">Заработано с пополнений</div>
+                <div className="mt-1 text-2xl font-semibold tabular-nums" style={{ color: "var(--gold)" }}>
+                  {earnings.toLocaleString("ru")} VC
+                </div>
+              </div>
+              <div>
+                <div className="eyebrow">Доля партнёра</div>
+                <div className="mt-1 text-2xl font-semibold tabular-nums">
+                  {CONFIG.partnerSharePercent}%
+                </div>
+              </div>
+            </div>
+            <p className="muted mt-3 text-xs">
+              {CONFIG.partnerSharePercent}% от каждого пополнения игрока, который ввёл ваш код,
+              приходят вам на баланс автоматически — в момент, когда администрация подтверждает
+              его заявку.
             </p>
             <ul className="muted mt-4 grid gap-1 text-sm sm:grid-cols-2">
               {promo.activations.slice(0, 10).map((activation) => (

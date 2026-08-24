@@ -14,6 +14,7 @@ const NAV = [
   { href: "/panel/promos", label: "Промо и бонусы", level: 3 },
   { href: "/panel/partners", label: "Заявки партнёров", level: 3 },
   { href: "/panel/payments", label: "Пополнения", level: 5 },
+  { href: "/panel/appeals", label: "Разбаны", level: 5 },
   { href: "/panel/news", label: "Новости", level: 5 },
   { href: "/panel/server", label: "Сервер", level: 5 },
   { href: "/panel/staff", label: "Персонал", level: 5 },

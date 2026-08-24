@@ -106,6 +106,22 @@ const topUpRequest = await page.evaluate(async () => {
 console.log("заявка на пополнение:", topUpRequest.status, topUpRequest.body);
 await shot("/panel/payments", "19-panel-payments");
 
+// заявление о разбане, чтобы страница разбора не была пустой
+const appealRequest = await page.evaluate(async () => {
+  const response = await fetch("/api/appeals", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      login: "Griefer",
+      contact: "@griefer",
+      text: "Забанили за гриферство на спавне, но я только убирал за другим игроком. Прошу пересмотреть.",
+    }),
+  });
+  return { status: response.status, body: await response.text() };
+});
+console.log("заявление о разбане:", appealRequest.status, appealRequest.body);
+await shot("/panel/appeals", "23-panel-appeals");
+
 await shot("/panel/news", "09-panel-news");
 await shot("/news", "10-news");
 await shot("/cases", "11-cases");
@@ -122,6 +138,7 @@ console.log("13 case opened");
 await shot("/collection", "14-collection");
 await shot("/shop", "20-shop");
 await shot("/topup", "21-topup");
+await shot("/appeal", "24-appeal");
 await shot("/partners", "16-partners");
 await shot("/register", "17-register");
 await shot("/games", "12-games");

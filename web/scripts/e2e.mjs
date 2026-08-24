@@ -857,6 +857,204 @@ const run = async () => {
   });
   check("неизвестный сигнал отклоняется", badSignal.status === 400 || badSignal.status === 502, badSignal.json);
 
+  console.log("— Доля медиапартнёра —");
+  // Партнёр Streamer, игрок Fan привязывает его код и пополняет баланс.
+  const streamer = await register("Streamer");
+  const streamerMe = await api("/api/me", { cookie: streamer.session });
+  const sharePromo = await api("/api/panel/promo", {
+    method: "POST",
+    cookie: steve.session,
+    body: { code: "BLOG", partnerLogin: "Streamer", rewardVc: 500, requiredLevel: 3 },
+  });
+  check("промокод партнёра создан", sharePromo.json?.ok === true, sharePromo.json);
+
+  const fan = await register("Fan", "password123", "BLOG");
+  check("игрок привязал код при регистрации", fan.json?.promo === "BLOG", fan.json);
+
+  const fanPayment = await api("/api/payments/create", {
+    method: "POST",
+    cookie: fan.session,
+    body: { amountRub: 1000, method: "СБП", contact: "@fan" },
+  });
+  check("заявка реферала создана", fanPayment.json?.vcAmount === 2000, fanPayment.json);
+
+  const streamerBefore = (await api("/api/me", { cookie: streamer.session })).json.balanceVc;
+  const fanApprove = await api("/api/panel/payment", {
+    method: "POST",
+    cookie: steve.session,
+    body: { paymentId: fanPayment.json.paymentId, action: "approve" },
+  });
+  check("пополнение реферала одобрено", fanApprove.json?.status === "paid", fanApprove.json);
+  check("партнёру начислено 10%", fanApprove.json?.partnerShare?.amount === 200, fanApprove.json);
+
+  const streamerAfter = await api("/api/me", { cookie: streamer.session });
+  check(
+    "доля дошла до баланса партнёра",
+    streamerAfter.json.balanceVc === streamerBefore + 200,
+    streamerAfter.json,
+  );
+
+  const ownPayment = await api("/api/payments/create", {
+    method: "POST",
+    cookie: streamer.session,
+    body: { amountRub: 100, method: "СБП", contact: "@streamer" },
+  });
+  const ownApprove = await api("/api/panel/payment", {
+    method: "POST",
+    cookie: steve.session,
+    body: { paymentId: ownPayment.json.paymentId, action: "approve" },
+  });
+  check("на своём пополнении партнёр долю не получает", ownApprove.json?.partnerShare === null, ownApprove.json);
+
+  const beforeRejectShare = (await api("/api/me", { cookie: streamer.session })).json.balanceVc;
+  const rejectedShare = await api("/api/payments/create", {
+    method: "POST",
+    cookie: fan.session,
+    body: { amountRub: 200, method: "Карта", contact: "@fan" },
+  });
+  await api("/api/panel/payment", {
+    method: "POST",
+    cookie: steve.session,
+    body: { paymentId: rejectedShare.json.paymentId, action: "reject" },
+  });
+  const afterRejectShare = await api("/api/me", { cookie: streamer.session });
+  check(
+    "за отклонённую заявку доли нет",
+    afterRejectShare.json.balanceVc === beforeRejectShare,
+    afterRejectShare.json,
+  );
+
+  console.log("— Заявления о разбане —");
+  const banned = await register("Banned");
+  const bannedMe = await api("/api/me", { cookie: banned.session });
+  await api("/api/panel/punish", {
+    method: "POST",
+    cookie: steve.session,
+    body: { userId: bannedMe.json.id, type: "BAN", reason: "тестовый бан", days: 30 },
+  });
+
+  const shortAppeal = await api("/api/appeals", {
+    method: "POST",
+    ip: "198.51.100.7",
+    body: { login: "Banned", contact: "@banned", text: "разбаньте" },
+  });
+  check("короткое заявление отклоняется", shortAppeal.status === 400, shortAppeal.json);
+
+  const appeal = await api("/api/appeals", {
+    method: "POST",
+    ip: "198.51.100.7",
+    body: {
+      login: "Banned",
+      contact: "@banned",
+      text: "Меня забанили за то, чего я не делал. Прошу пересмотреть решение и снять бан.",
+    },
+  });
+  check("заявление принято без входа", appeal.json?.ok === true, appeal.json);
+
+  const secondAppeal = await api("/api/appeals", {
+    method: "POST",
+    ip: "198.51.100.8",
+    body: {
+      login: "Banned",
+      contact: "@banned",
+      text: "Ещё одно заявление с тем же текстом, чтобы проверить защиту от дублей.",
+    },
+  });
+  check("второе заявление по нику не принимается", secondAppeal.status === 400, secondAppeal.json);
+
+  const appealByPlayer = await api("/api/panel/appeal", {
+    method: "POST",
+    cookie: alex.session,
+    body: { appealId: appeal.json.appealId, approve: true },
+  });
+  check("helper не решает по разбанам", appealByPlayer.status === 403);
+
+  const appealApprove = await api("/api/panel/appeal", {
+    method: "POST",
+    cookie: steve.session,
+    body: { appealId: appeal.json.appealId, approve: true, note: "проверили логи, бан ошибочный" },
+  });
+  check("chief разбанивает", appealApprove.json?.status === "approved", appealApprove.json);
+  check("бан снят", appealApprove.json?.liftedBans === 1, appealApprove.json);
+
+  const appealLogin = await api("/api/mc/login", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Banned", password: "password123", ip: "203.0.113.240" },
+  });
+  check("после разбана вход в игру открыт", appealLogin.json?.status !== "banned", appealLogin.json);
+
+  const appealTwice = await api("/api/panel/appeal", {
+    method: "POST",
+    cookie: steve.session,
+    body: { appealId: appeal.json.appealId, approve: false },
+  });
+  check("повторное решение не проходит", appealTwice.status === 400, appealTwice.json);
+
+  console.log("— Обнуление аккаунта —");
+  const doomed = await register("Doomed");
+  const doomedMe = await api("/api/me", { cookie: doomed.session });
+  await api("/api/panel/balance", {
+    method: "POST",
+    cookie: steve.session,
+    body: { userId: doomedMe.json.id, amount: 2000, reason: "перед обнулением" },
+  });
+  await api("/api/shop/buy", { method: "POST", cookie: doomed.session, body: { key: "tp_pack" } });
+  await api("/api/mc/playtime", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { entries: [{ login: "Doomed", seconds: 7200 }] },
+  });
+
+  const wipeByPlayer = await api("/api/panel/wipe", {
+    method: "POST",
+    cookie: alex.session,
+    body: { userId: doomedMe.json.id, reason: "хочу", confirm: "Doomed" },
+  });
+  check("не-чиф не обнуляет аккаунты", wipeByPlayer.status === 403);
+
+  const wipeNoConfirm = await api("/api/panel/wipe", {
+    method: "POST",
+    cookie: steve.session,
+    body: { userId: doomedMe.json.id, reason: "тест", confirm: "не тот ник" },
+  });
+  check("без подтверждения ником обнуления нет", wipeNoConfirm.status === 400, wipeNoConfirm.json);
+
+  const wipe = await api("/api/panel/wipe", {
+    method: "POST",
+    cookie: steve.session,
+    body: { userId: doomedMe.json.id, reason: "дюп предметов", confirm: "Doomed", clearInventory: true },
+  });
+  check("аккаунт обнулён", wipe.json?.ok === true, wipe.json);
+
+  const doomedAfter = await api("/api/me", { cookie: doomed.session });
+  check("баланс обнулён", doomedAfter.json.balanceVc === 0, doomedAfter.json);
+  check("время игры обнулено", doomedAfter.json.playtimeSec === 0, doomedAfter.json);
+
+  const doomedShop = await api("/api/mc/shop?login=Doomed", { serverToken: TOKEN });
+  check("покупки магазина сгорели", doomedShop.json?.items?.length === 0, doomedShop.json);
+
+  const actions = await api("/api/mc/actions", { serverToken: TOKEN });
+  const wipeAction = actions.json?.actions?.find((item) => item.login === "Doomed");
+  check("плагин получил поручение очистить инвентарь", wipeAction?.kind === "WIPE_INVENTORY", actions.json);
+
+  const actionsNoToken = await api("/api/mc/actions");
+  check("поручения закрыты без токена сервера", actionsNoToken.status === 401);
+
+  const ackAction = await api("/api/mc/actions", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { ids: [wipeAction.id] },
+  });
+  check("исполнение подтверждается", ackAction.json?.marked === 1, ackAction.json);
+
+  const actionsAgain = await api("/api/mc/actions", { serverToken: TOKEN });
+  check(
+    "исполненное поручение не повторяется",
+    !actionsAgain.json?.actions?.some((item) => item.id === wipeAction.id),
+    actionsAgain.json,
+  );
+
   console.log("— Итог —");
   console.log(`Пройдено: ${passed}, провалено: ${failed}`);
   process.exit(failed === 0 ? 0 : 1);

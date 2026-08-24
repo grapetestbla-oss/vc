@@ -90,6 +90,8 @@ ADMIN_PASSWORD=
 ADMIN_LEVEL=5
 # Курс пополнения: сколько VC даёт один рубль.
 VC_PER_RUB=2
+# Доля медиапартнёра от пополнений приведённых игроков, проценты.
+PARTNER_SHARE_PERCENT=10
 # Управление игровым сервером во вкладке «Сервер» (только 5 уровень).
 # Ключ берётся в панели хостинга: Account → API Credentials.
 GAME_PANEL_URL=https://mgr.bisquit.host
@@ -148,8 +150,8 @@ $COMPOSE --env-file .env up -d --force-recreate caddy
 echo "==> Схема базы"
 # Prisma CLI тянет свои зависимости, которых нет в лёгком рабочем образе,
 # поэтому схему и каталог накатываем из сборочной стадии.
-$COMPOSE --env-file .env --profile tools run --rm migrator npx prisma db push
-$COMPOSE --env-file .env --profile tools run --rm migrator node prisma/seed.mjs
+$COMPOSE --env-file .env --profile tools run --rm --build migrator npx prisma db push
+$COMPOSE --env-file .env --profile tools run --rm --build migrator node prisma/seed.mjs
 
 # Администратора заводим, только если данные заданы в .env.
 if [ -n "${ADMIN_LOGIN:-}" ] && [ -n "${ADMIN_EMAIL:-}" ] && [ -n "${ADMIN_PASSWORD:-}" ]; then

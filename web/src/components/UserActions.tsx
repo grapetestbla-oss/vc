@@ -6,9 +6,11 @@ import { useRouter } from "next/navigation";
 /** Действия над аккаунтом: наказания, баланс, выдача админки (только 5 уровень). */
 export default function UserActions({
   userId,
+  login,
   adminLevel,
 }: {
   userId: string;
+  login: string;
   adminLevel: number;
 }) {
   const router = useRouter();
@@ -91,10 +93,93 @@ export default function UserActions({
             </select>
             <button className="btn-ghost" disabled={busy}>Назначить</button>
           </form>
+
+          <WipeForm userId={userId} login={login} />
         </>
       )}
 
       {message && <p className="muted text-sm">{message}</p>}
     </div>
+  );
+}
+
+/**
+ * Обнуление аккаунта: баланс, осколки, время игры, косметика, кейсы, покупки —
+ * всё в ноль, инвентарь в игре чистит плагин. Действие необратимо, поэтому
+ * ник подтверждения вводится руками и лежит в отдельном блоке.
+ */
+function WipeForm({ userId, login }: { userId: string; login: string }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [ok, setOk] = useState(false);
+
+  if (!open) {
+    return (
+      <button className="btn-ghost text-sm" style={{ color: "var(--danger)" }} onClick={() => setOpen(true)}>
+        Обнулить аккаунт
+      </button>
+    );
+  }
+
+  return (
+    <form
+      className="panel space-y-3 p-4"
+      style={{ borderColor: "rgba(255,107,107,0.35)" }}
+      onSubmit={async (event) => {
+        event.preventDefault();
+        const form = new FormData(event.currentTarget);
+        setBusy(true);
+        setMessage(null);
+        const response = await fetch("/api/panel/wipe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId,
+            reason: form.get("reason"),
+            confirm: form.get("confirm"),
+            clearInventory: form.get("inventory") === "on",
+          }),
+        });
+        const data = await response.json();
+        setBusy(false);
+        setOk(response.ok);
+        setMessage(
+          response.ok
+            ? `Обнулено: косметики ${data.cosmetics}, кейсов ${data.openings}, ставок ${data.rounds}, покупок ${data.purchases}`
+            : (data.error ?? "Ошибка"),
+        );
+        if (response.ok) router.refresh();
+      }}
+    >
+      <p className="text-sm" style={{ color: "var(--danger)" }}>
+        Обнуление необратимо: сгорят баланс, осколки, наигранное время, косметика, история кейсов,
+        ставок и покупок магазина. Наказания и журнал останутся.
+      </p>
+
+      <input name="reason" className="input" placeholder="Причина обнуления" required />
+      <input name="confirm" className="input" placeholder={`Впишите ник ${login}`} required />
+
+      <label className="flex items-center gap-2 text-sm">
+        <input name="inventory" type="checkbox" defaultChecked />
+        Очистить инвентарь в игре
+      </label>
+
+      <div className="flex flex-wrap gap-2">
+        <button className="btn" disabled={busy}>
+          {busy ? "Обнуляем…" : "Обнулить"}
+        </button>
+        <button type="button" className="btn-ghost" onClick={() => setOpen(false)}>
+          Отмена
+        </button>
+      </div>
+
+      {message && (
+        <p className="text-sm" style={{ color: ok ? "var(--gold)" : "var(--danger)" }}>
+          {message}
+        </p>
+      )}
+    </form>
   );
 }

@@ -55,6 +55,9 @@ model User {
   flags                SuspiciousFlag[]
   payments             Payment[]
   reviewedPayments     Payment[]            @relation("PaymentReviewer")
+  appeals              Appeal[]             @relation("AppealAuthor")
+  reviewedAppeals      Appeal[]             @relation("AppealReviewer")
+  serverActions        ServerAction[]
   shopPurchases        ShopPurchase[]
   ownedPromos          Promo[]              @relation("PromoPartner")
   news                 News[]               @relation("NewsAuthor")
@@ -178,6 +181,7 @@ enum TxType {
   BONUS
   DAILY
   SHOP_BUY
+  PARTNER_SHARE
   ADMIN_ADJUST
 }
 
@@ -221,6 +225,53 @@ model Payment {
 
   @@index([userId, createdAt])
   @@index([status, createdAt])
+}
+
+// ─────────────────────── Заявления о разбане ─────────────────────────────
+
+/// Заявление на разбан. Подаётся без входа на сайт: забаненный аккаунт в
+/// игру не пускают, а на сайте он может и не помнить пароль.
+model Appeal {
+  id      String  @id @default(cuid())
+  login   String
+  userId  String?
+  user    User?   @relation("AppealAuthor", fields: [userId], references: [id], onDelete: SetNull)
+  contact String
+  text    String
+  /// pending | approved | rejected
+  status  String  @default("pending")
+  ip      String?
+
+  /// Наказание, которое обжалуется — на момент подачи.
+  punishmentId String?
+
+  createdAt    DateTime  @default(now())
+  reviewedById String?
+  reviewedBy   User?     @relation("AppealReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt   DateTime?
+  reviewNote   String?
+
+  @@index([status, createdAt])
+  @@index([login])
+}
+
+// ──────────────────── Поручения игровому серверу ─────────────────────────
+
+/// Действие, которое должен выполнить плагин: например, очистить инвентарь
+/// после обнуления аккаунта. Ждёт в очереди, пока игрок не зайдёт в игру.
+model ServerAction {
+  id          String    @id @default(cuid())
+  /// WIPE_INVENTORY
+  kind        String
+  login       String
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  payload     Json?
+  createdAt   DateTime  @default(now())
+  deliveredAt DateTime?
+
+  @@index([deliveredAt, createdAt])
+  @@index([login])
 }
 
 // ──────────────────────────── Магазин за VC ──────────────────────────────

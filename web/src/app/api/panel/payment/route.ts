@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { requirePanel } from "@/lib/panel";
 import { applyTransaction } from "@/lib/economy";
 import { audit, clientIp } from "@/lib/audit";
+import { payPartnerShare } from "@/lib/partnershare";
 
 /** Разбор заявки на пополнение. Одобряет и отклоняет только 5 уровень. */
 export async function POST(request: Request) {
@@ -68,13 +69,25 @@ export async function POST(request: Request) {
     amount: payment.vcAmount,
     meta: { paymentId, amountRub: payment.amountRub, confirmedBy: admin.login },
   });
+  // Медиапартнёр получает свой процент с пополнения приведённого игрока.
+  const share = await payPartnerShare({
+    userId: payment.userId,
+    creditedVc: payment.vcAmount,
+    paymentId: payment.id,
+  });
+
   await audit({
     actorId: admin.id,
     action: "admin.payment.confirm",
     targetUserId: payment.userId,
     ip: clientIp(request),
-    meta: { paymentId, vcAmount: payment.vcAmount, amountRub: payment.amountRub },
+    meta: {
+      paymentId,
+      vcAmount: payment.vcAmount,
+      amountRub: payment.amountRub,
+      partnerShare: share,
+    },
   });
 
-  return Response.json({ ok: true, status: "paid", balance });
+  return Response.json({ ok: true, status: "paid", balance, partnerShare: share });
 }

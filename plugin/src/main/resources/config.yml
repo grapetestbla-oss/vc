@@ -119,6 +119,8 @@ messages:
   report.author-offline: "<gray>Автор репорта не в сети."
   report.closed: "<gray>Репорт закрыт."
 
+  admin.wiped: "<red>Администрация обнулила ваш аккаунт: инвентарь, опыт и статистика очищены."
+
   shop.link: "<gold>Магазин: <yellow><url><gold>. Куплённое работает сразу в игре."
   shop.owned-line: "<gray>• <white><title> <gray>— осталось: <yellow><left>"
   shop.empty: "<gray>Вы пока ничего не покупали."

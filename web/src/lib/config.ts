@@ -22,6 +22,8 @@ export const CONFIG = {
   minTopUpRub: num("TOPUP_MIN_RUB", 50),
   maxTopUpRub: num("TOPUP_MAX_RUB", 100_000),
   promoReward: num("PROMO_REWARD_VC", 500),
+  /** Доля медиапартнёра от пополнений его рефералов, проценты. */
+  partnerSharePercent: num("PARTNER_SHARE_PERCENT", 10),
   promoRequiredLevel: num("PROMO_REQUIRED_LEVEL", 3),
   dailyBonusVc: num("DAILY_BONUS_VC", 25),
 } as const;

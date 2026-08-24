@@ -1,6 +1,7 @@
 package host.vanilla.core;
 
 import com.google.gson.JsonObject;
+import host.vanilla.core.admin.ActionRunner;
 import host.vanilla.core.admin.CheckManager;
 import host.vanilla.core.admin.EspManager;
 import host.vanilla.core.admin.StaffCommands;
@@ -52,6 +53,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
     private ReportManager reports;
     private NewsBroadcaster news;
     private CosmeticEngine cosmetics;
+    private ActionRunner actions;
     private ShopManager shop;
     private ShopCommands shopCommands;
     private NamespacedKey hatKey;
@@ -77,6 +79,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         news = new NewsBroadcaster(this, messages);
         hatKey = new NamespacedKey(this, "cosmetic_hat");
         cosmetics = new CosmeticEngine(this);
+        actions = new ActionRunner(this, messages);
         shop = new ShopManager(this);
         shopCommands = new ShopCommands(this, messages);
 
@@ -138,6 +141,9 @@ public final class VanillaCorePlugin extends JavaPlugin {
         getServer().getScheduler().runTaskTimer(this, this::reportPlaytime, 1200L, 1200L);
         getServer().getScheduler().runTaskTimer(this, news::poll,
                 config.newsPollSeconds * 20L, config.newsPollSeconds * 20L);
+        // Поручения с сайта (очистка инвентаря) забираем в том же ритме, что и новости.
+        getServer().getScheduler().runTaskTimer(this, actions::poll,
+                config.newsPollSeconds * 20L + 40L, config.newsPollSeconds * 20L);
         // Частицы рисуем четыре раза в секунду: чаще — лишняя нагрузка, реже — рвано.
         getServer().getScheduler().runTaskTimer(this, cosmetics::tick, 20L, 5L);
     }
@@ -256,6 +262,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
     public NewsBroadcaster news() { return news; }
     public CosmeticEngine cosmetics() { return cosmetics; }
     public ShopManager shop() { return shop; }
+    public ActionRunner actions() { return actions; }
     public NamespacedKey hatKey() { return hatKey; }
     public Messages messages() { return messages; }
 }

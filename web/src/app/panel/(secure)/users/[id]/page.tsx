@@ -48,7 +48,7 @@ export default async function UserCard({ params }: { params: Promise<{ id: strin
             {user.email} · регистрация {user.createdAt.toLocaleDateString("ru")} · последний IP {user.lastIp ?? "—"}
           </p>
         )}
-        <UserActions userId={user.id} adminLevel={admin.adminLevel} />
+        <UserActions userId={user.id} login={user.login} adminLevel={admin.adminLevel} />
       </section>
 
       <div className="grid gap-6 md:grid-cols-2">

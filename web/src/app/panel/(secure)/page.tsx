@@ -21,6 +21,7 @@ export default async function PanelHome() {
     openReports,
     flags,
     pendingPayments,
+    pendingAppeals,
     revenue,
     wagered,
     recentActions,
@@ -33,6 +34,7 @@ export default async function PanelHome() {
     db.report.count({ where: { status: "OPEN" } }),
     db.suspiciousFlag.count({ where: { resolved: false } }),
     db.payment.count({ where: { status: "pending" } }),
+    db.appeal.count({ where: { status: "pending" } }),
     db.payment.aggregate({
       where: { status: "paid", paidAt: { gt: dayAgo } },
       _sum: { amountRub: true },
@@ -69,6 +71,12 @@ export default async function PanelHome() {
             value: pendingPayments,
             href: "/panel/payments",
             warn: pendingPayments > 0,
+          },
+          {
+            label: "Заявлений о разбане",
+            value: pendingAppeals,
+            href: "/panel/appeals",
+            warn: pendingAppeals > 0,
           },
         ]
       : []),

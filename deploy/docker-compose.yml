@@ -23,6 +23,7 @@ services:
       MC_SERVER_TOKEN: ${MC_SERVER_TOKEN:?set MC_SERVER_TOKEN}
       GAME_RTP: ${GAME_RTP:-0.95}
       VC_PER_RUB: ${VC_PER_RUB:-2}
+      PARTNER_SHARE_PERCENT: ${PARTNER_SHARE_PERCENT:-10}
       # Управление игровым сервером из панели: без этих переменных вкладка
       # «Сервер» просто скажет, что она не настроена.
       GAME_PANEL_URL: ${GAME_PANEL_URL:-}
