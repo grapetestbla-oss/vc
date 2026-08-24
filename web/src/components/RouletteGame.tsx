@@ -4,25 +4,26 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BetList, History, useCountdown, useTable } from "./LiveTable";
 
-const MULTIPLIERS = [2, 3, 5, 10] as const;
-
-const COLORS: Record<number, string> = {
-  10: "#ff6b6b",
-  5: "#c084fc",
-  3: "#6ee7b7",
-  2: "#f5c451",
-  0: "#3a3f4b",
-};
+/** Цвет сектора: чем крупнее множитель, тем «дороже» он выглядит. */
+function colorFor(multiplier: number): string {
+  if (multiplier >= 10) return "#ff6b6b";
+  if (multiplier >= 5) return "#c084fc";
+  if (multiplier >= 3) return "#6ee7b7";
+  if (multiplier >= 2) return "#f5c451";
+  if (multiplier >= 1) return "#8ab4f8";
+  if (multiplier >= 0.5) return "#5c6270";
+  return "#3a3f4b";
+}
 
 /**
- * Колесо: сектора от крупных множителей к мимо. Бросок [0,1) — это угол, куда
- * встанет стрелка, поэтому анимация показывает ровно то, что посчитал сервер.
+ * Колесо без «мимо»: каждый сектор что-то платит, просто чаще меньше ставки.
+ * Бросок [0,1) — это угол, куда встанет стрелка, поэтому анимация показывает
+ * ровно то, что посчитал сервер.
  */
 export default function RouletteGame() {
   const router = useRouter();
   const { state, reload, serverNow } = useTable("ROULETTE");
   const [bet, setBet] = useState(50);
-  const [target, setTarget] = useState<number>(2);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -40,7 +41,8 @@ export default function RouletteGame() {
     if (!state || state.round.roll === null) return;
     if (shownRound.current === state.round.number) return;
     shownRound.current = state.round.number;
-    spun.current += 4 + Math.random() * 0.2;
+    // Только целое число оборотов: дробная часть сдвигала бы стрелку с сектора.
+    spun.current += 4 + Math.floor(Math.random() * 2);
     setAngle(spun.current * 360 + state.round.roll * 360);
     router.refresh();
   }, [state, router]);
@@ -51,7 +53,7 @@ export default function RouletteGame() {
     const response = await fetch("/api/games/live/bet", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ game: "ROULETTE", bet, target }),
+      body: JSON.stringify({ game: "ROULETTE", bet }),
     });
     const data = await response.json();
     setBusy(false);
@@ -72,10 +74,9 @@ export default function RouletteGame() {
   const stops: string[] = [];
   let from = 0;
   for (const zone of zones) {
-    stops.push(`${COLORS[zone.multiplier]} ${from * 360}deg ${zone.until * 360}deg`);
+    stops.push(`${colorFor(zone.multiplier)} ${from * 360}deg ${zone.until * 360}deg`);
     from = zone.until;
   }
-  stops.push(`${COLORS[0]} ${from * 360}deg 360deg`);
 
   return (
     <div className="space-y-5">
@@ -92,9 +93,9 @@ export default function RouletteGame() {
               <p className="eyebrow">Выпало</p>
               <p
                 className="text-3xl font-bold tabular-nums"
-                style={{ color: COLORS[state.round.result] ?? COLORS[0] }}
+                style={{ color: colorFor(state.round.result) }}
               >
-                {state.round.result === 0 ? "мимо" : `до x${state.round.result}`}
+                x{state.round.result}
               </p>
             </div>
           )}
@@ -131,26 +132,23 @@ export default function RouletteGame() {
           </div>
         </div>
 
-        <div className="mt-5 flex flex-wrap justify-center gap-3 text-xs">
+        <div className="mt-5 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs">
           {zones.map((zone) => (
             <span key={zone.multiplier} className="flex items-center gap-1.5">
               <span
                 className="inline-block h-3 w-3 rounded"
-                style={{ background: COLORS[zone.multiplier] }}
+                style={{ background: colorFor(zone.multiplier) }}
               />
-              выигрывают ставки до x{zone.multiplier}
+              x{zone.multiplier}
+              <span className="muted">{Math.round((zone.chance ?? 0) * 1000) / 10}%</span>
             </span>
           ))}
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block h-3 w-3 rounded" style={{ background: COLORS[0] }} />
-            мимо
-          </span>
         </div>
       </div>
 
       <div className="panel p-5 sm:p-6">
         <div className="flex flex-wrap items-end gap-3">
-          <label className="block w-32">
+          <label className="block w-36">
             <span className="eyebrow">Ставка, VC</span>
             <input
               type="number"
@@ -162,28 +160,21 @@ export default function RouletteGame() {
             />
           </label>
 
-          <div>
-            <span className="eyebrow">Множитель</span>
-            <div className="mt-1 flex gap-2">
-              {MULTIPLIERS.map((multiplier) => (
-                <button
-                  key={multiplier}
-                  onClick={() => setTarget(multiplier)}
-                  className="rounded-lg px-3 py-2 text-sm font-semibold transition-transform hover:-translate-y-0.5"
-                  style={{
-                    background: target === multiplier ? COLORS[multiplier] : "rgba(255,255,255,0.06)",
-                    color: target === multiplier ? "#150f04" : "var(--text)",
-                  }}
-                >
-                  x{multiplier}
-                </button>
-              ))}
-            </div>
+          <div className="flex gap-2">
+            {[50, 100, 500].map((amount) => (
+              <button
+                key={amount}
+                className="btn-ghost px-3 py-2 text-sm"
+                onClick={() => setBet(amount)}
+              >
+                {amount}
+              </button>
+            ))}
           </div>
 
           <button className="btn" onClick={place} disabled={busy || !betting || Boolean(mine)}>
             {mine
-              ? `Ставка принята: ${mine.betVc} VC на x${mine.target}`
+              ? `Ставка принята: ${mine.betVc} VC`
               : betting
                 ? "Поставить"
                 : "Ставки закрыты"}
@@ -196,18 +187,18 @@ export default function RouletteGame() {
           </p>
         )}
         <p className="muted mt-3 text-xs">
-          Шанс выигрыша множителя x{target} — {Math.round((95 / target) * 10) / 10}%. Выигрывают все
-          ставки, чей множитель не больше выпавшего.
+          Множитель один на всех: выпавший сектор умножает ставку каждого. Пустых секторов нет —
+          но в половине из них выплата меньше ставки.
         </p>
       </div>
 
-      <BetList bets={state.bets} unit="x" />
+      <BetList bets={state.bets} unit="" />
 
       <History
         history={state.history}
         render={(item) => ({
-          label: item.result === 0 ? "мимо" : `x${item.result}`,
-          color: COLORS[item.result ?? 0] ?? COLORS[0],
+          label: `x${item.result}`,
+          color: colorFor(item.result ?? 0),
         })}
       />
     </div>

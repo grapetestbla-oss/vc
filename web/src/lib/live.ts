@@ -13,7 +13,26 @@ export const BETTING_MS = Math.min(CONFIG.liveBettingMs, ROUND_MS - 1000);
 /** Точка отсчёта расписания. Номер раунда считается от неё, а не от старта процесса. */
 const EPOCH = Date.UTC(2026, 0, 1);
 
-export const ROULETTE_MULTIPLIERS = CONFIG.rouletteMultipliers;
+/**
+ * Сектора колеса. «Мимо» нет: каждый раунд платит, но чаще меньше ставки.
+ * Веса подобраны так, что средняя выплата равна RTP — 0.95 при настройке по
+ * умолчанию. Менять множители в отрыве от весов нельзя: сломается экономика.
+ */
+export const ROULETTE_SECTORS = [
+  { multiplier: 0.2, weight: 0.325 },
+  { multiplier: 0.5, weight: 0.24 },
+  { multiplier: 1, weight: 0.18 },
+  { multiplier: 1.5, weight: 0.12 },
+  { multiplier: 2, weight: 0.065 },
+  { multiplier: 3, weight: 0.05 },
+  { multiplier: 5, weight: 0.015 },
+  { multiplier: 10, weight: 0.005 },
+] as const;
+
+/** Возврат колеса при текущих весах — считаем, а не верим на слово. */
+export function rouletteRtp(): number {
+  return ROULETTE_SECTORS.reduce((sum, sector) => sum + sector.multiplier * sector.weight, 0);
+}
 
 export type Phase = "betting" | "resolving";
 
@@ -30,17 +49,23 @@ export function roundWindow(number: number) {
   };
 }
 
-/** Выигрышный множитель рулетки: чем меньше бросок, тем крупнее ставки выигрывают. */
+/** Множитель раунда: бросок [0,1) попадает в сектор по накопленному весу. */
 export function rouletteResult(value: number): number {
-  const winning = ROULETTE_MULTIPLIERS.filter((m) => value < CONFIG.rtp / m);
-  return winning.length === 0 ? 0 : Math.max(...winning);
+  let edge = 0;
+  for (const sector of ROULETTE_SECTORS) {
+    edge += sector.weight;
+    if (value < edge) return sector.multiplier;
+  }
+  return ROULETTE_SECTORS[ROULETTE_SECTORS.length - 1].multiplier;
 }
 
-/** Границы секторов колеса — рисуются на клиенте, считаются здесь. */
+/** Границы секторов для отрисовки колеса: клиент рисует ровно то, что считаем здесь. */
 export function rouletteZones() {
-  return [...ROULETTE_MULTIPLIERS]
-    .sort((a, b) => b - a)
-    .map((multiplier) => ({ multiplier, until: CONFIG.rtp / multiplier }));
+  let edge = 0;
+  return ROULETTE_SECTORS.map((sector) => {
+    edge += sector.weight;
+    return { multiplier: sector.multiplier, until: edge, chance: sector.weight };
+  });
 }
 
 async function createRound(game: LiveGame, number: number) {
@@ -75,9 +100,14 @@ async function resolveRound(roundId: string) {
   if (claimed.count === 0) return;
 
   for (const bet of round.bets) {
-    const won =
-      round.game === "CRASH" ? bet.target <= result : value < CONFIG.rtp / bet.target;
-    const payout = won ? Math.floor(bet.betVc * bet.target) : 0;
+    // В рулетке множитель один на всех: игрок ставит, а не угадывает число.
+    const payout =
+      round.game === "CRASH"
+        ? bet.target <= result
+          ? Math.floor(bet.betVc * bet.target)
+          : 0
+        : Math.floor(bet.betVc * result);
+    const won = payout >= bet.betVc;
 
     await db.liveBet.update({
       where: { id: bet.id },
@@ -206,9 +236,7 @@ export async function placeBet(params: {
   }
 
   if (params.game === "ROULETTE") {
-    if (!ROULETTE_MULTIPLIERS.includes(params.target as 2 | 3 | 5 | 10)) {
-      throw new LiveError("Недопустимый множитель");
-    }
+    // Множитель определяет колесо, поэтому в ставке он не нужен.
   } else {
     if (!Number.isFinite(params.target) || params.target < 1.01 || params.target > 100) {
       throw new LiveError("Точка вывода от 1.01 до 100");
@@ -235,7 +263,7 @@ export async function placeBet(params: {
     throw error;
   }
 
-  const target = Math.round(params.target * 100) / 100;
+  const target = params.game === "ROULETTE" ? 1 : Math.round(params.target * 100) / 100;
   const data: Prisma.LiveBetUncheckedCreateInput = {
     roundId: round.id,
     userId: params.userId,

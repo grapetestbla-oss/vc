@@ -34,7 +34,7 @@ export type TableState = {
   };
   bets: Bet[];
   history: HistoryItem[];
-  zones: { multiplier: number; until: number }[];
+  zones: { multiplier: number; until: number; chance?: number }[];
   balance: number | null;
 };
 
@@ -107,10 +107,12 @@ export function BetList({ bets, unit }: { bets: Bet[]; unit: string }) {
               {bet.login}
             </span>
             <span className="tabular-nums">{bet.betVc.toLocaleString("ru")} VC</span>
-            <span className="muted w-16 text-right tabular-nums">
-              {unit}
-              {bet.target}
-            </span>
+            {unit && (
+              <span className="muted w-16 text-right tabular-nums">
+                {unit}
+                {bet.target}
+              </span>
+            )}
             <span
               className="w-20 text-right tabular-nums"
               style={{ color: bet.payoutVc > 0 ? "var(--gold)" : undefined }}

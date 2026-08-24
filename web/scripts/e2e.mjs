@@ -1148,7 +1148,24 @@ const run = async () => {
   console.log("— Общие раунды —");
   const table = await api("/api/games/live?game=ROULETTE", { cookie: steve.session });
   check("стол рулетки отдаётся", table.status === 200 && typeof table.json?.round?.number === "number", table.json);
-  check("сектора колеса приходят", Array.isArray(table.json?.zones) && table.json.zones.length === 4, table.json?.zones);
+  check("сектора колеса приходят", Array.isArray(table.json?.zones) && table.json.zones.length === 8, table.json?.zones);
+  check(
+    "в колесе нет пустых секторов",
+    table.json?.zones?.every((zone) => zone.multiplier > 0),
+    table.json?.zones,
+  );
+  check(
+    "сектора покрывают колесо целиком",
+    Math.abs((table.json?.zones?.at(-1)?.until ?? 0) - 1) < 1e-9,
+    table.json?.zones?.at(-1),
+  );
+  check(
+    "средняя выплата колеса равна возврату 95%",
+    Math.abs(
+      table.json.zones.reduce((sum, zone) => sum + zone.multiplier * zone.chance, 0) - 0.95,
+    ) < 1e-9,
+    table.json?.zones,
+  );
   check("результат текущего раунда скрыт до розыгрыша",
     table.json?.round?.phase !== "betting" || table.json?.round?.result === null, table.json?.round);
 
@@ -1171,14 +1188,14 @@ const run = async () => {
   const liveBet = await api("/api/games/live/bet", {
     method: "POST",
     cookie: steve.session,
-    body: { game: "ROULETTE", bet: 100, target: 2 },
+    body: { game: "ROULETTE", bet: 100 },
   });
   check("ставка принимается", liveBet.json?.ok === true, liveBet.json);
 
   const twice = await api("/api/games/live/bet", {
     method: "POST",
     cookie: steve.session,
-    body: { game: "ROULETTE", bet: 50, target: 3 },
+    body: { game: "ROULETTE", bet: 50 },
   });
   check("вторая ставка в тот же раунд отклоняется", twice.status === 400, twice.json);
 
@@ -1187,17 +1204,10 @@ const run = async () => {
   check("чужие ставки видны всем", foreignBet?.betVc === 100, seen.json?.bets);
   check("своя ставка помечена только у автора", foreignBet?.mine === false, foreignBet);
 
-  const badTarget = await api("/api/games/live/bet", {
-    method: "POST",
-    cookie: alex.session,
-    body: { game: "ROULETTE", bet: 100, target: 7 },
-  });
-  check("чужой множитель отклоняется", badTarget.status === 400, badTarget.json);
-
   const smallBet = await api("/api/games/live/bet", {
     method: "POST",
     cookie: alex.session,
-    body: { game: "ROULETTE", bet: 1, target: 2 },
+    body: { game: "ROULETTE", bet: 1 },
   });
   check("минимальная ставка проверяется и на общем столе", smallBet.status === 400, smallBet.json);
 
@@ -1215,6 +1225,10 @@ const run = async () => {
   check("раунд разыгрывается сам", resolved !== null, resolved);
   check("в истории раскрыт сид раунда", typeof resolved?.serverSeed === "string" && resolved.serverSeed.length === 64, resolved);
   check("бросок записан", typeof resolved?.roll === "number" && resolved.roll >= 0 && resolved.roll < 1, resolved);
+  check("раунд всегда заканчивается множителем", (resolved?.result ?? 0) > 0, resolved);
+
+  const paid = await api("/api/me", { cookie: steve.session });
+  check("выплата по колесу пришла на баланс", typeof paid.json?.balanceVc === "number", paid.json);
 
   const lateBet = await api("/api/games/live/bet", {
     method: "POST",
