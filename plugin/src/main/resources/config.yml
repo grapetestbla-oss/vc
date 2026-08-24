@@ -43,6 +43,37 @@ news:
   # Как часто проверять, не появилось ли новостей для объявления в игре.
   poll-seconds: 60
 
+season:
+  # Название сезона: видно в списке игроков и в приветствии при входе.
+  name: "Season I"
+  tab-enabled: true
+  tab-refresh-seconds: 3
+
+  # Искры сезона: сгусток частиц в случайном месте рядом с игроками. Кто дошёл
+  # первым — забирает награду. Начисляет её сайт, плагин только сообщает о находке.
+  sparks:
+    enabled: true
+    # Как часто пытаться зажечь новую искру.
+    interval-seconds: 420
+    # Сколько искр может гореть одновременно.
+    max-active: 3
+    # Сколько живёт искра, если её никто не забрал.
+    lifetime-seconds: 240
+    # На каком расстоянии от игрока появляется.
+    min-distance: 25
+    max-distance: 70
+    # С какого расстояния засчитывается сбор.
+    claim-radius: 1.6
+    # Сообщать ли о находке игрокам поблизости и в каком радиусе.
+    announce: true
+    announce-radius: 250
+    # Доля искр с VC, остальные дают осколки.
+    vc-chance: 0.45
+    vc-min: 5
+    vc-max: 250
+    shards-min: 25
+    shards-max: 500
+
 staff:
   # Администрация со 2 уровня всегда в режиме наблюдателя.
   always-spectator: true
@@ -118,6 +149,14 @@ messages:
   report.actions: "<gray>Телепорт: <white>/tp <player><gray>, к себе: <white>/tphere <player>"
   report.author-offline: "<gray>Автор репорта не в сети."
   report.closed: "<gray>Репорт закрыт."
+
+  season.welcome: "<gray>Добро пожаловать на <gold>VanillaCraft <season><gray>. Следите за искрами сезона — в них осколки и VC."
+  spark.spawned: "<aqua>✦ Искра сезона<gray> вспыхнула в <white><distance> блоках<gray> — <white><x>, <y>, <z>"
+  spark.claimed-vc: "<gold>✦ Искра ваша: <yellow>+<amount> VC<gold>. Баланс: <yellow><balance> VC"
+  spark.claimed-shards: "<aqua>✦ Искра ваша: <white>+<amount> осколков<aqua>. Всего: <white><total>"
+  spark.failed: "<red>Искра рассыпалась: сайт не ответил. Награда не начислена."
+  spark.forced: "<gray>Искра зажжена рядом с вами."
+  spark.no-place: "<red>Не нашлось безопасного места поблизости."
 
   admin.wiped: "<red>Администрация обнулила ваш аккаунт: инвентарь, опыт и статистика очищены."
 

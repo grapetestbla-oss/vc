@@ -21,6 +21,8 @@ import host.vanilla.core.punish.JailManager;
 import host.vanilla.core.punish.JailZone;
 import host.vanilla.core.news.NewsBroadcaster;
 import host.vanilla.core.report.ReportManager;
+import host.vanilla.core.season.SparkManager;
+import host.vanilla.core.season.TabList;
 import host.vanilla.core.shop.ShopCommands;
 import host.vanilla.core.shop.ShopListener;
 import host.vanilla.core.shop.ShopManager;
@@ -54,6 +56,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
     private NewsBroadcaster news;
     private CosmeticEngine cosmetics;
     private ActionRunner actions;
+    private TabList tabList;
+    private SparkManager sparks;
     private ShopManager shop;
     private ShopCommands shopCommands;
     private NamespacedKey hatKey;
@@ -80,6 +84,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
         hatKey = new NamespacedKey(this, "cosmetic_hat");
         cosmetics = new CosmeticEngine(this);
         actions = new ActionRunner(this, messages);
+        tabList = new TabList(this);
+        sparks = new SparkManager(this, messages);
         shop = new ShopManager(this);
         shopCommands = new ShopCommands(this, messages);
 
@@ -105,7 +111,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
 
         StaffCommands staff = new StaffCommands(this, messages);
         for (String name : List.of("spec", "esp", "ajail", "warn", "ban", "check", "asms", "news",
-                "reports", "tp", "tphere")) {
+                "reports", "tp", "tphere", "spark")) {
             bind(name, staff);
         }
 
@@ -146,6 +152,16 @@ public final class VanillaCorePlugin extends JavaPlugin {
                 config.newsPollSeconds * 20L + 40L, config.newsPollSeconds * 20L);
         // Частицы рисуем четыре раза в секунду: чаще — лишняя нагрузка, реже — рвано.
         getServer().getScheduler().runTaskTimer(this, cosmetics::tick, 20L, 5L);
+
+        if (config.tabEnabled) {
+            getServer().getScheduler().runTaskTimer(this, tabList::refresh, 40L,
+                    config.tabRefreshSeconds * 20L);
+        }
+        if (config.sparkEnabled) {
+            getServer().getScheduler().runTaskTimer(this, sparks::tick, 60L, 4L);
+            getServer().getScheduler().runTaskTimer(this, sparks::spawn,
+                    config.sparkIntervalSeconds * 20L, config.sparkIntervalSeconds * 20L);
+        }
     }
 
     /** Раз в минуту отправляем наигранное время — из него считается уровень аккаунта. */
@@ -171,6 +187,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
             profile.setBalanceVc(response.get("balanceVc").getAsInt());
 
             applyRole(player, profile.adminLevel());
+            tabList.welcome(player);
 
             if (response.has("cosmetics") && response.get("cosmetics").isJsonArray()) {
                 cosmetics.apply(player, response.getAsJsonArray("cosmetics"));
@@ -263,6 +280,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
     public CosmeticEngine cosmetics() { return cosmetics; }
     public ShopManager shop() { return shop; }
     public ActionRunner actions() { return actions; }
+    public SparkManager sparks() { return sparks; }
+    public TabList tabList() { return tabList; }
     public NamespacedKey hatKey() { return hatKey; }
     public Messages messages() { return messages; }
 }

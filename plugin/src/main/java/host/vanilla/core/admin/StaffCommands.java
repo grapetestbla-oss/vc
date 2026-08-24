@@ -54,10 +54,19 @@ public final class StaffCommands implements CommandExecutor, TabCompleter {
             case "asms" -> asms(admin, level, args);
             case "news" -> news(admin, level, args);
             case "reports" -> reports(admin, level);
+            case "spark" -> spark(admin, level);
             case "tp" -> teleport(admin, level, args, false);
             case "tphere" -> teleport(admin, level, args, true);
             default -> false;
         };
+    }
+
+    /** Зажечь искру рядом с собой — для проверки настроек события. */
+    private boolean spark(Player admin, int level) {
+        if (denied(admin, level, 5)) return true;
+        boolean ok = plugin.sparks().spawnNear(admin);
+        admin.sendMessage(messages.get(ok ? "spark.forced" : "spark.no-place"));
+        return true;
     }
 
     private boolean denied(Player admin, int level, int required) {

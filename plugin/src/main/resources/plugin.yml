@@ -75,3 +75,5 @@ commands:
     description: Карманный эндер-сундук
   craft:
     description: Верстак с собой
+  spark:
+    description: Зажечь искру сезона рядом с собой (проверка)

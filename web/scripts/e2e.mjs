@@ -1149,6 +1149,61 @@ const run = async () => {
   });
   check("правка несуществующего кода отклоняется", missing.status === 404, missing.json);
 
+  console.log("— Искры сезона —");
+  const sparkUser = await register("Finder");
+  const sparkBefore = await api("/api/me", { cookie: sparkUser.session });
+
+  const sparkNoToken = await api("/api/mc/event/claim", {
+    method: "POST",
+    body: { login: "Finder", kind: "VC", amount: 100, sparkId: "s1" },
+  });
+  check("искра закрыта без токена сервера", sparkNoToken.status === 401);
+
+  const sparkVc = await api("/api/mc/event/claim", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Finder", kind: "VC", amount: 120, sparkId: "s1" },
+  });
+  check("VC за искру начислены", sparkVc.json?.balance === sparkBefore.json.balanceVc + 120, sparkVc.json);
+
+  const sparkShards = await api("/api/mc/event/claim", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Finder", kind: "SHARDS", amount: 300, sparkId: "s2" },
+  });
+  check("осколки за искру начислены", sparkShards.json?.shards === 300, sparkShards.json);
+
+  const sparkTooBig = await api("/api/mc/event/claim", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Finder", kind: "VC", amount: 5000, sparkId: "s3" },
+  });
+  check("награда сверх потолка отклоняется", sparkTooBig.json?.status === "denied", sparkTooBig.json);
+
+  const sparkBadKind = await api("/api/mc/event/claim", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Finder", kind: "DIAMONDS", amount: 10, sparkId: "s4" },
+  });
+  check("неизвестный вид награды отклоняется", sparkBadKind.status === 400, sparkBadKind.json);
+
+  const sparkUnknown = await api("/api/mc/event/claim", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "НетТакого", kind: "VC", amount: 10, sparkId: "s5" },
+  });
+  check("искра для несуществующего игрока не начисляется", sparkUnknown.json?.status === "not_found", sparkUnknown.json);
+
+  let limited = null;
+  for (let i = 0; i < 14; i++) {
+    limited = await api("/api/mc/event/claim", {
+      method: "POST",
+      serverToken: TOKEN,
+      body: { login: "Finder", kind: "VC", amount: 5, sparkId: `loop-${i}` },
+    });
+  }
+  check("серия искр упирается в часовой лимит", limited?.json?.status === "rate_limited", limited?.json);
+
   console.log("— Итог —");
   console.log(`Пройдено: ${passed}, провалено: ${failed}`);
   process.exit(failed === 0 ? 0 : 1);

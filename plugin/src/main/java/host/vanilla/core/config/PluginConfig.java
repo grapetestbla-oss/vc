@@ -39,6 +39,26 @@ public final class PluginConfig {
     public final int espRefreshSeconds;
     public final int newsPollSeconds;
 
+    /// Название сезона в списке игроков и в приветствии.
+    public final String seasonName;
+    public final boolean tabEnabled;
+    public final int tabRefreshSeconds;
+
+    public final boolean sparkEnabled;
+    public final int sparkIntervalSeconds;
+    public final int sparkMaxActive;
+    public final int sparkLifetimeSeconds;
+    public final int sparkMinDistance;
+    public final int sparkMaxDistance;
+    public final double sparkClaimRadius;
+    public final boolean sparkAnnounce;
+    public final int sparkAnnounceRadius;
+    public final double sparkVcChance;
+    public final int sparkVcMin;
+    public final int sparkVcMax;
+    public final int sparkShardsMin;
+    public final int sparkShardsMax;
+
     public PluginConfig(FileConfiguration c) {
         apiUrl = c.getString("api.url", "http://127.0.0.1:3000");
         apiToken = c.getString("api.token", "");
@@ -67,6 +87,25 @@ public final class PluginConfig {
         staffAlwaysSpectator = c.getBoolean("staff.always-spectator", true);
         espRefreshSeconds = Math.max(2, c.getInt("staff.esp-refresh-seconds", 5));
         newsPollSeconds = Math.max(30, c.getInt("news.poll-seconds", 60));
+
+        seasonName = c.getString("season.name", "Season I");
+        tabEnabled = c.getBoolean("season.tab-enabled", true);
+        tabRefreshSeconds = Math.max(1, c.getInt("season.tab-refresh-seconds", 3));
+
+        sparkEnabled = c.getBoolean("season.sparks.enabled", true);
+        sparkIntervalSeconds = Math.max(30, c.getInt("season.sparks.interval-seconds", 420));
+        sparkMaxActive = Math.max(1, c.getInt("season.sparks.max-active", 3));
+        sparkLifetimeSeconds = Math.max(30, c.getInt("season.sparks.lifetime-seconds", 240));
+        sparkMinDistance = Math.max(8, c.getInt("season.sparks.min-distance", 25));
+        sparkMaxDistance = Math.max(sparkMinDistance + 1, c.getInt("season.sparks.max-distance", 70));
+        sparkClaimRadius = Math.max(0.8, c.getDouble("season.sparks.claim-radius", 1.6));
+        sparkAnnounce = c.getBoolean("season.sparks.announce", true);
+        sparkAnnounceRadius = Math.max(16, c.getInt("season.sparks.announce-radius", 250));
+        sparkVcChance = Math.min(1.0, Math.max(0.0, c.getDouble("season.sparks.vc-chance", 0.45)));
+        sparkVcMin = Math.max(1, c.getInt("season.sparks.vc-min", 5));
+        sparkVcMax = Math.max(sparkVcMin, c.getInt("season.sparks.vc-max", 250));
+        sparkShardsMin = Math.max(1, c.getInt("season.sparks.shards-min", 25));
+        sparkShardsMax = Math.max(sparkShardsMin, c.getInt("season.sparks.shards-max", 500));
     }
 
     private static Material material(String name, Material fallback) {
