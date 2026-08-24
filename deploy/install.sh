@@ -113,6 +113,24 @@ else
   echo "Работаем по IP без HTTPS до починки DNS."
 fi
 
+echo "==> Проверка занятости портов 80/443/2019"
+# Caddy запускается с network_mode: host, поэтому любой системный веб-сервер
+# на хосте (например, caddy/nginx/apache, оставшийся от старой заглушки)
+# намертво блокирует контейнер: "bind: address already in use".
+for unit in caddy nginx apache2 httpd lighttpd; do
+  if systemctl is-active --quiet "$unit" 2>/dev/null; then
+    echo "Останавливаю системный $unit — он держит порты 80/443/2019."
+    systemctl stop "$unit" || true
+    systemctl disable "$unit" 2>/dev/null || true
+  fi
+done
+BUSY=$(ss -ltnp 2>/dev/null | grep -E ':(80|443|2019)\b' | grep -v docker || true)
+if [ -n "$BUSY" ]; then
+  echo "ВНИМАНИЕ: порты всё ещё заняты посторонним процессом:"
+  echo "$BUSY"
+  echo "Останови его вручную, иначе HTTPS не поднимется."
+fi
+
 echo "==> Сборка и запуск"
 $COMPOSE --env-file .env up -d --build
 # Caddyfile примонтирован файлом: compose не видит его изменений и оставляет
