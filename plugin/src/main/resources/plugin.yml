@@ -56,3 +56,22 @@ commands:
   tphere:
     description: Телепортировать игрока к себе
     usage: /tphere <ник>
+  shop:
+    description: Что куплено в магазине сайта
+  tpa:
+    description: Запрос телепорта к игроку (покупается в магазине)
+    usage: /tpa <ник>
+  tpaccept:
+    description: Разрешить телепорт к себе
+  tpdeny:
+    description: Отклонить телепорт к себе
+  sethome:
+    description: Отметить точку дома
+  home:
+    description: Телепорт к точке дома
+  back:
+    description: Вернуться на место смерти
+  ec:
+    description: Карманный эндер-сундук
+  craft:
+    description: Верстак с собой

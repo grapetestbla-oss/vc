@@ -54,6 +54,8 @@ model User {
   auditTargets         AuditLog[]           @relation("AuditTarget")
   flags                SuspiciousFlag[]
   payments             Payment[]
+  reviewedPayments     Payment[]            @relation("PaymentReviewer")
+  shopPurchases        ShopPurchase[]
   ownedPromos          Promo[]              @relation("PromoPartner")
   news                 News[]               @relation("NewsAuthor")
   partnerApplications  PartnerApplication[] @relation("ApplicationAuthor")
@@ -175,6 +177,7 @@ enum TxType {
   PROMO
   BONUS
   DAILY
+  SHOP_BUY
   ADMIN_ADJUST
 }
 
@@ -192,6 +195,8 @@ model Transaction {
   @@index([type, createdAt])
 }
 
+/// Заявка на пополнение. Провайдера нет: игрок переводит деньги и оставляет
+/// контакт, чиф-администратор сверяет перевод и одобряет — тогда начисляются VC.
 model Payment {
   id         String    @id @default(cuid())
   userId     String
@@ -200,11 +205,64 @@ model Payment {
   vcAmount   Int
   provider   String
   providerId String?   @unique
+  /// pending | paid | rejected
   status     String    @default("pending")
+  /// Как игрок платил и куда с ним связаться — по этому админ ищет перевод.
+  method     String?
+  contact    String?
+  comment    String?
   createdAt  DateTime  @default(now())
   paidAt     DateTime?
 
+  reviewedById String?
+  reviewedBy   User?     @relation("PaymentReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt   DateTime?
+  reviewNote   String?
+
   @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+// ──────────────────────────── Магазин за VC ──────────────────────────────
+
+/// Товар магазина. Это не косметика: здесь то, что даёт возможность в игре —
+/// телепорты, дом, страховка инвентаря. Каталог наливается сидом.
+model ShopItem {
+  key           String  @id
+  title         String
+  description   String
+  /// teleport | utility | insurance — для группировки на витрине
+  category      String
+  priceVc       Int
+  /// CHARGES — тратится по использованию, PERMANENT — открывает возможность навсегда
+  kind          String  @default("CHARGES")
+  charges       Int     @default(0)
+  /// Что именно даёт товар: {"feature":"tp"} — плагин смотрит сюда
+  payload       Json?
+  requiredLevel Int     @default(0)
+  sort          Int     @default(0)
+  active        Boolean @default(true)
+
+  purchases ShopPurchase[]
+}
+
+/// Купленное игроком. Одна строка на товар: докупка складывает заряды.
+model ShopPurchase {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemKey     String
+  item        ShopItem  @relation(fields: [itemKey], references: [key], onDelete: Cascade)
+  chargesLeft Int       @default(0)
+  permanent   Boolean   @default(false)
+  /// Состояние товара: например, координаты дома.
+  data        Json?
+  boughtTimes Int       @default(1)
+  createdAt   DateTime  @default(now())
+  lastUsedAt  DateTime?
+
+  @@unique([userId, itemKey])
+  @@index([userId])
 }
 
 // ──────────────────────────── Промо и бонусы ─────────────────────────────

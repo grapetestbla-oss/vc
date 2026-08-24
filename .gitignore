@@ -9,3 +9,6 @@ node_modules/
 *.log
 deploy/.env
 deploy/Caddyfile
+
+# TypeScript
+web/tsconfig.tsbuildinfo

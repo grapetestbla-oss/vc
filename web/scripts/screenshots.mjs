@@ -42,6 +42,8 @@ await page.request.post(BASE + "/api/mc/report", {
 
 await shot("/panel", "03-panel-login");
 
+// ждём гидратацию: до неё форма уходит обычным GET и вход не срабатывает
+await page.waitForTimeout(1500);
 await page.fill('input[name="password"]', "password123");
 await Promise.all([
   page.waitForURL("**/panel", { timeout: 20000 }),
@@ -84,6 +86,25 @@ await shot("/panel/logs", "06-panel-logs");
 await shot("/panel/promos", "07-panel-promos");
 await shot("/panel/security", "08-panel-security");
 await shot("/panel/partners", "15-panel-partners");
+await shot("/panel/server", "18-panel-server");
+
+// заявка на пополнение, чтобы страница разбора не была пустой
+// через fetch внутри страницы: у него те же cookie, что и у залогиненного браузера
+const topUpRequest = await page.evaluate(async () => {
+  const response = await fetch("/api/payments/create", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      amountRub: 500,
+      method: "СБП",
+      contact: "@steve",
+      comment: "перевод в 19:40",
+    }),
+  });
+  return { status: response.status, body: await response.text() };
+});
+console.log("заявка на пополнение:", topUpRequest.status, topUpRequest.body);
+await shot("/panel/payments", "19-panel-payments");
 
 await shot("/panel/news", "09-panel-news");
 await shot("/news", "10-news");
@@ -99,6 +120,8 @@ await page.screenshot({ path: `${OUT}/13-case-opened.png`, fullPage: true });
 console.log("13 case opened");
 
 await shot("/collection", "14-collection");
+await shot("/shop", "20-shop");
+await shot("/topup", "21-topup");
 await shot("/partners", "16-partners");
 await shot("/register", "17-register");
 await shot("/games", "12-games");

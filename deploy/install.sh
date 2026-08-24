@@ -88,6 +88,13 @@ ADMIN_LOGIN=
 ADMIN_EMAIL=
 ADMIN_PASSWORD=
 ADMIN_LEVEL=5
+# Курс пополнения: сколько VC даёт один рубль.
+VC_PER_RUB=2
+# Управление игровым сервером во вкладке «Сервер» (только 5 уровень).
+# Ключ берётся в панели хостинга: Account → API Credentials.
+GAME_PANEL_URL=https://mgr.bisquit.host
+GAME_PANEL_KEY=
+GAME_PANEL_SERVER_ID=
 ENV
 fi
 

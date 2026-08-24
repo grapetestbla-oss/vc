@@ -22,6 +22,12 @@ services:
       DATABASE_URL: postgresql://vanilla:${POSTGRES_PASSWORD}@postgres:5432/vanilla
       MC_SERVER_TOKEN: ${MC_SERVER_TOKEN:?set MC_SERVER_TOKEN}
       GAME_RTP: ${GAME_RTP:-0.95}
+      VC_PER_RUB: ${VC_PER_RUB:-2}
+      # Управление игровым сервером из панели: без этих переменных вкладка
+      # «Сервер» просто скажет, что она не настроена.
+      GAME_PANEL_URL: ${GAME_PANEL_URL:-}
+      GAME_PANEL_KEY: ${GAME_PANEL_KEY:-}
+      GAME_PANEL_SERVER_ID: ${GAME_PANEL_SERVER_ID:-}
       BOOTSTRAP_ADMIN_LOGIN: ${BOOTSTRAP_ADMIN_LOGIN:-}
       NODE_ENV: production
     depends_on:

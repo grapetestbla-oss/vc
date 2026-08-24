@@ -16,8 +16,11 @@ export const CONFIG = {
   coolDownAfterLosses: num("GAME_COOLDOWN_LOSSES", 10),
   coolDownSeconds: num("GAME_COOLDOWN_SECONDS", 300),
   rouletteMultipliers: [2, 3, 5, 10] as const,
-  /** Курс пополнения: рублей за 100 VC. */
-  rubPer100Vc: num("VC_RUB_PER_100", 100),
+  /** Курс пополнения: сколько VC даёт один рубль. 1 ₽ = 2 VC. */
+  vcPerRub: num("VC_PER_RUB", 2),
+  /** Границы заявки на пополнение, рубли. */
+  minTopUpRub: num("TOPUP_MIN_RUB", 50),
+  maxTopUpRub: num("TOPUP_MAX_RUB", 100_000),
   promoReward: num("PROMO_REWARD_VC", 500),
   promoRequiredLevel: num("PROMO_REQUIRED_LEVEL", 3),
   dailyBonusVc: num("DAILY_BONUS_VC", 25),

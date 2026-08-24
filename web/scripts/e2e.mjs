@@ -692,6 +692,171 @@ const run = async () => {
   const draftPage = await fetch(BASE + "/news/" + draft.json.slug);
   check("черновик не открывается публично", draftPage.status === 404, { status: draftPage.status });
 
+  console.log("— Магазин —");
+  const shopBuyer = await register("Shopper");
+  const shopBuyerMe = await api("/api/me", { cookie: shopBuyer.session });
+  await api("/api/panel/balance", {
+    method: "POST",
+    cookie: steve.session,
+    body: { userId: shopBuyerMe.json.id, amount: 3000, reason: "на магазин" },
+  });
+
+  const poorBuy = await api("/api/shop/buy", {
+    method: "POST",
+    cookie: alex.session,
+    body: { key: "keepinv_token" },
+  });
+  check("без VC товар не купить", poorBuy.status === 400, poorBuy.json);
+
+  const anonBuy = await api("/api/shop/buy", { method: "POST", body: { key: "tp_pack" } });
+  check("гость не покупает", anonBuy.status === 401);
+
+  const buyTp = await api("/api/shop/buy", {
+    method: "POST",
+    cookie: shopBuyer.session,
+    body: { key: "tp_pack" },
+  });
+  check("телепорты куплены", buyTp.json?.ok === true, buyTp.json);
+  check("VC списаны по цене товара", buyTp.json?.balance === 2500, buyTp.json);
+
+  const shopList = await api("/api/mc/shop?login=Shopper", { serverToken: TOKEN });
+  const tpEntry = shopList.json?.items?.find((item) => item.key === "tp_pack");
+  check("плагин видит покупку", tpEntry?.chargesLeft === 5, shopList.json);
+  check("плагин знает возможность товара", tpEntry?.feature === "tp", tpEntry);
+
+  const shopListNoToken = await api("/api/mc/shop?login=Shopper");
+  check("магазин закрыт без токена сервера", shopListNoToken.status === 401);
+
+  const buyTpAgain = await api("/api/shop/buy", {
+    method: "POST",
+    cookie: shopBuyer.session,
+    body: { key: "tp_pack" },
+  });
+  check("докупка складывает заряды", buyTpAgain.json?.ok === true, buyTpAgain.json);
+  const stacked = await api("/api/mc/shop?login=Shopper", { serverToken: TOKEN });
+  check(
+    "зарядов стало десять",
+    stacked.json?.items?.find((item) => item.key === "tp_pack")?.chargesLeft === 10,
+    stacked.json,
+  );
+
+  const use = await api("/api/mc/shop/use", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Shopper", key: "tp_pack" },
+  });
+  check("использование списывается", use.json?.status === "ok" && use.json?.chargesLeft === 9, use.json);
+
+  const useNotOwned = await api("/api/mc/shop/use", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Alex", key: "tp_pack" },
+  });
+  check("нельзя потратить некупленное", useNotOwned.json?.status === "denied", useNotOwned.json);
+
+  const lockedHome = await api("/api/shop/buy", {
+    method: "POST",
+    cookie: shopBuyer.session,
+    body: { key: "home_point" },
+  });
+  check("товар с требованием уровня закрыт новичку", lockedHome.status === 400, lockedHome.json);
+
+  const state = await api("/api/mc/shop/state", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Shopper", key: "tp_pack", data: { location: "world;1;2;3;0;0" } },
+  });
+  check("плагин сохраняет состояние товара", state.json?.status === "ok", state.json);
+
+  const shopPage = await fetch(BASE + "/shop");
+  const shopHtml = await shopPage.text();
+  check("витрина открывается", shopHtml.includes("Телепорт к игроку"));
+
+  console.log("— Пополнение —");
+  const tooSmall = await api("/api/payments/create", {
+    method: "POST",
+    cookie: shopBuyer.session,
+    body: { amountRub: 10, method: "СБП", contact: "@shopper" },
+  });
+  check("слишком маленькая сумма отклоняется", tooSmall.status === 400, tooSmall.json);
+
+  const noContact = await api("/api/payments/create", {
+    method: "POST",
+    cookie: shopBuyer.session,
+    body: { amountRub: 500, method: "СБП", contact: "" },
+  });
+  check("без контакта заявка не создаётся", noContact.status === 400, noContact.json);
+
+  const request = await api("/api/payments/create", {
+    method: "POST",
+    cookie: shopBuyer.session,
+    body: { amountRub: 500, method: "СБП", contact: "@shopper", comment: "перевод в 19:40" },
+  });
+  check("заявка создана", request.json?.ok === true, request.json);
+  check("курс 1 ₽ = 2 VC", request.json?.vcAmount === 1000, request.json);
+
+  const duplicate = await api("/api/payments/create", {
+    method: "POST",
+    cookie: shopBuyer.session,
+    body: { amountRub: 100, method: "СБП", contact: "@shopper" },
+  });
+  check("вторая открытая заявка не создаётся", duplicate.status === 409, duplicate.json);
+
+  const payApproveByPlayer = await api("/api/panel/payment", {
+    method: "POST",
+    cookie: alex.session,
+    body: { paymentId: request.json.paymentId, action: "approve" },
+  });
+  check("игрок не одобряет пополнения", payApproveByPlayer.status === 403);
+
+  const balanceBefore = (await api("/api/me", { cookie: shopBuyer.session })).json.balanceVc;
+  const payApprove = await api("/api/panel/payment", {
+    method: "POST",
+    cookie: steve.session,
+    body: { paymentId: request.json.paymentId, action: "approve", note: "перевод найден" },
+  });
+  check("chief одобряет заявку", payApprove.json?.status === "paid", payApprove.json);
+  check("VC начислены по курсу", payApprove.json?.balance === balanceBefore + 1000, payApprove.json);
+
+  const payApproveTwice = await api("/api/panel/payment", {
+    method: "POST",
+    cookie: steve.session,
+    body: { paymentId: request.json.paymentId, action: "approve" },
+  });
+  check("повторное одобрение отклоняется", payApproveTwice.status === 409, payApproveTwice.json);
+
+  const payRejected = await api("/api/payments/create", {
+    method: "POST",
+    cookie: shopBuyer.session,
+    body: { amountRub: 300, method: "Карта", contact: "@shopper" },
+  });
+  const payReject = await api("/api/panel/payment", {
+    method: "POST",
+    cookie: steve.session,
+    body: { paymentId: payRejected.json.paymentId, action: "reject", note: "перевод не найден" },
+  });
+  check("заявку можно отклонить", payReject.json?.status === "rejected", payReject.json);
+  const afterReject = await api("/api/me", { cookie: shopBuyer.session });
+  check("при отказе VC не начисляются", afterReject.json.balanceVc === balanceBefore + 1000, afterReject.json);
+
+  console.log("— Управление сервером —");
+  const serverByPlayer = await api("/api/panel/server", { cookie: alex.session });
+  check("игрок не видит управление сервером", serverByPlayer.status === 403);
+
+  const serverPowerByPlayer = await api("/api/panel/server", {
+    method: "POST",
+    cookie: alex.session,
+    body: { action: "power", signal: "stop" },
+  });
+  check("игрок не выключает сервер", serverPowerByPlayer.status === 403);
+
+  const badSignal = await api("/api/panel/server", {
+    method: "POST",
+    cookie: steve.session,
+    body: { action: "power", signal: "explode" },
+  });
+  check("неизвестный сигнал отклоняется", badSignal.status === 400 || badSignal.status === 502, badSignal.json);
+
   console.log("— Итог —");
   console.log(`Пройдено: ${passed}, провалено: ${failed}`);
   process.exit(failed === 0 ? 0 : 1);

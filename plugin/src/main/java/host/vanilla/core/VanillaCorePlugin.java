@@ -20,6 +20,9 @@ import host.vanilla.core.punish.JailManager;
 import host.vanilla.core.punish.JailZone;
 import host.vanilla.core.news.NewsBroadcaster;
 import host.vanilla.core.report.ReportManager;
+import host.vanilla.core.shop.ShopCommands;
+import host.vanilla.core.shop.ShopListener;
+import host.vanilla.core.shop.ShopManager;
 import host.vanilla.core.report.ReportMenuListener;
 import host.vanilla.core.util.Accounts;
 import host.vanilla.core.util.Messages;
@@ -49,6 +52,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
     private ReportManager reports;
     private NewsBroadcaster news;
     private CosmeticEngine cosmetics;
+    private ShopManager shop;
+    private ShopCommands shopCommands;
     private NamespacedKey hatKey;
 
     @Override
@@ -72,6 +77,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
         news = new NewsBroadcaster(this, messages);
         hatKey = new NamespacedKey(this, "cosmetic_hat");
         cosmetics = new CosmeticEngine(this);
+        shop = new ShopManager(this);
+        shopCommands = new ShopCommands(this, messages);
 
         registerListeners();
         registerCommands();
@@ -85,6 +92,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         manager.registerEvents(new StaffListener(this, checks), this);
         manager.registerEvents(new ReportMenuListener(this, reports), this);
         manager.registerEvents(new CosmeticListener(this, cosmetics), this);
+        manager.registerEvents(new ShopListener(this, shopCommands, messages), this);
     }
 
     private void registerCommands() {
@@ -99,6 +107,11 @@ public final class VanillaCorePlugin extends JavaPlugin {
         }
 
         bind("cosmetics", new CosmeticCommand(this, cosmetics));
+
+        for (String name : List.of("shop", "tpa", "tpaccept", "tpdeny", "sethome", "home", "back",
+                "ec", "craft")) {
+            bind(name, shopCommands);
+        }
 
         PlayerCommands player = new PlayerCommands(this, messages);
         for (String name : List.of("balance", "promo", "bonus", "report")) {
@@ -158,6 +171,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
                 cosmetics.playJoinEffect(player);
             }
 
+            shop.refresh(player);
+
             if (response.has("jail") && !response.get("jail").isJsonNull()) {
                 JsonObject jailData = response.getAsJsonObject("jail");
                 jail.restore(player, jailData);
@@ -208,6 +223,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
     public void onPlayerQuit(Player player) {
         jail.syncOnQuit(player);
         cosmetics.forget(player);
+        shop.forget(player);
         checks.onQuit(player);
         esp.disable(player);
     }
@@ -239,6 +255,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
     public ReportManager reports() { return reports; }
     public NewsBroadcaster news() { return news; }
     public CosmeticEngine cosmetics() { return cosmetics; }
+    public ShopManager shop() { return shop; }
     public NamespacedKey hatKey() { return hatKey; }
     public Messages messages() { return messages; }
 }

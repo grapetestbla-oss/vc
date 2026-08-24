@@ -20,6 +20,7 @@ export default async function PanelHome() {
     activePunishments,
     openReports,
     flags,
+    pendingPayments,
     revenue,
     wagered,
     recentActions,
@@ -31,6 +32,7 @@ export default async function PanelHome() {
     db.punishment.count({ where: { active: true } }),
     db.report.count({ where: { status: "OPEN" } }),
     db.suspiciousFlag.count({ where: { resolved: false } }),
+    db.payment.count({ where: { status: "pending" } }),
     db.payment.aggregate({
       where: { status: "paid", paidAt: { gt: dayAgo } },
       _sum: { amountRub: true },
@@ -60,6 +62,16 @@ export default async function PanelHome() {
     { label: "Открытых репортов", value: openReports, href: null },
     { label: "Срабатываний", value: flags, href: "/panel/flags", warn: flags > 0 },
     { label: "Выручка за сутки, ₽", value: revenue._sum.amountRub ?? 0, href: null },
+    ...(admin.adminLevel >= 5
+      ? [
+          {
+            label: "Заявок на пополнение",
+            value: pendingPayments,
+            href: "/panel/payments",
+            warn: pendingPayments > 0,
+          },
+        ]
+      : []),
     { label: "Ставок за сутки, VC", value: wagered._sum.betVc ?? 0, href: null },
   ];
 

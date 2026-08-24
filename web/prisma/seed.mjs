@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { COSMETICS, COLLECTIONS } from "./catalogue.mjs";
 import { CASES } from "./cases.mjs";
+import { SHOP_ITEMS } from "./shop.mjs";
 
 const db = new PrismaClient();
 
@@ -71,8 +72,29 @@ async function main() {
     });
   }
 
+  for (const item of SHOP_ITEMS) {
+    const data = {
+      title: item.title,
+      description: item.description,
+      category: item.category,
+      priceVc: item.priceVc,
+      kind: item.kind,
+      charges: item.charges,
+      payload: item.payload,
+      requiredLevel: item.requiredLevel ?? 0,
+      sort: item.sort,
+      active: true,
+    };
+    await db.shopItem.upsert({
+      where: { key: item.key },
+      create: { key: item.key, ...data },
+      update: data,
+    });
+  }
+
   console.log(
-    `Каталог загружен: косметики ${COSMETICS.length}, коллекций ${COLLECTIONS.length}, кейсов ${CASES.length}`,
+    `Каталог загружен: косметики ${COSMETICS.length}, коллекций ${COLLECTIONS.length}, ` +
+      `кейсов ${CASES.length}, товаров магазина ${SHOP_ITEMS.length}`,
   );
 }
 
