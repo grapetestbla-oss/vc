@@ -16,6 +16,8 @@ public final class PluginConfig {
     /// Адрес сайта для ссылок в чате — обычно совпадает с apiUrl.
     public final String siteUrl;
 
+    /// Префикс, который Floodgate добавляет никам Bedrock-игроков.
+    public final String bedrockPrefix;
     public final int authTimeoutSeconds;
     public final int maxLoginAttempts;
 
@@ -42,6 +44,7 @@ public final class PluginConfig {
         apiToken = c.getString("api.token", "");
         siteUrl = c.getString("api.site-url", apiUrl);
 
+        bedrockPrefix = c.getString("auth.bedrock-prefix", ".");
         authTimeoutSeconds = Math.max(15, c.getInt("auth.timeout-seconds", 60));
         maxLoginAttempts = Math.max(1, c.getInt("auth.max-attempts", 3));
 

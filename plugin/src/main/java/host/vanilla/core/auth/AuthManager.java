@@ -2,6 +2,7 @@ package host.vanilla.core.auth;
 
 import com.google.gson.JsonObject;
 import host.vanilla.core.VanillaCorePlugin;
+import host.vanilla.core.util.Accounts;
 import host.vanilla.core.util.Messages;
 import net.kyori.adventure.text.Component;
 import org.bukkit.GameMode;
@@ -89,7 +90,7 @@ public final class AuthManager {
         String ip = ip(player);
         plugin.api().onMain(
                 plugin.api().post("/api/mc/login", Map.of(
-                        "login", player.getName(),
+                        "login", Accounts.name(player),
                         "password", password,
                         "ip", ip)),
                 response -> handleLogin(player, profile, response));
@@ -103,7 +104,7 @@ public final class AuthManager {
         }
         plugin.api().onMain(
                 plugin.api().post("/api/mc/twofa", Map.of(
-                        "login", player.getName(),
+                        "login", Accounts.name(player),
                         "code", code,
                         "ip", ip(player))),
                 response -> handleLogin(player, profile, response));
@@ -123,7 +124,7 @@ public final class AuthManager {
                     profile.setBalanceVc(data.get("balanceVc").getAsInt());
                 }
                 release(player);
-                player.sendMessage(messages.get("auth.welcome", Map.of("player", player.getName())));
+                player.sendMessage(messages.get("auth.welcome", Map.of("player", Accounts.name(player))));
                 plugin.onPlayerAuthenticated(player);
             }
             case "2fa_required" -> {

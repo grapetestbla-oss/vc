@@ -2,6 +2,7 @@ package host.vanilla.core.admin;
 
 import com.google.gson.JsonObject;
 import host.vanilla.core.VanillaCorePlugin;
+import host.vanilla.core.util.Accounts;
 import host.vanilla.core.util.Messages;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -94,20 +95,20 @@ public final class StaffCommands implements CommandExecutor, TabCompleter {
             admin.sendMessage(messages.get("staff.usage-ajail"));
             return true;
         }
-        String target = args[0];
+        String target = Accounts.name(args[0]);
         String reason = String.join(" ", Arrays.copyOfRange(args, 1, args.length - 1));
 
         Map<String, Object> body = new HashMap<>();
         body.put("type", "JAIL");
         body.put("targetLogin", target);
-        body.put("actorLogin", admin.getName());
+        body.put("actorLogin", Accounts.name(admin));
         body.put("reason", reason);
         body.put("minutes", minutes);
 
         plugin.api().onMain(plugin.api().post("/api/mc/punish", body), response -> {
             if (!ok(admin, response)) return;
             JsonObject punishment = response.getAsJsonObject("punishment");
-            Player targetPlayer = Bukkit.getPlayerExact(target);
+            Player targetPlayer = Accounts.findOnline(target);
             if (targetPlayer != null) {
                 plugin.jail().apply(targetPlayer, punishment.get("id").getAsString(), reason,
                         punishment.get("totalSeconds").getAsInt());
@@ -124,18 +125,18 @@ public final class StaffCommands implements CommandExecutor, TabCompleter {
             admin.sendMessage(messages.get("staff.usage-warn"));
             return true;
         }
-        String target = args[0];
+        String target = Accounts.name(args[0]);
         String reason = String.join(" ", Arrays.copyOfRange(args, 1, args.length));
 
         plugin.api().onMain(plugin.api().post("/api/mc/punish", Map.of(
                 "type", "WARN",
                 "targetLogin", target,
-                "actorLogin", admin.getName(),
+                "actorLogin", Accounts.name(admin),
                 "reason", reason)), response -> {
             if (!ok(admin, response)) return;
             boolean autoBan = response.has("autoBan") && !response.get("autoBan").isJsonNull();
             admin.sendMessage(messages.get("staff.warned", Map.of("player", target)));
-            Player targetPlayer = Bukkit.getPlayerExact(target);
+            Player targetPlayer = Accounts.findOnline(target);
             if (targetPlayer != null) {
                 targetPlayer.sendMessage(messages.get("punish.warn", Map.of("reason", reason)));
                 if (autoBan) {
@@ -160,13 +161,13 @@ public final class StaffCommands implements CommandExecutor, TabCompleter {
             admin.sendMessage(messages.get("staff.usage-ban"));
             return true;
         }
-        String target = args[0];
+        String target = Accounts.name(args[0]);
         String reason = String.join(" ", Arrays.copyOfRange(args, 1, args.length - 1));
 
         Map<String, Object> body = new HashMap<>();
         body.put("type", "BAN");
         body.put("targetLogin", target);
-        body.put("actorLogin", admin.getName());
+        body.put("actorLogin", Accounts.name(admin));
         body.put("reason", reason);
         body.put("days", days);
 
@@ -174,7 +175,7 @@ public final class StaffCommands implements CommandExecutor, TabCompleter {
             if (!ok(admin, response)) return;
             admin.sendMessage(messages.get("staff.banned", Map.of(
                     "player", target, "days", String.valueOf(days))));
-            Player targetPlayer = Bukkit.getPlayerExact(target);
+            Player targetPlayer = Accounts.findOnline(target);
             if (targetPlayer != null) {
                 targetPlayer.kick(messages.plain("punish.banned", Map.of(
                         "reason", reason, "days", String.valueOf(days))));
@@ -189,7 +190,7 @@ public final class StaffCommands implements CommandExecutor, TabCompleter {
             admin.sendMessage(messages.get("staff.usage-check"));
             return true;
         }
-        Player target = Bukkit.getPlayerExact(args[0]);
+        Player target = Accounts.findOnline(args[0]);
         if (target == null) {
             admin.sendMessage(messages.get("staff.no-player"));
             return true;
@@ -209,7 +210,7 @@ public final class StaffCommands implements CommandExecutor, TabCompleter {
             admin.sendMessage(messages.get("staff.usage-asms"));
             return true;
         }
-        Player target = Bukkit.getPlayerExact(args[0]);
+        Player target = Accounts.findOnline(args[0]);
         if (target == null) {
             admin.sendMessage(messages.get("staff.no-player"));
             return true;
@@ -217,7 +218,7 @@ public final class StaffCommands implements CommandExecutor, TabCompleter {
         String text = String.join(" ", Arrays.copyOfRange(args, 1, args.length));
         target.sendMessage(messages.get("staff.asms", Map.of("text", text)));
         admin.sendMessage(messages.get("staff.asms-sent", Map.of("player", target.getName())));
-        plugin.logAdminAction(admin, "asms", target.getName(), Map.of("text", text));
+        plugin.logAdminAction(admin, "asms", Accounts.name(target), Map.of("text", text));
         return true;
     }
 
@@ -252,7 +253,7 @@ public final class StaffCommands implements CommandExecutor, TabCompleter {
             admin.sendMessage(messages.get("staff.usage-tp"));
             return true;
         }
-        Player target = Bukkit.getPlayerExact(args[0]);
+        Player target = Accounts.findOnline(args[0]);
         if (target == null) {
             admin.sendMessage(messages.get("staff.no-player"));
             return true;
@@ -264,7 +265,7 @@ public final class StaffCommands implements CommandExecutor, TabCompleter {
             admin.teleport(target.getLocation());
             admin.sendMessage(messages.get("staff.tp", Map.of("player", target.getName())));
         }
-        plugin.logAdminAction(admin, bringHere ? "tphere" : "tp", target.getName(), Map.of());
+        plugin.logAdminAction(admin, bringHere ? "tphere" : "tp", Accounts.name(target), Map.of());
         return true;
     }
 

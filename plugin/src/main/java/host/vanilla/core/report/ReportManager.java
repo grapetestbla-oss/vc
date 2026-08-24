@@ -3,6 +3,7 @@ package host.vanilla.core.report;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import host.vanilla.core.VanillaCorePlugin;
+import host.vanilla.core.util.Accounts;
 import host.vanilla.core.util.Messages;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -37,14 +38,14 @@ public final class ReportManager {
 
     public void create(Player author, String text) {
         plugin.api().onMain(
-                plugin.api().post("/api/mc/report", Map.of("login", author.getName(), "text", text)),
+                plugin.api().post("/api/mc/report", Map.of("login", Accounts.name(author), "text", text)),
                 response -> {
                     if (response.get("_status").getAsInt() != 200) {
                         author.sendMessage(messages.get("report.failed"));
                         return;
                     }
                     author.sendMessage(messages.get("report.created"));
-                    notifyStaff(author.getName(), text);
+                    notifyStaff(Accounts.name(author), text);
                 });
     }
 
@@ -107,7 +108,7 @@ public final class ReportManager {
 
     public void claim(Player admin, Entry entry) {
         plugin.api().onMain(
-                plugin.api().post("/api/mc/reports", Map.of("id", entry.id(), "actorLogin", admin.getName())),
+                plugin.api().post("/api/mc/reports", Map.of("id", entry.id(), "actorLogin", Accounts.name(admin))),
                 response -> {
                     int status = response.get("_status").getAsInt();
                     if (status == 409) {
@@ -122,7 +123,7 @@ public final class ReportManager {
                             "player", entry.author(),
                             "text", entry.text())));
 
-                    Player author = Bukkit.getPlayerExact(entry.author());
+                    Player author = Accounts.findOnline(entry.author());
                     if (author == null) {
                         admin.sendMessage(messages.get("report.author-offline"));
                         return;
@@ -135,7 +136,7 @@ public final class ReportManager {
         plugin.api().onMain(
                 plugin.api().post("/api/mc/reports", Map.of(
                         "id", id,
-                        "actorLogin", admin.getName(),
+                        "actorLogin", Accounts.name(admin),
                         "close", true,
                         "resolution", resolution)),
                 response -> admin.sendMessage(response.get("_status").getAsInt() == 200

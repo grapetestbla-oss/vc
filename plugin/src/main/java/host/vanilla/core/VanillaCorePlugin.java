@@ -21,6 +21,7 @@ import host.vanilla.core.punish.JailZone;
 import host.vanilla.core.news.NewsBroadcaster;
 import host.vanilla.core.report.ReportManager;
 import host.vanilla.core.report.ReportMenuListener;
+import host.vanilla.core.util.Accounts;
 import host.vanilla.core.util.Messages;
 import net.kyori.adventure.text.Component;
 import org.bukkit.GameMode;
@@ -55,6 +56,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         saveDefaultConfig();
         config = new PluginConfig(getConfig());
         config.validate().forEach(problem -> getLogger().warning(problem));
+        Accounts.setPrefix(config.bedrockPrefix);
 
         messages = new Messages(getConfig());
         api = new ApiClient(this, config.apiUrl, config.apiToken);
@@ -132,7 +134,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         List<Map<String, Object>> entries = new ArrayList<>();
         for (Player player : getServer().getOnlinePlayers()) {
             if (!auth.authenticated(player)) continue;
-            entries.add(Map.of("login", player.getName(), "seconds", 60));
+            entries.add(Map.of("login", Accounts.name(player), "seconds", 60));
         }
         if (!entries.isEmpty()) {
             api.post("/api/mc/playtime", Map.of("entries", entries));
@@ -141,7 +143,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
 
     /** Игрок ввёл пароль: подтягиваем профиль и применяем всё, что из него следует. */
     public void onPlayerAuthenticated(Player player) {
-        api.onMain(api.get("/api/mc/profile?login=" + player.getName()), response -> {
+        api.onMain(api.get("/api/mc/profile?login=" + Accounts.name(player)), response -> {
             if (!player.isOnline() || response.get("_status").getAsInt() != 200) return;
 
             Profile profile = auth.profile(player);
@@ -195,7 +197,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
 
     /** Перечитывает косметику игрока с сайта — после покупки или смены предмета. */
     public void reloadCosmetics(Player player) {
-        api.onMain(api.get("/api/mc/profile?login=" + player.getName()), response -> {
+        api.onMain(api.get("/api/mc/profile?login=" + Accounts.name(player)), response -> {
             if (!player.isOnline() || response.get("_status").getAsInt() != 200) return;
             if (response.has("cosmetics") && response.get("cosmetics").isJsonArray()) {
                 cosmetics.apply(player, response.getAsJsonArray("cosmetics"));
@@ -213,7 +215,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
     /** Пишет действие администрации в журнал сайта. */
     public void logAdminAction(Player admin, String action, String targetLogin, Map<String, ?> meta) {
         Map<String, Object> body = new HashMap<>();
-        if (admin != null) body.put("actorLogin", admin.getName());
+        if (admin != null) body.put("actorLogin", Accounts.name(admin));
         body.put("action", action);
         if (targetLogin != null) body.put("targetLogin", targetLogin);
         body.put("meta", meta);

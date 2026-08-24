@@ -1,6 +1,7 @@
 package host.vanilla.core.admin;
 
 import host.vanilla.core.VanillaCorePlugin;
+import host.vanilla.core.util.Accounts;
 import host.vanilla.core.util.Messages;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
@@ -50,7 +51,7 @@ public final class CheckManager {
                 .clickEvent(ClickEvent.openUrl(link)));
 
         admin.sendMessage(messages.get("check.started-admin", Map.of("player", target.getName())));
-        plugin.logAdminAction(admin, "check.start", target.getName(), Map.of("link", link));
+        plugin.logAdminAction(admin, "check.start", Accounts.name(target), Map.of("link", link));
     }
 
     public void finish(Player target, Player admin, boolean passed) {
@@ -60,7 +61,7 @@ public final class CheckManager {
         target.setFlySpeed(0.1f);
         target.sendMessage(messages.get(passed ? "check.passed" : "check.failed"));
         if (admin != null) {
-            plugin.logAdminAction(admin, passed ? "check.pass" : "check.fail", target.getName(), Map.of());
+            plugin.logAdminAction(admin, passed ? "check.pass" : "check.fail", Accounts.name(target), Map.of());
         }
     }
 
@@ -73,7 +74,7 @@ public final class CheckManager {
                 .forEach(player -> player.sendMessage(messages.get("check.left", Map.of(
                         "player", target.getName(),
                         "admin", check.adminName()))));
-        plugin.logAdminAction(null, "check.player_left", target.getName(),
+        plugin.logAdminAction(null, "check.player_left", Accounts.name(target),
                 Map.of("admin", check.adminName()));
     }
 }

@@ -3,6 +3,7 @@ package host.vanilla.core.economy;
 import com.google.gson.JsonObject;
 import host.vanilla.core.VanillaCorePlugin;
 import host.vanilla.core.auth.Profile;
+import host.vanilla.core.util.Accounts;
 import host.vanilla.core.util.Messages;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -43,7 +44,7 @@ public final class PlayerCommands implements CommandExecutor {
 
     private boolean balance(Player player) {
         plugin.api().onMain(
-                plugin.api().get("/api/mc/profile?login=" + player.getName()),
+                plugin.api().get("/api/mc/profile?login=" + Accounts.name(player)),
                 response -> {
                     if (response.get("_status").getAsInt() != 200) {
                         player.sendMessage(messages.get("economy.api-down"));
@@ -65,7 +66,7 @@ public final class PlayerCommands implements CommandExecutor {
             return true;
         }
         plugin.api().onMain(
-                plugin.api().post(endpoint, Map.of("login", player.getName(), "code", args[0])),
+                plugin.api().post(endpoint, Map.of("login", Accounts.name(player), "code", args[0])),
                 response -> handleCode(player, response));
         return true;
     }
