@@ -10,6 +10,8 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Промокод может прийти по ссылке партнёра — тогда поле уже заполнено.
+  const promoFromLink = (params.get("promo") ?? "").trim().toUpperCase();
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -75,10 +77,12 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
               className="input font-mono uppercase"
               placeholder="код блогера"
               autoCapitalize="characters"
+              defaultValue={promoFromLink}
             />
             <span className="muted block text-xs">
-              Вводится один раз при регистрации и навсегда остаётся за аккаунтом.
-              Награда придёт, когда аккаунт дорастёт до третьего уровня.
+              {promoFromLink
+                ? `Код ${promoFromLink} подставлен из ссылки партнёра. Его можно стереть или заменить — но только сейчас: после регистрации код не меняется.`
+                : "Вводится один раз при регистрации и навсегда остаётся за аккаунтом. Награда придёт, когда аккаунт дорастёт до третьего уровня."}
             </span>
           </label>
         </>

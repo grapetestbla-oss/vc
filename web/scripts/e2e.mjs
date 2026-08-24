@@ -1073,6 +1073,38 @@ const run = async () => {
   });
   check("вход в существующий аккаунт работает", backIn.status === 200, backIn.json);
 
+  console.log("— Ссылка и баннер партнёра —");
+  const refLink = await fetch(BASE + "/r/BLOG", { redirect: "manual" });
+  check(
+    "ссылка партнёра ведёт на регистрацию с кодом",
+    refLink.status >= 300 && refLink.status < 400 &&
+      (refLink.headers.get("location") ?? "").includes("promo=BLOG"),
+    { status: refLink.status, location: refLink.headers.get("location") },
+  );
+
+  const refLower = await fetch(BASE + "/r/blog", { redirect: "manual" });
+  check(
+    "код из ссылки приводится к верхнему регистру",
+    (refLower.headers.get("location") ?? "").includes("promo=BLOG"),
+    refLower.headers.get("location"),
+  );
+
+  const registerPage = await fetch(BASE + "/register?promo=BLOG");
+  const registerHtml = await registerPage.text();
+  check("на регистрации код подставлен в поле", registerHtml.includes('value="BLOG"'), {
+    status: registerPage.status,
+  });
+
+  const bannerAsset = await fetch(BASE + "/partners/banner-base.jpg");
+  check(
+    "макет баннера отдаётся сайтом",
+    bannerAsset.status === 200 && (bannerAsset.headers.get("content-type") ?? "").includes("image"),
+    { status: bannerAsset.status },
+  );
+
+  const fontAsset = await fetch(BASE + "/fonts/pixelify-sans-700-cyrillic.woff2");
+  check("пиксельный шрифт отдаётся сайтом", fontAsset.status === 200, { status: fontAsset.status });
+
   console.log("— Итог —");
   console.log(`Пройдено: ${passed}, провалено: ${failed}`);
   process.exit(failed === 0 ? 0 : 1);

@@ -12,6 +12,9 @@ import { PLATFORM_LABEL, STATUS_LABEL } from "@/lib/partners";
 import Reveal from "@/components/Reveal";
 import CountUp from "@/components/CountUp";
 import LogoutButton from "@/components/LogoutButton";
+import PartnerBanner from "@/components/PartnerBanner";
+import CopyField from "@/components/CopyField";
+import { headers } from "next/headers";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +44,13 @@ export default async function CabinetPage() {
     }),
     partnerEarnings(user.id),
   ]);
+
+  // Ссылку партнёра собираем от реального адреса сайта, а не от константы:
+  // домен может смениться, а ссылки в описаниях каналов останутся жить.
+  const requestHeaders = await headers();
+  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host") ?? "vanillacraft.click";
+  const proto = requestHeaders.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  const origin = `${proto}://${host}`;
 
   const level = levelFromPlaytime(user.playtimeSec);
   const hours = Math.floor(user.playtimeSec / 3600);
@@ -197,6 +207,40 @@ export default async function CabinetPage() {
                 </li>
               ))}
             </ul>
+          </section>
+        </Reveal>
+      )}
+
+      {promo && (
+        <Reveal delay={100}>
+          <section className="panel p-5 sm:p-6">
+            <p className="eyebrow">Ссылка для описания канала</p>
+            <h2 className="mt-1 text-lg font-semibold">Регистрация с вашим кодом</h2>
+            <p className="muted mt-2 text-sm">
+              Игрок переходит по ссылке и попадает на регистрацию, где ваш код уже вписан —
+              вводить руками ничего не нужно, и код закрепляется за аккаунтом навсегда.
+            </p>
+            <div className="mt-4">
+              <CopyField value={`${origin}/r/${promo.code}`} label="ref" />
+            </div>
+          </section>
+        </Reveal>
+      )}
+
+      {promo && (
+        <Reveal delay={110}>
+          <section className="panel p-5 sm:p-6">
+            <p className="eyebrow">Готовый баннер</p>
+            <h2 className="mt-1 text-lg font-semibold">Картинка с вашим промокодом</h2>
+            <p className="muted mt-2 mb-4 text-sm">
+              Ваш код подставлен в макет автоматически. Скачивайте и ставьте в шапку канала,
+              в описание видео или в пост — ничего дорисовывать не нужно.
+            </p>
+            <PartnerBanner
+              code={promo.code}
+              rewardVc={promo.rewardVc}
+              requiredLevel={promo.requiredLevel}
+            />
           </section>
         </Reveal>
       )}
