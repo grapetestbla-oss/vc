@@ -7,23 +7,9 @@
  * частицы.
  */
 
-export type CosmeticSeed = {
-  key: string;
-  name: string;
-  description: string;
-  kind: "TRAIL" | "AURA" | "PET" | "HAT" | "JOIN_EFFECT" | "NAME_COLOR" | "TITLE" | "WORLD_MARK";
-  rarity: "common" | "rare" | "epic" | "legendary";
-  payload: Record<string, unknown>;
-  seasonKey?: string;
-  collectionKey?: string;
-  serialLimit?: number;
-  obtainable?: boolean;
-  shardPrice?: number;
-};
-
 const SEASON = "season-1";
 
-export const COSMETICS: CosmeticSeed[] = [
+export const COSMETICS = [
   // ───────────────────────────── шлейфы ─────────────────────────────
   {
     key: "trail_ash",

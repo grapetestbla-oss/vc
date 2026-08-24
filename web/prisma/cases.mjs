@@ -4,23 +4,7 @@
  * не давал уйти в бесконечное невезение.
  */
 
-export type CaseSeed = {
-  key: string;
-  name: string;
-  description: string;
-  priceVc: number;
-  seasonKey?: string;
-  freeDaily?: boolean;
-  pityThreshold?: number;
-  sortOrder: number;
-  items: Array<
-    | { kind: "VC"; amount: number; weight: number }
-    | { kind: "SHARDS"; amount: number; weight: number }
-    | { kind: "COSMETIC"; cosmeticKey: string; weight: number }
-  >;
-};
-
-export const CASES: CaseSeed[] = [
+export const CASES = [
   {
     key: "daily",
     name: "Ежедневный ящик",

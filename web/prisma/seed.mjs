@@ -1,6 +1,6 @@
-import { PrismaClient, type Prisma } from "@prisma/client";
-import { COSMETICS, COLLECTIONS } from "./catalogue";
-import { CASES } from "./cases";
+import { PrismaClient } from "@prisma/client";
+import { COSMETICS, COLLECTIONS } from "./catalogue.mjs";
+import { CASES } from "./cases.mjs";
 
 const db = new PrismaClient();
 
@@ -20,7 +20,7 @@ async function main() {
       description: cosmetic.description,
       kind: cosmetic.kind,
       rarity: cosmetic.rarity,
-      payload: cosmetic.payload as Prisma.InputJsonValue,
+      payload: cosmetic.payload,
       seasonKey: cosmetic.seasonKey ?? null,
       collectionKey: cosmetic.collectionKey ?? null,
       serialLimit: cosmetic.serialLimit ?? null,

@@ -117,8 +117,9 @@ echo "==> Сборка и запуск"
 $COMPOSE --env-file .env up -d --build
 
 echo "==> Схема базы"
-$COMPOSE --env-file .env run --rm web npx prisma db push
-$COMPOSE --env-file .env run --rm web npx tsx prisma/seed.ts || true
+# В рабочем образе нет обёрток из node_modules/.bin, поэтому зовём CLI напрямую.
+$COMPOSE --env-file .env run --rm web node node_modules/prisma/build/index.js db push
+$COMPOSE --env-file .env run --rm web node prisma/seed.mjs
 
 # Администратора заводим, только если данные заданы в .env.
 if [ -n "${ADMIN_LOGIN:-}" ] && [ -n "${ADMIN_EMAIL:-}" ] && [ -n "${ADMIN_PASSWORD:-}" ]; then
