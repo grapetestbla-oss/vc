@@ -65,6 +65,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <Link href="/news" className="muted hover:text-white">Новости</Link>
               <Link href="/topup" className="muted hover:text-white">Пополнение</Link>
               <Link href="/appeal" className="muted hover:text-white">Разбан</Link>
+              <Link href="/tickets" className="muted hover:text-white">Поддержка</Link>
+              <Link href="/terms" className="muted hover:text-white">Соглашение</Link>
+              <Link href="/privacy" className="muted hover:text-white">Конфиденциальность</Link>
             </div>
           </div>
         </footer>

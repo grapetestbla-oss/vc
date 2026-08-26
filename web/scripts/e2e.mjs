@@ -46,7 +46,14 @@ async function register(login, password = "password123", promo) {
   const result = await api("/api/auth/register", {
     method: "POST",
     ip: `203.0.113.${++ipCounter}`,
-    body: { login, email: `${login}@example.com`, password, promo },
+    body: {
+      login,
+      email: `${login}@example.com`,
+      password,
+      promo,
+      acceptTerms: true,
+      acceptPrivacy: true,
+    },
   });
   return { ...result, session: result.cookie?.split(";")[0] };
 }
@@ -1311,6 +1318,110 @@ const run = async () => {
 
   const backOnline = await fetch(BASE + "/shop", { headers: { Cookie: alex.session } });
   check("после выключения сайт открыт", (await backOnline.text()).includes("Карманный эндер-сундук"));
+
+  console.log("— Согласия и документы —");
+  const noConsent = await api("/api/auth/register", {
+    method: "POST",
+    ip: "203.0.113.90",
+    body: { login: "NoConsent", email: "noconsent@example.com", password: "password123" },
+  });
+  check("без согласий регистрация не проходит", noConsent.status === 400, noConsent.json);
+
+  const halfConsent = await api("/api/auth/register", {
+    method: "POST",
+    ip: "203.0.113.91",
+    body: {
+      login: "HalfConsent",
+      email: "half@example.com",
+      password: "password123",
+      acceptTerms: true,
+    },
+  });
+  check("одной галочки мало", halfConsent.status === 400, halfConsent.json);
+
+  const consentMissing = await api("/api/me", { cookie: null });
+  check("аккаунт без согласий не создан", consentMissing.status === 401);
+
+  for (const path of ["/terms", "/privacy"]) {
+    const page = await fetch(BASE + path);
+    const html = await page.text();
+    check(`страница ${path} открыта всем`, page.status === 200 && html.includes("26 августа 2026"), {
+      status: page.status,
+    });
+    check(`в документе ${path} подставлено название сервиса`, html.includes("VanillaCraft"));
+  }
+
+  const noBotMentions = await (await fetch(BASE + "/terms")).text();
+  check(
+    "из соглашения убраны упоминания бота",
+    !noBotMentions.includes("/start") && !noBotMentions.toLowerCase().includes("тг бот"),
+  );
+
+  console.log("— Обращения в поддержку —");
+  const anonTicket = await api("/api/tickets", {
+    method: "POST",
+    body: { action: "create", subject: "Вопрос по оплате", text: "Не пришли монеты после оплаты." },
+  });
+  check("гость не создаёт обращения", anonTicket.status === 401);
+
+  const shortTicket = await api("/api/tickets", {
+    method: "POST",
+    cookie: alex.session,
+    body: { action: "create", subject: "Помогите", text: "аа" },
+  });
+  check("слишком короткое обращение отклоняется", shortTicket.status === 400, shortTicket.json);
+
+  const ticket = await api("/api/tickets", {
+    method: "POST",
+    cookie: alex.session,
+    body: {
+      action: "create",
+      subject: "Не пришли VC после пополнения",
+      text: "Оплатил 500 рублей через СБП час назад, заявку одобрили, но баланс прежний.",
+    },
+  });
+  check("обращение создаётся", ticket.json?.ok === true, ticket.json);
+
+  const ticketByPlayer = await api("/api/panel/ticket", {
+    method: "POST",
+    cookie: alex.session,
+    body: { action: "reply", ticketId: ticket.json.ticketId, text: "сам себе отвечу" },
+  });
+  check("игрок не отвечает от имени администрации", ticketByPlayer.status === 403);
+
+  const staffReply = await api("/api/panel/ticket", {
+    method: "POST",
+    cookie: steve.session,
+    body: { action: "reply", ticketId: ticket.json.ticketId, text: "Проверили, начислили вручную." },
+  });
+  check("чиф отвечает в обращение", staffReply.json?.status === "answered", staffReply.json);
+
+  const foreignReply = await api("/api/tickets", {
+    method: "POST",
+    cookie: steve.session,
+    body: { action: "reply", ticketId: ticket.json.ticketId, text: "чужое обращение" },
+  });
+  check("в чужое обращение игроком не написать", foreignReply.status === 400, foreignReply.json);
+
+  const page = await fetch(BASE + "/tickets", { headers: { Cookie: alex.session } });
+  const ticketsHtml = await page.text();
+  check("игрок видит свой тикет и ответ", ticketsHtml.includes("Проверили, начислили вручную."), {
+    status: page.status,
+  });
+
+  const closed = await api("/api/panel/ticket", {
+    method: "POST",
+    cookie: steve.session,
+    body: { action: "close", ticketId: ticket.json.ticketId },
+  });
+  check("обращение закрывается", closed.json?.status === "closed", closed.json);
+
+  const afterClose = await api("/api/tickets", {
+    method: "POST",
+    cookie: alex.session,
+    body: { action: "reply", ticketId: ticket.json.ticketId, text: "ещё вопрос" },
+  });
+  check("в закрытое обращение не пишут", afterClose.status === 400, afterClose.json);
 
   console.log("— Итог —");
   console.log(`Пройдено: ${passed}, провалено: ${failed}`);

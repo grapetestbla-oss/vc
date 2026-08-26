@@ -10,6 +10,8 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [acceptPrivacy, setAcceptPrivacy] = useState(false);
   // Промокод может прийти по ссылке партнёра — тогда поле уже заполнено.
   const promoFromLink = (params.get("promo") ?? "").trim().toUpperCase();
 
@@ -18,7 +20,11 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
     setBusy(true);
     setError(null);
     const form = new FormData(event.currentTarget);
-    const payload = Object.fromEntries(form.entries());
+    const payload: Record<string, unknown> = Object.fromEntries(form.entries());
+    if (mode === "register") {
+      payload.acceptTerms = acceptTerms;
+      payload.acceptPrivacy = acceptPrivacy;
+    }
 
     const response = await fetch(`/api/auth/${mode}`, {
       method: "POST",
@@ -57,6 +63,16 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
       <p className="muted text-sm">
         Этот же логин и пароль используются для входа на сервере.
       </p>
+
+      {mode === "register" && (
+        // Временная метка для проверки платёжной интеграции — убрать по готовности.
+        <p
+          className="rounded-lg px-3 py-2 text-center text-sm font-semibold"
+          style={{ background: "rgba(245,196,81,0.12)", color: "var(--gold)" }}
+        >
+          plat check
+        </p>
+      )}
 
       <label className="block space-y-1">
         <span className="muted text-sm">Логин (ник в игре)</span>
@@ -99,10 +115,49 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
         />
       </label>
 
+      {mode === "register" && (
+        <div className="space-y-2">
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={acceptTerms}
+              onChange={(event) => setAcceptTerms(event.target.checked)}
+              required
+            />
+            <span className="muted">
+              Я принимаю{" "}
+              <Link href="/terms" target="_blank" className="underline hover:text-white">
+                пользовательское соглашение
+              </Link>
+            </span>
+          </label>
+
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={acceptPrivacy}
+              onChange={(event) => setAcceptPrivacy(event.target.checked)}
+              required
+            />
+            <span className="muted">
+              Я согласен с{" "}
+              <Link href="/privacy" target="_blank" className="underline hover:text-white">
+                политикой конфиденциальности
+              </Link>
+            </span>
+          </label>
+        </div>
+      )}
+
       {error && <p className="text-sm" style={{ color: "var(--danger)" }}>{error}</p>}
       {notice && <p className="text-sm" style={{ color: "var(--gold)" }}>{notice}</p>}
 
-      <button className="btn w-full" disabled={busy}>
+      <button
+        className="btn w-full"
+        disabled={busy || (mode === "register" && (!acceptTerms || !acceptPrivacy))}
+      >
         {busy ? "…" : mode === "login" ? "Войти" : "Создать аккаунт"}
       </button>
 

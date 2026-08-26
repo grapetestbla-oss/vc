@@ -22,6 +22,7 @@ export default async function PanelHome() {
     flags,
     pendingPayments,
     pendingAppeals,
+    openTickets,
     revenue,
     wagered,
     recentActions,
@@ -35,6 +36,7 @@ export default async function PanelHome() {
     db.suspiciousFlag.count({ where: { resolved: false } }),
     db.payment.count({ where: { status: "pending" } }),
     db.appeal.count({ where: { status: "pending" } }),
+    db.ticket.count({ where: { status: "open" } }),
     db.payment.aggregate({
       where: { status: "paid", paidAt: { gt: dayAgo } },
       _sum: { amountRub: true },
@@ -77,6 +79,12 @@ export default async function PanelHome() {
             value: pendingAppeals,
             href: "/panel/appeals",
             warn: pendingAppeals > 0,
+          },
+          {
+            label: "Обращений в поддержку",
+            value: openTickets,
+            href: "/panel/tickets",
+            warn: openTickets > 0,
           },
         ]
       : []),

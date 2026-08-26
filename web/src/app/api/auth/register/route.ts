@@ -11,12 +11,24 @@ export async function POST(request: Request) {
     return Response.json({ error: "Слишком много регистраций с этого адреса" }, { status: 429 });
   }
 
-  const { login, email, password, promo } = (await request.json()) as {
-    login?: string;
-    email?: string;
-    password?: string;
-    promo?: string;
-  };
+  const { login, email, password, promo, acceptTerms, acceptPrivacy } =
+    (await request.json()) as {
+      login?: string;
+      email?: string;
+      password?: string;
+      promo?: string;
+      acceptTerms?: boolean;
+      acceptPrivacy?: boolean;
+    };
+
+  // Согласие проверяем на сервере, а не только галочками в форме: иначе его
+  // можно обойти прямым запросом, и подтверждение ничего не стоит.
+  if (acceptTerms !== true || acceptPrivacy !== true) {
+    return Response.json(
+      { error: "Нужно принять пользовательское соглашение и политику конфиденциальности" },
+      { status: 400 },
+    );
+  }
 
   if (!login || !LOGIN_RE.test(login)) {
     return Response.json({ error: "Логин: 3-16 символов, латиница, цифры и _" }, { status: 400 });
@@ -47,6 +59,7 @@ export async function POST(request: Request) {
       email: email.toLowerCase(),
       passwordHash: await hashPassword(password!),
       lastIp: ip,
+      acceptedTermsAt: new Date(),
       adminLevel: isBootstrapAdmin ? 5 : 0,
     },
   });
