@@ -1423,6 +1423,59 @@ const run = async () => {
   });
   check("в закрытое обращение не пишут", afterClose.status === 400, afterClose.json);
 
+  console.log("— Включение мини-игр —");
+  const flagsByPlayer = await api("/api/panel/games", { cookie: alex.session });
+  check("игрок не видит переключатели игр", flagsByPlayer.status === 403);
+
+  const flagsInitial = await api("/api/panel/games", { cookie: steve.session });
+  check("по умолчанию обе игры открыты", flagsInitial.json?.ROULETTE === true && flagsInitial.json?.CRASH === true, flagsInitial.json);
+
+  const offByPlayer = await api("/api/panel/games", {
+    method: "POST",
+    cookie: alex.session,
+    body: { game: "ROULETTE", enabled: false },
+  });
+  check("игрок не выключает игру", offByPlayer.status === 403);
+
+  const badGame = await api("/api/panel/games", {
+    method: "POST",
+    cookie: steve.session,
+    body: { game: "POKER", enabled: false },
+  });
+  check("неизвестную игру не выключить", badGame.status === 400, badGame.json);
+
+  const rouletteOff = await api("/api/panel/games", {
+    method: "POST",
+    cookie: steve.session,
+    body: { game: "ROULETTE", enabled: false },
+  });
+  check("чиф выключает рулетку", rouletteOff.json?.ROULETTE === false, rouletteOff.json);
+  check("краш при этом остаётся открыт", rouletteOff.json?.CRASH === true, rouletteOff.json);
+
+  const betWhenOff = await api("/api/games/live/bet", {
+    method: "POST",
+    cookie: steve.session,
+    body: { game: "ROULETTE", bet: 50 },
+  });
+  check("в выключенную игру ставку не принять", betWhenOff.status === 400, betWhenOff.json);
+
+  const stateWhenOff = await api("/api/games/live?game=ROULETTE", { cookie: steve.session });
+  check("стол сообщает, что игра выключена", stateWhenOff.json?.enabled === false, stateWhenOff.json);
+  check("раунды при этом идут дальше", typeof stateWhenOff.json?.round?.number === "number", stateWhenOff.json?.round);
+
+  const crashStillOpen = await api("/api/games/live?game=CRASH", { cookie: steve.session });
+  check("краш продолжает работать", crashStillOpen.json?.enabled === true, crashStillOpen.json);
+
+  const gamesPage = await fetch(BASE + "/games");
+  check("на витрине игр видно, что рулетка выключена", (await gamesPage.text()).includes("выключена"));
+
+  const rouletteOn = await api("/api/panel/games", {
+    method: "POST",
+    cookie: steve.session,
+    body: { game: "ROULETTE", enabled: true },
+  });
+  check("рулетка включается обратно", rouletteOn.json?.ROULETTE === true, rouletteOn.json);
+
   console.log("— Итог —");
   console.log(`Пройдено: ${passed}, провалено: ${failed}`);
   process.exit(failed === 0 ? 0 : 1);

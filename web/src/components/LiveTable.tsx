@@ -22,6 +22,7 @@ export type HistoryItem = {
 
 export type TableState = {
   now: number;
+  enabled: boolean;
   round: {
     number: number;
     phase: "betting" | "resolving";
@@ -37,6 +38,21 @@ export type TableState = {
   zones: { multiplier: number; until: number; chance?: number }[];
   balance: number | null;
 };
+
+/** Плашка вместо формы ставки, когда игра закрыта администрацией. */
+export function DisabledNotice({ game }: { game: string }) {
+  return (
+    <div className="panel p-5 sm:p-6">
+      <h2 className="text-lg font-semibold" style={{ color: "var(--danger)" }}>
+        {game} временно выключена
+      </h2>
+      <p className="muted mt-2 text-sm">
+        Администрация закрыла игру — новые ставки не принимаются. Ставки, сделанные раньше,
+        разыгрываются и выплачиваются как обычно.
+      </p>
+    </div>
+  );
+}
 
 /**
  * Опрос стола. Раунды общие для всех, поэтому состояние приходит с сервера, а

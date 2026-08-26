@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BetList, History, useCountdown, useTable } from "./LiveTable";
+import { BetList, DisabledNotice, History, useCountdown, useTable } from "./LiveTable";
 
 /** Сколько секунд длится сама анимация полёта внутри фазы показа. */
 const FLIGHT_MS = 7000;
@@ -156,6 +156,7 @@ export default function CrashGame() {
         </div>
       </div>
 
+      {state.enabled ? (
       <div className="panel p-5 sm:p-6">
         <div className="flex flex-wrap items-end gap-3">
           <label className="block w-32">
@@ -201,6 +202,9 @@ export default function CrashGame() {
           долетит.
         </p>
       </div>
+      ) : (
+        <DisabledNotice game="Краш" />
+      )}
 
       <BetList bets={state.bets} unit="x" />
 

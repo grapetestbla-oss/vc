@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BetList, History, useCountdown, useTable } from "./LiveTable";
+import { BetList, DisabledNotice, History, useCountdown, useTable } from "./LiveTable";
 
 /** Цвет сектора: чем крупнее множитель, тем «дороже» он выглядит. */
 function colorFor(multiplier: number): string {
@@ -166,6 +166,7 @@ export default function RouletteGame() {
         </div>
       </div>
 
+      {state.enabled ? (
       <div className="panel p-5 sm:p-6">
         <div className="flex flex-wrap items-end gap-3">
           <label className="block w-36">
@@ -211,6 +212,9 @@ export default function RouletteGame() {
           минимальный — x2.
         </p>
       </div>
+      ) : (
+        <DisabledNotice game="Рулетка" />
+      )}
 
       <BetList bets={state.bets} unit="" />
 

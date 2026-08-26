@@ -2,6 +2,7 @@ import { db } from "./db";
 import { CONFIG } from "./config";
 import { applyTransaction, InsufficientFunds } from "./economy";
 import { crashPoint, newServerSeed, roll as hmacRoll } from "./fairness";
+import { gameEnabled, GAME_LABEL } from "./gameflags";
 import type { LiveGame, Prisma } from "@prisma/client";
 
 export class LiveError extends Error {}
@@ -240,6 +241,12 @@ export async function placeBet(params: {
     if (!Number.isFinite(params.target) || params.target < 1.01 || params.target > 100) {
       throw new LiveError("Точка вывода от 1.01 до 100");
     }
+  }
+
+  // Выключенная игра принимать ставки не должна, но уже сделанные —
+  // разыгрываются и выплачиваются: деньги игроков не зависают.
+  if (!(await gameEnabled(params.game))) {
+    throw new LiveError(`${GAME_LABEL[params.game]} временно выключена администрацией`);
   }
 
   const round = await syncRounds(params.game);
