@@ -17,9 +17,13 @@ const LINKS = [
 
 export default function SiteHeader({
   user,
+  showGames = true,
 }: {
   user: { login: string; balanceVc: number; adminLevel: number } | null;
+  showGames?: boolean;
 }) {
+  const links = LINKS.filter((link) => showGames || link.href !== "/games");
+
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
@@ -49,7 +53,7 @@ export default function SiteHeader({
         </Link>
 
         <div className="hidden items-center gap-1 md:flex">
-          {LINKS.map((link) => {
+          {links.map((link) => {
             const active = pathname.startsWith(link.href);
             return (
               <Link
@@ -125,7 +129,7 @@ export default function SiteHeader({
               </Link>
             </div>
           )}
-          {LINKS.map((link) => (
+          {links.map((link) => (
             <Link key={link.href} href={link.href} className="muted block py-3 text-base">
               {link.label}
             </Link>

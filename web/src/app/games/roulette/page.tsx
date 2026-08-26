@@ -1,11 +1,15 @@
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import RouletteGame from "@/components/RouletteGame";
 import { currentUser } from "@/lib/session";
+import { gameEnabled } from "@/lib/gameflags";
 import { rouletteRtp } from "@/lib/live";
 
 export const dynamic = "force-dynamic";
 
 export default async function RoulettePage() {
+  // Выключенную игру не показываем вовсе: страница отвечает как несуществующая.
+  if (!(await gameEnabled("ROULETTE"))) notFound();
+
   const user = await currentUser();
   if (!user) redirect("/login?next=/games/roulette");
 

@@ -1,11 +1,15 @@
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import CrashGame from "@/components/CrashGame";
 import { currentUser } from "@/lib/session";
+import { gameEnabled } from "@/lib/gameflags";
 import { CONFIG } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
 
 export default async function CrashPage() {
+  // Выключенную игру не показываем вовсе: страница отвечает как несуществующая.
+  if (!(await gameEnabled("CRASH"))) notFound();
+
   const user = await currentUser();
   if (!user) redirect("/login?next=/games/crash");
 

@@ -1467,7 +1467,43 @@ const run = async () => {
   check("краш продолжает работать", crashStillOpen.json?.enabled === true, crashStillOpen.json);
 
   const gamesPage = await fetch(BASE + "/games");
-  check("на витрине игр видно, что рулетка выключена", (await gamesPage.text()).includes("выключена"));
+  const gamesHtml = await gamesPage.text();
+  check("выключенная игра пропадает с витрины", !gamesHtml.includes("Рулетка"), {
+    status: gamesPage.status,
+  });
+  check("оставшаяся игра на витрине есть", gamesHtml.includes("Краш"));
+
+  const roulettePage = await fetch(BASE + "/games/roulette", { headers: { Cookie: steve.session } });
+  check("страница выключенной игры не открывается", roulettePage.status === 404, {
+    status: roulettePage.status,
+  });
+
+  const crashPage = await fetch(BASE + "/games/crash", { headers: { Cookie: steve.session } });
+  check("страница работающей игры открыта", crashPage.status === 200, { status: crashPage.status });
+
+  const bothOff = await api("/api/panel/games", {
+    method: "POST",
+    cookie: steve.session,
+    body: { game: "CRASH", enabled: false },
+  });
+  check("выключаем и краш", bothOff.json?.CRASH === false, bothOff.json);
+
+  const emptyGames = await fetch(BASE + "/games");
+  check("при двух выключенных играх раздел исчезает", emptyGames.status === 404, {
+    status: emptyGames.status,
+  });
+
+  const homeWithoutGames = await fetch(BASE + "/");
+  check(
+    "ссылка на игры пропадает из шапки",
+    !(await homeWithoutGames.text()).includes('href="/games"'),
+  );
+
+  await api("/api/panel/games", {
+    method: "POST",
+    cookie: steve.session,
+    body: { game: "CRASH", enabled: true },
+  });
 
   const rouletteOn = await api("/api/panel/games", {
     method: "POST",
@@ -1475,6 +1511,9 @@ const run = async () => {
     body: { game: "ROULETTE", enabled: true },
   });
   check("рулетка включается обратно", rouletteOn.json?.ROULETTE === true, rouletteOn.json);
+
+  const homeWithGames = await fetch(BASE + "/");
+  check("ссылка на игры возвращается", (await homeWithGames.text()).includes('href="/games"'));
 
   console.log("— Итог —");
   console.log(`Пройдено: ${passed}, провалено: ${failed}`);

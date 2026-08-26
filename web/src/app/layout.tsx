@@ -5,6 +5,7 @@ import "./globals.css";
 import { headers } from "next/headers";
 import { currentUser } from "@/lib/session";
 import { getMaintenance } from "@/lib/maintenance";
+import { getGameFlags } from "@/lib/gameflags";
 import MaintenanceScreen from "@/components/MaintenanceScreen";
 import SiteHeader from "@/components/SiteHeader";
 import BackdropLines from "@/components/BackdropLines";
@@ -21,11 +22,15 @@ export const metadata: Metadata = {
 const ALWAYS_OPEN = ["/login", "/panel", "/maintenance", "/api"];
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [user, maintenance, requestHeaders] = await Promise.all([
+  const [user, maintenance, gameFlags, requestHeaders] = await Promise.all([
     currentUser(),
     getMaintenance(),
+    getGameFlags(),
     headers(),
   ]);
+
+  // Когда обе игры выключены, раздела на сайте нет вовсе — ни ссылки, ни страниц.
+  const showGames = gameFlags.ROULETTE || gameFlags.CRASH;
 
   const pathname = requestHeaders.get("x-pathname") ?? "/";
   const blocked =
@@ -47,6 +52,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body>
         <BackdropLines />
         <SiteHeader
+          showGames={showGames}
           user={
             user
               ? { login: user.login, balanceVc: user.balanceVc, adminLevel: user.adminLevel }

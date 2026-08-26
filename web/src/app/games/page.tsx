@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { CONFIG } from "@/lib/config";
 import Reveal from "@/components/Reveal";
 import { getGameFlags } from "@/lib/gameflags";
@@ -23,6 +24,9 @@ const GAMES = [
 
 export default async function GamesPage() {
   const flags = await getGameFlags();
+  const open = GAMES.filter((game) => flags[game.key]);
+  // Обе выключены — раздела нет: пустая витрина только путала бы.
+  if (open.length === 0) notFound();
 
   return (
     <div className="space-y-10">
@@ -38,26 +42,15 @@ export default async function GamesPage() {
       </header>
 
       <div className="grid gap-5 md:grid-cols-2">
-        {GAMES.map((game, index) => (
+        {open.map((game, index) => (
           <Reveal key={game.href} delay={index * 80}>
             <Link href={game.href} className="panel panel-hover group block h-full p-8">
-              <div className="flex flex-wrap items-baseline gap-3">
-                <h2 className="text-2xl font-semibold transition-colors group-hover:text-[var(--gold)]">
-                  {game.title}
-                </h2>
-                {!flags[game.key] && (
-                  <span
-                    className="rounded-full px-2.5 py-0.5 text-xs font-semibold"
-                    style={{ background: "rgba(255,107,107,0.14)", color: "var(--danger)" }}
-                  >
-                    выключена
-                  </span>
-                )}
-              </div>
+              <h2 className="text-2xl font-semibold transition-colors group-hover:text-[var(--gold)]">
+                {game.title}
+              </h2>
               <p className="muted mt-3 text-sm">{game.text}</p>
               <span className="mt-6 inline-flex items-center gap-2 text-sm" style={{ color: "var(--gold)" }}>
-                {flags[game.key] ? "Играть" : "Посмотреть стол"}{" "}
-                <span className="transition-transform group-hover:translate-x-1">→</span>
+                Играть <span className="transition-transform group-hover:translate-x-1">→</span>
               </span>
             </Link>
           </Reveal>
