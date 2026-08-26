@@ -39,6 +39,8 @@ public final class PluginConfig {
     public final int espRefreshSeconds;
     public final int newsPollSeconds;
     public final int maintenancePollSeconds;
+    /// Как часто напоминать о розыгрышах. 0 — не напоминать.
+    public final int giveawayNotifySeconds;
 
     /// Название сезона в списке игроков и в приветствии.
     public final String seasonName;
@@ -89,6 +91,7 @@ public final class PluginConfig {
         espRefreshSeconds = Math.max(2, c.getInt("staff.esp-refresh-seconds", 5));
         newsPollSeconds = Math.max(30, c.getInt("news.poll-seconds", 60));
         maintenancePollSeconds = Math.max(5, c.getInt("maintenance.poll-seconds", 10));
+        giveawayNotifySeconds = Math.max(0, c.getInt("giveaway.notify-seconds", 900));
 
         seasonName = c.getString("season.name", "Season I");
         tabEnabled = c.getBoolean("season.tab-enabled", true);

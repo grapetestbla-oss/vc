@@ -7,6 +7,7 @@ import LogoutButton from "./LogoutButton";
 
 const LINKS = [
   { href: "/news", label: "Новости" },
+  { href: "/giveaways", label: "Розыгрыши" },
   { href: "/cases", label: "Кейсы" },
   { href: "/shop", label: "Магазин" },
   { href: "/collection", label: "Коллекция" },
@@ -47,8 +48,8 @@ export default function SiteHeader({
         borderBottom: `1px solid ${scrolled ? "var(--border)" : "transparent"}`,
       }}
     >
-      <nav className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-4">
-        <Link href="/" className="text-lg font-bold tracking-tight">
+      <nav className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-4 lg:gap-5">
+        <Link href="/" className="shrink-0 text-lg font-bold tracking-tight">
           Vanilla<span style={{ color: "var(--gold)" }}>Craft</span>
         </Link>
 
@@ -59,7 +60,7 @@ export default function SiteHeader({
               <Link
                 key={link.href}
                 href={link.href}
-                className="relative rounded-lg px-3 py-1.5 text-sm transition-colors"
+                className="relative whitespace-nowrap rounded-lg px-2 py-1.5 text-sm transition-colors lg:px-3"
                 style={{ color: active ? "var(--text)" : "var(--muted)" }}
               >
                 {link.label}
@@ -75,16 +76,16 @@ export default function SiteHeader({
           })}
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           {user ? (
             <>
               <span
-                className="hidden rounded-full px-3 py-1.5 text-sm sm:inline-flex"
+                className="hidden whitespace-nowrap rounded-full px-3 py-1.5 text-sm sm:inline-flex"
                 style={{ background: "rgba(245,196,81,0.1)", color: "var(--gold)" }}
               >
                 {user.balanceVc.toLocaleString("ru")} VC
               </span>
-              <Link href="/cabinet" className="btn-ghost text-sm">
+              <Link href="/cabinet" className="btn-ghost whitespace-nowrap text-sm">
                 {user.login}
               </Link>
               {user.adminLevel >= 3 && (

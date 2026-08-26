@@ -44,6 +44,10 @@ maintenance:
   # никого не пускает, кроме 5 уровня.
   poll-seconds: 10
 
+giveaway:
+  # Как часто напоминать в чате о розыгрышах. 0 — только по команде /giveaway.
+  notify-seconds: 900
+
 news:
   # Как часто проверять, не появилось ли новостей для объявления в игре.
   poll-seconds: 60
@@ -156,6 +160,13 @@ messages:
   report.closed: "<gray>Репорт закрыт."
 
   maintenance.kick: "<red><bold>Технические работы<reset>\n<white><reason>\n<gray>Загляните позже — прогресс и вещи на месте."
+
+  giveaway.header: "<gold>━━━━━━ <bold>РОЗЫГРЫШ</bold> ━━━━━━"
+  giveaway.line: "<yellow><title><gray>: <white><prize> <gray>· участников: <white><players>"
+  giveaway.progress: "<gray>Наиграно <white><hours> ч<gray> из <white><required><gray> — осталось <yellow><left> ч"
+  giveaway.ready: "<green>Условие выполнено (<hours> ч). Участвуйте: <yellow><url>"
+  giveaway.joined: "<green>Вы уже участвуете. Наиграно: <hours> ч"
+  giveaway.none: "<gray>Сейчас розыгрышей нет."
 
   season.welcome: "<gray>Добро пожаловать на <gold>VanillaCraft <season><gray>. Следите за искрами сезона — в них осколки и VC."
   spark.spawned: "<aqua>✦ Искра сезона<gray> вспыхнула в <white><distance> блоках<gray> — <white><x>, <y>, <z>"

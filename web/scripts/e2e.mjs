@@ -1515,6 +1515,146 @@ const run = async () => {
   const homeWithGames = await fetch(BASE + "/");
   check("ссылка на игры возвращается", (await homeWithGames.text()).includes('href="/games"'));
 
+  console.log("— Розыгрыши —");
+  const giveByPlayer = await api("/api/panel/giveaway", {
+    method: "POST",
+    cookie: alex.session,
+    body: { action: "create", title: "Мой розыгрыш", prize: "всё", requiredHours: 0 },
+  });
+  check("игрок не создаёт розыгрыши", giveByPlayer.status === 403);
+
+  const noPrize = await api("/api/panel/giveaway", {
+    method: "POST",
+    cookie: steve.session,
+    body: { action: "create", title: "Розыгрыш на открытие", prize: "", requiredHours: 15 },
+  });
+  check("розыгрыш без приза не создаётся", noPrize.status === 400, noPrize.json);
+
+  const strict = await api("/api/panel/giveaway", {
+    method: "POST",
+    cookie: steve.session,
+    body: {
+      action: "create",
+      title: "Розыгрыш на открытие",
+      prize: "5000 VC и легендарный кейс",
+      description: "Разыграем в день открытия",
+      requiredHours: 15,
+    },
+  });
+  check("розыгрыш создан", strict.json?.ok === true, strict.json);
+
+  const anonJoin = await api("/api/giveaways", {
+    method: "POST",
+    body: { giveawayId: strict.json.giveawayId },
+  });
+  check("гость не участвует", anonJoin.status === 401);
+
+  const tooFew = await api("/api/giveaways", {
+    method: "POST",
+    cookie: alex.session,
+    body: { giveawayId: strict.json.giveawayId },
+  });
+  check("без наигранных часов участие закрыто", tooFew.status === 400, tooFew.json);
+  check(
+    "в отказе видно, сколько часов не хватает",
+    (tooFew.json?.error ?? "").includes("15 ч"),
+    tooFew.json,
+  );
+
+  // Ручка времени режет тик до 120 секунд — набить 15 часов через неё нельзя,
+  // поэтому положительный путь проверяем на розыгрыше без условия.
+  const openGiveaway = await api("/api/panel/giveaway", {
+    method: "POST",
+    cookie: steve.session,
+    body: {
+      action: "create",
+      title: "Открытый розыгрыш",
+      prize: "1000 VC",
+      requiredHours: 0,
+    },
+  });
+  check("розыгрыш без условия создан", openGiveaway.json?.ok === true, openGiveaway.json);
+
+  await api("/api/mc/playtime", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { entries: [{ login: "Alex", seconds: 120 }] },
+  });
+
+  const joinedGiveaway = await api("/api/giveaways", {
+    method: "POST",
+    cookie: alex.session,
+    body: { giveawayId: openGiveaway.json.giveawayId },
+  });
+  check("заявка принимается, когда условие выполнено", joinedGiveaway.json?.ok === true, joinedGiveaway.json);
+
+  const joinTwice = await api("/api/giveaways", {
+    method: "POST",
+    cookie: alex.session,
+    body: { giveawayId: openGiveaway.json.giveawayId },
+  });
+  check("дважды заявку не подать", joinTwice.status === 400, joinTwice.json);
+
+  const giveawayForPlugin = await api("/api/mc/giveaways?login=Alex", { serverToken: TOKEN });
+  check("плагин видит активные розыгрыши", giveawayForPlugin.json?.giveaways?.length >= 2, giveawayForPlugin.json);
+  check("плагин получает часы игрока", typeof giveawayForPlugin.json?.hours === "number", giveawayForPlugin.json);
+  check(
+    "плагин знает, где игрок уже участвует",
+    giveawayForPlugin.json?.giveaways?.find((item) => item.id === openGiveaway.json.giveawayId)?.joined === true,
+    giveawayForPlugin.json?.giveaways,
+  );
+  check(
+    "плагин видит условие по часам",
+    giveawayForPlugin.json?.giveaways?.find((item) => item.id === strict.json.giveawayId)?.requiredHours === 15,
+    giveawayForPlugin.json?.giveaways,
+  );
+
+  const giveawayNoToken = await api("/api/mc/giveaways?login=Alex");
+  check("розыгрыши закрыты без токена сервера", giveawayNoToken.status === 401);
+
+  const publicPage = await fetch(BASE + "/giveaways");
+  check("страница розыгрышей открыта", (await publicPage.text()).includes("Розыгрыш на открытие"));
+
+  const drawByPlayer = await api("/api/panel/giveaway", {
+    method: "POST",
+    cookie: alex.session,
+    body: { action: "draw", giveawayId: openGiveaway.json.giveawayId },
+  });
+  check("игрок не разыгрывает приз", drawByPlayer.status === 403);
+
+  const draw = await api("/api/panel/giveaway", {
+    method: "POST",
+    cookie: steve.session,
+    body: { action: "draw", giveawayId: openGiveaway.json.giveawayId },
+  });
+  check("победитель определён", draw.json?.winner === "Alex", draw.json);
+  check("в розыгрыше учтены только подходящие", draw.json?.participants === 1, draw.json);
+
+  const drawTwice = await api("/api/panel/giveaway", {
+    method: "POST",
+    cookie: steve.session,
+    body: { action: "draw", giveawayId: openGiveaway.json.giveawayId },
+  });
+  check("повторный розыгрыш невозможен", drawTwice.status === 400, drawTwice.json);
+
+  const afterDraw = await fetch(BASE + "/giveaways");
+  const afterHtml = await afterDraw.text();
+  check("победитель и сид опубликованы", afterHtml.includes("Alex") && afterHtml.includes("сид:"));
+
+  const emptyDraw = await api("/api/panel/giveaway", {
+    method: "POST",
+    cookie: steve.session,
+    body: { action: "draw", giveawayId: strict.json.giveawayId },
+  });
+  check("розыгрыш без подходящих участников отклоняется", emptyDraw.status === 400, emptyDraw.json);
+
+  const cancelled = await api("/api/panel/giveaway", {
+    method: "POST",
+    cookie: steve.session,
+    body: { action: "cancel", giveawayId: strict.json.giveawayId },
+  });
+  check("розыгрыш отменяется", cancelled.json?.status === "cancelled", cancelled.json);
+
   console.log("— Итог —");
   console.log(`Пройдено: ${passed}, провалено: ${failed}`);
   process.exit(failed === 0 ? 0 : 1);

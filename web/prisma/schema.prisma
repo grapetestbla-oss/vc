@@ -63,6 +63,9 @@ model User {
   serverActions        ServerAction[]
   liveBets             LiveBet[]
   tickets              Ticket[]
+  giveawayEntries      GiveawayEntry[]
+  createdGiveaways     Giveaway[]           @relation("GiveawayAuthor")
+  wonGiveaways         Giveaway[]           @relation("GiveawayWinner")
   ticketMessages       TicketMessage[]      @relation("TicketAuthor")
   settings             Setting[]            @relation("SettingEditor")
   shopPurchases        ShopPurchase[]
@@ -285,6 +288,52 @@ model LiveBet {
 
   @@unique([roundId, userId])
   @@index([userId, createdAt])
+}
+
+// ──────────────────────────── Розыгрыши ──────────────────────────────────
+
+/// Розыгрыш среди игроков. Условие — наигранное время: оно проверяется и при
+/// участии, и в момент розыгрыша, чтобы победителем не стал случайный гость.
+model Giveaway {
+  id            String  @id @default(cuid())
+  title         String
+  prize         String
+  description   String?
+  /// Сколько часов надо наиграть, чтобы участвовать.
+  requiredHours Int     @default(15)
+  /// active — идёт, finished — победитель определён, cancelled — отменён
+  status        String  @default("active")
+
+  startsAt DateTime  @default(now())
+  endsAt   DateTime?
+
+  createdById String?
+  createdBy   User?   @relation("GiveawayAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+
+  /// Победитель и сид розыгрыша: по нему результат пересчитывается вручную.
+  winnerId  String?
+  winner    User?     @relation("GiveawayWinner", fields: [winnerId], references: [id], onDelete: SetNull)
+  drawnAt   DateTime?
+  drawSeed  String?
+  drawnFrom Int?
+
+  entries GiveawayEntry[]
+
+  @@index([status, startsAt])
+}
+
+model GiveawayEntry {
+  id           String   @id @default(cuid())
+  giveawayId   String
+  giveaway     Giveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Сколько часов было у игрока в момент участия — для разбора спорных случаев.
+  hoursAtEntry Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@unique([giveawayId, userId])
+  @@index([userId])
 }
 
 // ───────────────────────── Обращения игроков ─────────────────────────────

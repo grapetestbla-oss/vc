@@ -38,6 +38,7 @@ public final class PlayerCommands implements CommandExecutor {
             case "promo" -> code(player, args, "/api/mc/promo", "promo");
             case "bonus" -> code(player, args, "/api/mc/bonus", "bonus");
             case "report" -> report(player, args);
+            case "giveaway" -> giveaway(player);
             default -> false;
         };
     }
@@ -92,6 +93,12 @@ public final class PlayerCommands implements CommandExecutor {
             case "rate_limited" -> player.sendMessage(messages.get("economy.code-slow"));
             default -> player.sendMessage(messages.get("economy.api-down"));
         }
+    }
+
+    /** Плашка о розыгрышах по требованию: что разыгрывают и сколько наиграно. */
+    private boolean giveaway(Player player) {
+        plugin.giveaways().show(player, true);
+        return true;
     }
 
     private boolean report(Player player, String[] args) {

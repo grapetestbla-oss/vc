@@ -22,6 +22,7 @@ import host.vanilla.core.punish.JailManager;
 import host.vanilla.core.punish.JailZone;
 import host.vanilla.core.news.NewsBroadcaster;
 import host.vanilla.core.report.ReportManager;
+import host.vanilla.core.season.GiveawayNotifier;
 import host.vanilla.core.season.SparkManager;
 import host.vanilla.core.season.TabList;
 import host.vanilla.core.shop.ShopCommands;
@@ -60,6 +61,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
     private MaintenanceWatcher maintenance;
     private TabList tabList;
     private SparkManager sparks;
+    private GiveawayNotifier giveaways;
     private ShopManager shop;
     private ShopCommands shopCommands;
     private NamespacedKey hatKey;
@@ -89,6 +91,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         maintenance = new MaintenanceWatcher(this, messages);
         tabList = new TabList(this);
         sparks = new SparkManager(this, messages);
+        giveaways = new GiveawayNotifier(this, messages);
         shop = new ShopManager(this);
         shopCommands = new ShopCommands(this, messages);
 
@@ -126,7 +129,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         }
 
         PlayerCommands player = new PlayerCommands(this, messages);
-        for (String name : List.of("balance", "promo", "bonus", "report")) {
+        for (String name : List.of("balance", "promo", "bonus", "report", "giveaway")) {
             bind(name, player);
         }
     }
@@ -163,6 +166,10 @@ public final class VanillaCorePlugin extends JavaPlugin {
             getServer().getScheduler().runTaskTimer(this, tabList::refresh, 40L,
                     config.tabRefreshSeconds * 20L);
         }
+        if (config.giveawayNotifySeconds > 0) {
+            getServer().getScheduler().runTaskTimer(this, giveaways::broadcast,
+                    config.giveawayNotifySeconds * 20L, config.giveawayNotifySeconds * 20L);
+        }
         if (config.sparkEnabled) {
             getServer().getScheduler().runTaskTimer(this, sparks::tick, 60L, 4L);
             getServer().getScheduler().runTaskTimer(this, sparks::spawn,
@@ -196,6 +203,11 @@ public final class VanillaCorePlugin extends JavaPlugin {
             // Проверяем сразу после входа: уровень админки известен только теперь.
             if (maintenance.kickIfNeeded(player)) return;
             tabList.welcome(player);
+            // Плашку о розыгрыше показываем с задержкой: сразу после входа
+            // игрок читает приветствие и подсказки по авторизации.
+            getServer().getScheduler().runTaskLater(this, () -> {
+                if (player.isOnline()) giveaways.show(player, false);
+            }, 100L);
 
             if (response.has("cosmetics") && response.get("cosmetics").isJsonArray()) {
                 cosmetics.apply(player, response.getAsJsonArray("cosmetics"));
@@ -290,6 +302,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
     public ActionRunner actions() { return actions; }
     public MaintenanceWatcher maintenance() { return maintenance; }
     public SparkManager sparks() { return sparks; }
+    public GiveawayNotifier giveaways() { return giveaways; }
     public TabList tabList() { return tabList; }
     public NamespacedKey hatKey() { return hatKey; }
     public Messages messages() { return messages; }

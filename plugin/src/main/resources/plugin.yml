@@ -77,3 +77,5 @@ commands:
     description: Верстак с собой
   spark:
     description: Зажечь искру сезона рядом с собой (проверка)
+  giveaway:
+    description: Розыгрыши сервера и ваш прогресс по часам
