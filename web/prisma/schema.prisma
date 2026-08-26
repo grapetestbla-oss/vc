@@ -64,6 +64,10 @@ model User {
   liveBets             LiveBet[]
   tickets              Ticket[]
   giveawayEntries      GiveawayEntry[]
+  caseTickets          CaseTicket[]
+  diceChallenges       DiceMatch[]          @relation("DiceChallenger")
+  diceOpponents        DiceMatch[]          @relation("DiceOpponent")
+  diceWins             DiceMatch[]          @relation("DiceWinner")
   createdGiveaways     Giveaway[]           @relation("GiveawayAuthor")
   wonGiveaways         Giveaway[]           @relation("GiveawayWinner")
   ticketMessages       TicketMessage[]      @relation("TicketAuthor")
@@ -288,6 +292,51 @@ model LiveBet {
 
   @@unique([roundId, userId])
   @@index([userId, createdAt])
+}
+
+// ─────────────────────── Кости между игроками ────────────────────────────
+
+/// Партия в кости на сервере. Ставки списываются до броска и лежат «в банке»,
+/// пока партия не завершится: иначе проигравший успел бы потратить VC.
+model DiceMatch {
+  id     String @id @default(cuid())
+  amount Int
+
+  challengerId String
+  challenger   User   @relation("DiceChallenger", fields: [challengerId], references: [id], onDelete: Cascade)
+  opponentId   String
+  opponent     User   @relation("DiceOpponent", fields: [opponentId], references: [id], onDelete: Cascade)
+
+  /// escrow — ставки списаны, идёт бросок; paid — выплачено; refunded — возвращено
+  status String @default("escrow")
+
+  challengerRoll Int?
+  opponentRoll   Int?
+  winnerId       String?
+  winner         User?   @relation("DiceWinner", fields: [winnerId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime  @default(now())
+  settledAt DateTime?
+
+  @@index([status, createdAt])
+  @@index([challengerId, createdAt])
+}
+
+// ───────────────────── Кейсы, купленные в игре ───────────────────────────
+
+/// Оплаченный, но ещё не открытый кейс. Живёт как предмет в инвентаре игрока:
+/// покупка списывает VC сразу, а выпадение считается в момент открытия.
+model CaseTicket {
+  id      String   @id @default(cuid())
+  userId  String
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  caseKey String
+  case    CaseType @relation(fields: [caseKey], references: [key], onDelete: Cascade)
+
+  createdAt DateTime  @default(now())
+  usedAt    DateTime?
+
+  @@index([userId, usedAt])
 }
 
 // ──────────────────────────── Розыгрыши ──────────────────────────────────
@@ -551,6 +600,7 @@ model CaseType {
 
   items    CaseItem[]
   openings CaseOpening[]
+  tickets  CaseTicket[]
 }
 
 enum CaseItemKind {

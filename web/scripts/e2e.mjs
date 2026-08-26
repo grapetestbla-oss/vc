@@ -1655,6 +1655,197 @@ const run = async () => {
   });
   check("розыгрыш отменяется", cancelled.json?.status === "cancelled", cancelled.json);
 
+  console.log("— Кости на сервере —");
+  const diceNoToken = await api("/api/mc/dice", {
+    method: "POST",
+    body: { action: "start", challengerLogin: "Steve", opponentLogin: "Alex", amount: 100 },
+  });
+  check("кости закрыты без токена сервера", diceNoToken.status === 401);
+
+  const dicePlayers = ["Gambler", "Rival"];
+  const sessions = {};
+  for (const login of dicePlayers) {
+    const account = await register(login);
+    sessions[login] = account;
+    const me = await api("/api/me", { cookie: account.session });
+    await api("/api/panel/balance", {
+      method: "POST",
+      cookie: steve.session,
+      body: { userId: me.json.id, amount: 1000, reason: "на кости" },
+    });
+  }
+
+  const selfPlay = await api("/api/mc/dice", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { action: "start", challengerLogin: "Gambler", opponentLogin: "Gambler", amount: 100 },
+  });
+  check("сам с собой не сыграть", selfPlay.json?.status === "denied", selfPlay.json);
+
+  const tooRich = await api("/api/mc/dice", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { action: "start", challengerLogin: "Gambler", opponentLogin: "Rival", amount: 999999 },
+  });
+  check("ставка больше баланса отклоняется", tooRich.json?.status === "denied", tooRich.json);
+
+  const diceMatch = await api("/api/mc/dice", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { action: "start", challengerLogin: "Gambler", opponentLogin: "Rival", amount: 300 },
+  });
+  check("партия начата", diceMatch.json?.status === "ok" && Boolean(diceMatch.json?.matchId), diceMatch.json);
+
+  const afterEscrow = await api("/api/me", { cookie: sessions.Gambler.session });
+  check("ставка списана до броска", afterEscrow.json.balanceVc === 700, afterEscrow.json);
+
+  const diceDraw = await api("/api/mc/dice", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { action: "finish", matchId: diceMatch.json.matchId, challengerRoll: 4, opponentRoll: 4 },
+  });
+  check("ничья не выплачивается", diceDraw.json?.status === "denied", diceDraw.json);
+
+  const badRoll = await api("/api/mc/dice", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { action: "finish", matchId: diceMatch.json.matchId, challengerRoll: 42, opponentRoll: 1 },
+  });
+  check("бросок вне 1–6 отклоняется", badRoll.json?.status === "denied", badRoll.json);
+
+  const diceFinish = await api("/api/mc/dice", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { action: "finish", matchId: diceMatch.json.matchId, challengerRoll: 6, opponentRoll: 2 },
+  });
+  check("победитель забирает банк", diceFinish.json?.winnerLogin === "Gambler" && diceFinish.json?.pot === 600, diceFinish.json);
+
+  const winnerBalance = await api("/api/me", { cookie: sessions.Gambler.session });
+  const loserBalance = await api("/api/me", { cookie: sessions.Rival.session });
+  check("банк ушёл победителю целиком", winnerBalance.json.balanceVc === 1300, winnerBalance.json);
+  check("проигравший остался без ставки", loserBalance.json.balanceVc === 700, loserBalance.json);
+  check(
+    "сумма балансов не изменилась — VC не печатаются",
+    winnerBalance.json.balanceVc + loserBalance.json.balanceVc === 2000,
+    { winner: winnerBalance.json.balanceVc, loser: loserBalance.json.balanceVc },
+  );
+
+  const finishTwice = await api("/api/mc/dice", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { action: "finish", matchId: diceMatch.json.matchId, challengerRoll: 6, opponentRoll: 1 },
+  });
+  check("дважды выплату не получить", finishTwice.json?.status === "denied", finishTwice.json);
+
+  const diceRefund = await api("/api/mc/dice", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { action: "start", challengerLogin: "Gambler", opponentLogin: "Rival", amount: 200 },
+  });
+  await api("/api/mc/dice", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { action: "refund", matchId: diceRefund.json.matchId },
+  });
+  const afterRefund = await api("/api/me", { cookie: sessions.Gambler.session });
+  check("возврат возвращает ставку", afterRefund.json.balanceVc === 1300, afterRefund.json);
+  const rivalAfterRefund = await api("/api/me", { cookie: sessions.Rival.session });
+  check("возврат приходит обоим", rivalAfterRefund.json.balanceVc === 700, rivalAfterRefund.json);
+
+  console.log("— Кейсы в игре —");
+  const casesNoToken = await api("/api/mc/cases?login=Gambler");
+  check("кейсы закрыты без токена сервера", casesNoToken.status === 401);
+
+  const shop = await api("/api/mc/cases?login=Gambler", { serverToken: TOKEN });
+  check("витрина кейсов приходит", shop.json?.cases?.length >= 1, shop.json);
+  check("бесплатный кейс в игре не продаётся", !shop.json.cases.some((item) => item.key === "daily"), shop.json?.cases);
+
+  const paidCase = shop.json.cases[0];
+  const beforeBuy = (await api("/api/me", { cookie: sessions.Gambler.session })).json.balanceVc;
+  const buy = await api("/api/mc/cases", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { action: "buy", login: "Gambler", caseKey: paidCase.key },
+  });
+  check("кейс куплен в игре", buy.json?.status === "ok", buy.json);
+  check("VC списаны при покупке", buy.json?.balance === beforeBuy - paidCase.priceVc, {
+    before: beforeBuy,
+    after: buy.json?.balance,
+    price: paidCase.priceVc,
+  });
+
+  const withTicket = await api("/api/mc/cases?login=Gambler", { serverToken: TOKEN });
+  check("оплаченный кейс ждёт открытия", withTicket.json?.tickets?.[0]?.count === 1, withTicket.json?.tickets);
+
+  const balanceBeforeOpen = (await api("/api/me", { cookie: sessions.Gambler.session })).json.balanceVc;
+  const openedCase = await api("/api/mc/cases", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { action: "open", login: "Gambler", caseKey: paidCase.key },
+  });
+  check("кейс открывается блоком", openedCase.json?.status === "ok", openedCase.json);
+  check(
+    "второй раз за открытие не списывают",
+    openedCase.json.balance >= balanceBeforeOpen,
+    { before: balanceBeforeOpen, after: openedCase.json.balance },
+  );
+
+  const openAgain = await api("/api/mc/cases", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { action: "open", login: "Gambler", caseKey: paidCase.key },
+  });
+  check("без оплаченного кейса открыть нельзя", openAgain.json?.status === "denied", openAgain.json);
+
+  const poor = await api("/api/mc/cases", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { action: "buy", login: "Newbie", caseKey: paidCase.key },
+  });
+  check("без VC кейс не купить", poor.json?.status === "denied", poor.json);
+
+  console.log("— Объявление о редкой находке —");
+  // Кейс «легенды» набит эпикой и легендарками — из него объявление придёт наверняка.
+  const richPlayer = await register("Lucky");
+  const luckyMe = await api("/api/me", { cookie: richPlayer.session });
+  await api("/api/panel/balance", {
+    method: "POST",
+    cookie: steve.session,
+    body: { userId: luckyMe.json.id, amount: 20000, reason: "на кейсы" },
+  });
+
+  const caseList = await api("/api/mc/cases?login=Lucky", { serverToken: TOKEN });
+  const legendCase = caseList.json.cases.find((item) => item.key === "legends") ?? caseList.json.cases[0];
+
+  let announced = null;
+  for (let attempt = 0; attempt < 12 && !announced; attempt++) {
+    await api("/api/mc/cases", {
+      method: "POST",
+      serverToken: TOKEN,
+      body: { action: "buy", login: "Lucky", caseKey: legendCase.key },
+    });
+    const result = await api("/api/mc/cases", {
+      method: "POST",
+      serverToken: TOKEN,
+      body: { action: "open", login: "Lucky", caseKey: legendCase.key },
+    });
+    const rarity = result.json?.cosmetic?.rarity;
+    if (rarity === "epic" || rarity === "legendary") {
+      const actions = await api("/api/mc/actions", { serverToken: TOKEN });
+      announced = actions.json?.actions?.find(
+        (item) => item.kind === "BROADCAST_DROP" && item.login === "Lucky",
+      );
+    }
+  }
+
+  check("редкая находка попадает в очередь объявлений", Boolean(announced), announced);
+  check(
+    "в объявлении есть предмет и редкость",
+    Boolean(announced?.payload?.cosmetic) &&
+      ["epic", "legendary"].includes(announced?.payload?.rarity ?? ""),
+    announced?.payload,
+  );
+
   console.log("— Итог —");
   console.log(`Пройдено: ${passed}, провалено: ${failed}`);
   process.exit(failed === 0 ? 0 : 1);

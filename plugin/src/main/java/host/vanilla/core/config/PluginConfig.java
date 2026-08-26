@@ -41,6 +41,8 @@ public final class PluginConfig {
     public final int maintenancePollSeconds;
     /// Как часто напоминать о розыгрышах. 0 — не напоминать.
     public final int giveawayNotifySeconds;
+    /// На каком расстоянии игроки могут играть в кости.
+    public final int diceRadius;
 
     /// Название сезона в списке игроков и в приветствии.
     public final String seasonName;
@@ -92,6 +94,7 @@ public final class PluginConfig {
         newsPollSeconds = Math.max(30, c.getInt("news.poll-seconds", 60));
         maintenancePollSeconds = Math.max(5, c.getInt("maintenance.poll-seconds", 10));
         giveawayNotifySeconds = Math.max(0, c.getInt("giveaway.notify-seconds", 900));
+        diceRadius = Math.max(3, Math.min(32, c.getInt("dice.radius", 8)));
 
         seasonName = c.getString("season.name", "Season I");
         tabEnabled = c.getBoolean("season.tab-enabled", true);

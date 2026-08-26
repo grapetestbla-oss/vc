@@ -44,6 +44,10 @@ maintenance:
   # никого не пускает, кроме 5 уровня.
   poll-seconds: 10
 
+dice:
+  # На каком расстоянии друг от друга игроки могут играть в кости.
+  radius: 8
+
 giveaway:
   # Как часто напоминать в чате о розыгрышах. 0 — только по команде /giveaway.
   notify-seconds: 900
@@ -160,6 +164,36 @@ messages:
   report.closed: "<gray>Репорт закрыт."
 
   maintenance.kick: "<red><bold>Технические работы<reset>\n<white><reason>\n<gray>Загляните позже — прогресс и вещи на месте."
+
+  dice.usage: "<yellow>/cubes <сумма><gray> — вызвать соседа. Ответ: <white>/cubes accept<gray> или <white>/cubes deny"
+  dice.no-one: "<red>Рядом никого нет. Нужен игрок в <radius> блоках."
+  dice.too-far: "<red>Вы разошлись дальше <radius> блоков."
+  dice.jailed: "<red>В деморгане не играют."
+  dice.sent: "<gray>Вызов брошен игроку <white><player><gray> на <yellow><amount> VC<gray>. Ждём ответа."
+  dice.invite: "<gold><player> зовёт вас в кости на <yellow><amount> VC<gold>. <white>/cubes accept<gold> или <white>/cubes deny"
+  dice.no-invite: "<gray>Вас никто не вызывал."
+  dice.gone: "<gray>Соперник вышел."
+  dice.denied: "<gray><player> отказался играть."
+  dice.denied-you: "<gray>Вы отказались."
+  dice.failed: "<red>Партия не началась: <reason>"
+  dice.rolling: "<gold>🎲 <white><a><gold> и <white><b><gold> играют на <yellow><amount> VC<gold> с каждого…"
+  dice.result: "<gray>🎲 <white><a><gray>: <yellow><ra><gray> · <white><b><gray>: <yellow><rb>"
+  dice.winner: "<green>Победил <white><player><green> — забирает <yellow><pot> VC"
+  dice.draw: "<gray>Ничья. Ставки возвращены, можно бросить заново."
+  dice.payout-failed: "<red>Сайт не ответил. Ставки вернутся автоматически."
+
+  cases.header: "<gold>━━━ КЕЙСЫ ━━━ <gray>баланс: <yellow><balance> VC"
+  cases.line: "<white><name> <gray>— <yellow><price> VC <gray>· купить: <white>/cases <key>"
+  cases.howto: "<gray>Купленный кейс появится в инвентаре. Поставьте его блоком, чтобы открыть."
+  cases.bought: "<green>Кейс «<name>» у вас в инвентаре. Баланс: <yellow><balance> VC"
+  cases.buy-failed: "<red>Не куплено: <reason>"
+  cases.open-failed: "<red>Кейс не открылся: <reason>. Предмет возвращён."
+  cases.jailed: "<red>В деморгане кейсы не открываются."
+  cases.api-down: "<red>Сайт не отвечает."
+  cases.won-cosmetic: "<gold>Из кейса выпало: <white><name> <gray>(<rarity>)"
+  cases.won-vc: "<gold>Из кейса выпало: <yellow>+<amount> VC"
+  cases.won-shards: "<aqua>Из кейса выпало: <white>+<amount> осколков"
+  cases.broadcast: "<gold>✦ <white><player><gold> выбил <white><item><gold> (<rarity>) из кейса <white><case>"
 
   giveaway.header: "<gold>━━━━━━ <bold>РОЗЫГРЫШ</bold> ━━━━━━"
   giveaway.line: "<yellow><title><gray>: <white><prize> <gray>· участников: <white><players>"

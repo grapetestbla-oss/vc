@@ -79,3 +79,9 @@ commands:
     description: Зажечь искру сезона рядом с собой (проверка)
   giveaway:
     description: Розыгрыши сервера и ваш прогресс по часам
+  cases:
+    description: Магазин кейсов в игре
+    usage: /cases [ключ кейса]
+  cubes:
+    description: Кости на VC с игроком рядом
+    usage: /cubes <сумма> | accept | deny

@@ -9,6 +9,88 @@ type CaseItemWithCosmetic = CaseItem & { cosmetic: Cosmetic | null };
 
 export class CaseError extends Error {}
 
+/** Кладёт объявление о редкой находке в очередь поручений плагину. */
+async function announceDrop(params: {
+  userId: string;
+  caseName: string;
+  cosmeticName: string;
+  rarity: string;
+}) {
+  const user = await db.user.findUnique({
+    where: { id: params.userId },
+    select: { login: true },
+  });
+  if (!user) return;
+
+  await db.serverAction.create({
+    data: {
+      kind: "BROADCAST_DROP",
+      login: user.login,
+      userId: params.userId,
+      payload: {
+        cosmetic: params.cosmeticName,
+        rarity: params.rarity,
+        case: params.caseName,
+      },
+    },
+  });
+}
+
+/**
+ * Покупка кейса в игре: VC списываются сразу, а кейс превращается в «билет».
+ * Открывается он потом — когда игрок поставит блок и увидит анимацию.
+ */
+export async function purchaseCaseTicket(userId: string, caseKey: string) {
+  const caseType = await db.caseType.findUnique({ where: { key: caseKey } });
+  if (!caseType || !caseType.active) throw new CaseError("Кейс недоступен");
+  if (caseType.freeDaily) throw new CaseError("Этот кейс открывается бесплатно на сайте");
+  if (caseType.availableUntil && caseType.availableUntil < new Date()) {
+    throw new CaseError("Сезон этого кейса закончился");
+  }
+
+  try {
+    const balance = await applyTransaction({
+      userId,
+      type: "CASE_OPEN",
+      amount: -caseType.priceVc,
+      meta: { case: caseType.key, source: "game" },
+    });
+    const ticket = await db.caseTicket.create({ data: { userId, caseKey } });
+    return { ticket, balance, caseType };
+  } catch (error) {
+    if (error instanceof InsufficientFunds) throw new CaseError("Недостаточно VC");
+    throw error;
+  }
+}
+
+/** Гасит билет и открывает кейс: списание уже прошло при покупке. */
+export async function openPurchasedCase(userId: string, caseKey: string) {
+  const ticket = await db.caseTicket.findFirst({
+    where: { userId, caseKey, usedAt: null },
+    orderBy: { createdAt: "asc" },
+  });
+  if (!ticket) throw new CaseError("Оплаченного кейса нет");
+
+  // Гасим условно: два блока, поставленных подряд, не откроют один билет дважды.
+  const claimed = await db.caseTicket.updateMany({
+    where: { id: ticket.id, usedAt: null },
+    data: { usedAt: new Date() },
+  });
+  if (claimed.count === 0) throw new CaseError("Кейс уже открыт");
+
+  return openCase(userId, caseKey, { prepaid: true });
+}
+
+/** Сколько оплаченных кейсов ждёт открытия — плагин выдаёт их предметами. */
+export async function pendingTickets(userId: string) {
+  const tickets = await db.caseTicket.groupBy({
+    by: ["caseKey"],
+    where: { userId, usedAt: null },
+    _count: { _all: true },
+  });
+  return tickets.map((row) => ({ caseKey: row.caseKey, count: row._count._all }));
+}
+
 export type OpenResult = {
   kind: "VC" | "SHARDS" | "COSMETIC";
   amount: number;
@@ -38,7 +120,15 @@ async function freeOpenUsed(userId: string, caseKey: string): Promise<boolean> {
   return Boolean(opening);
 }
 
-export async function openCase(userId: string, caseKey: string): Promise<OpenResult> {
+/**
+ * Открытие кейса. prepaid — кейс уже оплачен заранее (куплен в игре и лежал
+ * предметом в инвентаре), поэтому второй раз VC не списываем.
+ */
+export async function openCase(
+  userId: string,
+  caseKey: string,
+  options: { prepaid?: boolean } = {},
+): Promise<OpenResult> {
   const caseType = await db.caseType.findUnique({
     where: { key: caseKey },
     include: { items: { include: { cosmetic: true } } },
@@ -56,7 +146,7 @@ export async function openCase(userId: string, caseKey: string): Promise<OpenRes
     throw new CaseError("Бесплатное открытие уже было. Возвращайтесь завтра.");
   }
 
-  if (!free && caseType.priceVc > 0) {
+  if (!free && !options.prepaid && caseType.priceVc > 0) {
     try {
       await applyTransaction({
         userId,
@@ -134,7 +224,7 @@ export async function openCase(userId: string, caseKey: string): Promise<OpenRes
         userId,
         caseKey: caseType.key,
         itemId: item.id,
-        priceVc: free ? 0 : caseType.priceVc,
+        priceVc: free || options.prepaid ? 0 : caseType.priceVc,
         duplicate,
         fromPity: forcedByPity,
         serverSeedHash,
@@ -171,6 +261,16 @@ export async function openCase(userId: string, caseKey: string): Promise<OpenRes
       collectionRewards,
     };
   });
+
+  // Редкая находка — событие для всего сервера: о ней объявляет плагин.
+  if (item.cosmetic && (item.cosmetic.rarity === "epic" || item.cosmetic.rarity === "legendary")) {
+    await announceDrop({
+      userId,
+      caseName: caseType.name,
+      cosmeticName: item.cosmetic.name,
+      rarity: item.cosmetic.rarity,
+    });
+  }
 
   return {
     kind: item.kind,

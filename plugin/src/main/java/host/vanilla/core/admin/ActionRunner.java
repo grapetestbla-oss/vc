@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import host.vanilla.core.VanillaCorePlugin;
 import host.vanilla.core.util.Accounts;
 import host.vanilla.core.util.Messages;
+import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
@@ -37,11 +38,21 @@ public final class ActionRunner {
 
             for (int i = 0; i < items.size(); i++) {
                 JsonObject item = items.get(i).getAsJsonObject();
+                String kind = item.get("kind").getAsString();
                 String login = item.get("login").getAsString();
+
+                // Объявление о редкой находке адресовано всему серверу, поэтому
+                // его не ждём в сети: подтверждаем сразу после показа.
+                if ("BROADCAST_DROP".equals(kind)) {
+                    broadcastDrop(login, item);
+                    done.add(item.get("id").getAsString());
+                    continue;
+                }
+
                 Player player = Accounts.findOnline(login);
                 if (player == null || !plugin.auth().authenticated(player)) continue;
 
-                if ("WIPE_INVENTORY".equals(item.get("kind").getAsString()) && wipe(player)) {
+                if ("WIPE_INVENTORY".equals(kind) && wipe(player)) {
                     done.add(item.get("id").getAsString());
                 }
             }
@@ -50,6 +61,26 @@ public final class ActionRunner {
                 plugin.api().post("/api/mc/actions", Map.of("ids", done));
             }
         });
+    }
+
+    /** Редкая находка: объявляем всем, чтобы кейсы было видно со стороны. */
+    private void broadcastDrop(String login, JsonObject item) {
+        if (!item.has("payload") || item.get("payload").isJsonNull()) return;
+        JsonObject payload = item.getAsJsonObject("payload");
+        String rarity = payload.has("rarity") ? payload.get("rarity").getAsString() : "epic";
+
+        Component message = messages.get("cases.broadcast", java.util.Map.of(
+                "player", login,
+                "item", payload.has("cosmetic") ? payload.get("cosmetic").getAsString() : "предмет",
+                "rarity", host.vanilla.core.games.CaseListener.rarityName(rarity),
+                "case", payload.has("case") ? payload.get("case").getAsString() : ""));
+
+        for (Player online : plugin.getServer().getOnlinePlayers()) {
+            online.sendMessage(message);
+            online.playSound(online.getLocation(),
+                    org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.6f,
+                    "legendary".equals(rarity) ? 1.6f : 1.2f);
+        }
     }
 
     /** Полная очистка: инвентарь, эндер-сундук, опыт и эффекты. */

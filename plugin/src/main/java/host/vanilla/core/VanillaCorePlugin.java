@@ -17,6 +17,10 @@ import host.vanilla.core.cosmetics.CosmeticCommand;
 import host.vanilla.core.cosmetics.CosmeticEngine;
 import host.vanilla.core.cosmetics.CosmeticListener;
 import host.vanilla.core.economy.PlayerCommands;
+import host.vanilla.core.games.CaseCommands;
+import host.vanilla.core.games.CaseListener;
+import host.vanilla.core.games.CaseShop;
+import host.vanilla.core.games.DiceGame;
 import host.vanilla.core.punish.JailListener;
 import host.vanilla.core.punish.JailManager;
 import host.vanilla.core.punish.JailZone;
@@ -62,6 +66,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
     private TabList tabList;
     private SparkManager sparks;
     private GiveawayNotifier giveaways;
+    private CaseShop caseShop;
+    private DiceGame dice;
     private ShopManager shop;
     private ShopCommands shopCommands;
     private NamespacedKey hatKey;
@@ -92,6 +98,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
         tabList = new TabList(this);
         sparks = new SparkManager(this, messages);
         giveaways = new GiveawayNotifier(this, messages);
+        caseShop = new CaseShop(this, messages);
+        dice = new DiceGame(this, messages);
         shop = new ShopManager(this);
         shopCommands = new ShopCommands(this, messages);
 
@@ -108,6 +116,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         manager.registerEvents(new ReportMenuListener(this, reports), this);
         manager.registerEvents(new CosmeticListener(this, cosmetics), this);
         manager.registerEvents(new ShopListener(this, shopCommands, messages), this);
+        manager.registerEvents(new CaseListener(this, messages), this);
     }
 
     private void registerCommands() {
@@ -127,6 +136,10 @@ public final class VanillaCorePlugin extends JavaPlugin {
                 "ec", "craft")) {
             bind(name, shopCommands);
         }
+
+        CaseCommands caseCommands = new CaseCommands(this, messages);
+        bind("cases", caseCommands);
+        bind("cubes", caseCommands);
 
         PlayerCommands player = new PlayerCommands(this, messages);
         for (String name : List.of("balance", "promo", "bonus", "report", "giveaway")) {
@@ -303,6 +316,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
     public MaintenanceWatcher maintenance() { return maintenance; }
     public SparkManager sparks() { return sparks; }
     public GiveawayNotifier giveaways() { return giveaways; }
+    public CaseShop cases() { return caseShop; }
+    public DiceGame dice() { return dice; }
     public TabList tabList() { return tabList; }
     public NamespacedKey hatKey() { return hatKey; }
     public Messages messages() { return messages; }
