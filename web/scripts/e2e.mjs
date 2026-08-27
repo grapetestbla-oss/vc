@@ -728,12 +728,15 @@ const run = async () => {
   });
   check("слишком маленькая сумма отклоняется", tooSmall.status === 400, tooSmall.json);
 
+  // Прогон идёт с настроенной FreeKassa: способ и контакт не спрашиваются,
+  // платёж подтверждает провайдер. Ручной путь остаётся под панелью ниже.
   const noContact = await api("/api/payments/create", {
     method: "POST",
     cookie: shopBuyer.session,
-    body: { amountRub: 500, method: "СБП", contact: "" },
+    body: { amountRub: 500 },
   });
-  check("без контакта заявка не создаётся", noContact.status === 400, noContact.json);
+  check("при автоплатеже контакт не нужен", noContact.json?.ok === true, noContact.json);
+  check("счёт сразу даёт ссылку на оплату", typeof noContact.json?.payUrl === "string", noContact.json);
 
   const request = await api("/api/payments/create", {
     method: "POST",
@@ -746,9 +749,10 @@ const run = async () => {
   const duplicate = await api("/api/payments/create", {
     method: "POST",
     cookie: shopBuyer.session,
-    body: { amountRub: 100, method: "СБП", contact: "@shopper" },
+    body: { amountRub: 100 },
   });
-  check("вторая открытая заявка не создаётся", duplicate.status === 409, duplicate.json);
+  // Неоплаченный счёт никого не занимает, поэтому второй разрешён.
+  check("второй счёт при автоплатеже разрешён", duplicate.json?.ok === true, duplicate.json);
 
   const payApproveByPlayer = await api("/api/panel/payment", {
     method: "POST",
@@ -1845,6 +1849,107 @@ const run = async () => {
       ["epic", "legendary"].includes(announced?.payload?.rarity ?? ""),
     announced?.payload,
   );
+
+  console.log("— Автоплатёж FreeKassa —");
+  // Тесты идут против сайта, поднятого с тестовыми секретами FreeKassa.
+  const { createHash } = await import("node:crypto");
+  const FK_MERCHANT = "123456";
+  const FK_SECRET2 = "e2e-secret-2";
+  const fkMd5 = (value) => createHash("md5").update(value).digest("hex");
+
+  const payer = await register("Payer");
+  const payerMe = await api("/api/me", { cookie: payer.session });
+
+  const invoice = await api("/api/payments/create", {
+    method: "POST",
+    cookie: payer.session,
+    body: { amountRub: 500 },
+  });
+  check("счёт создан без ручных полей", invoice.json?.ok === true, invoice.json);
+  check("ссылка на оплату выдана", typeof invoice.json?.payUrl === "string", invoice.json);
+  check(
+    "в ссылке подписаны магазин, сумма и заказ",
+    invoice.json.payUrl.includes(`m=${FK_MERCHANT}`) &&
+      invoice.json.payUrl.includes("oa=500.00") &&
+      invoice.json.payUrl.includes(`o=${invoice.json.paymentId}`),
+    invoice.json.payUrl,
+  );
+
+  async function notify(fields) {
+    const body = new URLSearchParams(fields).toString();
+    const response = await fetch(BASE + "/api/payments/freekassa", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    });
+    return { status: response.status, text: await response.text() };
+  }
+
+  const order = invoice.json.paymentId;
+  const goodSign = fkMd5([FK_MERCHANT, "500.00", FK_SECRET2, order].join(":"));
+
+  const badSign = await notify({
+    MERCHANT_ID: FK_MERCHANT,
+    AMOUNT: "500.00",
+    MERCHANT_ORDER_ID: order,
+    SIGN: "деньгидавай",
+    intid: "1",
+  });
+  check("уведомление с чужой подписью отклоняется", badSign.status === 400, badSign);
+
+  const balanceBeforePay = (await api("/api/me", { cookie: payer.session })).json.balanceVc;
+  check("до оплаты VC не начислены", balanceBeforePay === 0, { balanceBeforePay });
+
+  const unknownOrder = await notify({
+    MERCHANT_ID: FK_MERCHANT,
+    AMOUNT: "500.00",
+    MERCHANT_ORDER_ID: "нетакогозаказа",
+    SIGN: fkMd5([FK_MERCHANT, "500.00", FK_SECRET2, "нетакогозаказа"].join(":")),
+  });
+  check("уведомление о неизвестном заказе отклоняется", unknownOrder.status === 404, unknownOrder);
+
+  const fkInvoiceShort = await api("/api/payments/create", {
+    method: "POST",
+    cookie: payer.session,
+    body: { amountRub: 300 },
+  });
+  const fkShortPaid = await notify({
+    MERCHANT_ID: FK_MERCHANT,
+    AMOUNT: "100.00",
+    MERCHANT_ORDER_ID: fkInvoiceShort.json.paymentId,
+    SIGN: fkMd5([FK_MERCHANT, "100.00", FK_SECRET2, fkInvoiceShort.json.paymentId].join(":")),
+  });
+  check("недоплата не проводится", fkShortPaid.status === 400, fkShortPaid);
+
+  const fkPaid = await notify({
+    MERCHANT_ID: FK_MERCHANT,
+    AMOUNT: "500.00",
+    MERCHANT_ORDER_ID: order,
+    SIGN: goodSign,
+    intid: "777",
+    P_EMAIL: "payer@example.com",
+  });
+  check("оплата принята и подтверждена ответом YES", fkPaid.status === 200 && fkPaid.text.trim() === "YES", fkPaid);
+
+  const afterPay = await api("/api/me", { cookie: payer.session });
+  check("VC начислены по курсу", afterPay.json.balanceVc === 1000, afterPay.json);
+
+  const repeat = await notify({
+    MERCHANT_ID: FK_MERCHANT,
+    AMOUNT: "500.00",
+    MERCHANT_ORDER_ID: order,
+    SIGN: goodSign,
+    intid: "777",
+  });
+  check("повтор уведомления подтверждается", repeat.text.trim() === "YES", repeat);
+
+  const afterRepeat = await api("/api/me", { cookie: payer.session });
+  check("дважды VC не начисляются", afterRepeat.json.balanceVc === 1000, afterRepeat.json);
+
+  const historyPage = await fetch(BASE + "/topup", { headers: { Cookie: payer.session } });
+  check("оплата видна в истории игрока", (await historyPage.text()).includes("Начислено"), {
+    userId: payerMe.json.id,
+  });
 
   console.log("— Итог —");
   console.log(`Пройдено: ${passed}, провалено: ${failed}`);

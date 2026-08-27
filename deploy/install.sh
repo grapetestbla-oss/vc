@@ -97,6 +97,12 @@ PARTNER_SHARE_PERCENT=10
 GAME_PANEL_URL=https://mgr.bisquit.host
 GAME_PANEL_KEY=
 GAME_PANEL_SERVER_ID=
+# Приём платежей FreeKassa. Пока пусто — пополнение подтверждается вручную.
+# ID магазина и оба секрета берутся в кабинете FreeKassa, там же указывается
+# адрес уведомлений: https://<домен>/api/payments/freekassa
+FREEKASSA_MERCHANT_ID=
+FREEKASSA_SECRET1=
+FREEKASSA_SECRET2=
 ENV
 fi
 

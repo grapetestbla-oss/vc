@@ -13,11 +13,14 @@ export default function TopUpForm({
   minRub,
   maxRub,
   hasPending,
+  auto,
 }: {
   vcPerRub: number;
   minRub: number;
   maxRub: number;
   hasPending: boolean;
+  /** Оплата принимается автоматически: способ и контакт спрашивать не нужно. */
+  auto: boolean;
 }) {
   const router = useRouter();
   const [amount, setAmount] = useState(250);
@@ -25,7 +28,7 @@ export default function TopUpForm({
   const [message, setMessage] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
 
-  if (hasPending) {
+  if (hasPending && !auto) {
     return (
       <div className="panel p-5 sm:p-6">
         <p className="muted text-sm">
@@ -76,6 +79,14 @@ export default function TopUpForm({
           }),
         });
         const data = await response.json();
+
+        // Автоматическая оплата: уводим на страницу провайдера, VC начислит
+        // его уведомление — ждать администрацию не нужно.
+        if (response.ok && data.payUrl) {
+          window.location.href = data.payUrl;
+          return;
+        }
+
         setBusy(false);
         setOk(response.ok);
         setMessage(
@@ -110,6 +121,7 @@ export default function TopUpForm({
           </div>
         </div>
 
+        {!auto && (
         <label className="block">
           <span className="eyebrow">Способ оплаты</span>
           <select name="method" className="input mt-1 w-full" required defaultValue={METHODS[0]}>
@@ -120,7 +132,9 @@ export default function TopUpForm({
             ))}
           </select>
         </label>
+        )}
 
+        {!auto && (
         <label className="block">
           <span className="eyebrow">Контакт для связи</span>
           <input
@@ -130,20 +144,23 @@ export default function TopUpForm({
             required
           />
         </label>
+        )}
       </div>
 
-      <label className="block">
-        <span className="eyebrow">Комментарий</span>
-        <textarea
-          name="comment"
-          className="input mt-1 h-24 w-full"
-          placeholder="Например: перевод с карты **** 1234 в 19:40"
-        />
-      </label>
+      {!auto && (
+        <label className="block">
+          <span className="eyebrow">Комментарий</span>
+          <textarea
+            name="comment"
+            className="input mt-1 h-24 w-full"
+            placeholder="Например: перевод с карты **** 1234 в 19:40"
+          />
+        </label>
+      )}
 
       <div className="space-y-3 sm:flex sm:flex-wrap sm:items-center sm:gap-3 sm:space-y-0">
         <button className="btn w-full sm:w-auto" disabled={busy}>
-          {busy ? "Отправляем…" : "Отправить заявку"}
+          {busy ? (auto ? "Переходим к оплате…" : "Отправляем…") : auto ? "Перейти к оплате" : "Отправить заявку"}
         </button>
         {message && (
           <span

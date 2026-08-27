@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { currentUser } from "@/lib/session";
 import { CONFIG } from "@/lib/config";
 import TopUpForm from "@/components/TopUpForm";
+import { freekassaConfigured } from "@/lib/freekassa";
 import Reveal from "@/components/Reveal";
 
 export const dynamic = "force-dynamic";
@@ -31,9 +32,10 @@ export default async function TopUpPage() {
         <p className="eyebrow fade-up">Баланс: {user.balanceVc.toLocaleString("ru")} VC</p>
         <h1 className="fade-up text-4xl font-bold tracking-tight md:text-5xl">Пополнение</h1>
         <p className="fade-up muted max-w-2xl">
-          Курс: <b>1 ₽ = {CONFIG.vcPerRub} VC</b>. Автоматической оплаты пока нет — вы оставляете
-          заявку, переводите деньги и указываете контакт, а чиф-администратор сверяет перевод и
-          начисляет VC вручную.
+          Курс: <b>1 ₽ = {CONFIG.vcPerRub} VC</b>.{" "}
+          {freekassaConfigured()
+            ? "Оплата картой, СБП, кошельками и криптой — VC придут на баланс сразу после оплаты."
+            : "Автоматической оплаты пока нет — вы оставляете заявку, переводите деньги и указываете контакт, а чиф-администратор сверяет перевод и начисляет VC вручную."}
         </p>
       </header>
 
@@ -43,6 +45,7 @@ export default async function TopUpPage() {
           minRub={CONFIG.minTopUpRub}
           maxRub={CONFIG.maxTopUpRub}
           hasPending={hasPending}
+          auto={freekassaConfigured()}
         />
       </Reveal>
 
