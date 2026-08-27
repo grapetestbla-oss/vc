@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { currentUser } from "@/lib/session";
 import { CONFIG } from "@/lib/config";
 import TopUpForm from "@/components/TopUpForm";
-import { freekassaConfigured } from "@/lib/freekassa";
+import { activeProviders, getPaymentConfig } from "@/lib/payments";
 import Reveal from "@/components/Reveal";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +24,12 @@ export default async function TopUpPage() {
     orderBy: { createdAt: "desc" },
     take: 10,
   });
-  const hasPending = payments.some((payment) => payment.status === "pending");
+  const hasPending = payments.some(
+    (payment) => payment.status === "pending" && payment.provider === "manual",
+  );
+  const providers = activeProviders(await getPaymentConfig());
+  const auto = providers.some((provider) => provider.key !== "manual");
+  const bestBonus = providers.reduce((max, provider) => Math.max(max, provider.bonusPercent), 0);
 
   return (
     <div className="space-y-8">
@@ -33,9 +38,15 @@ export default async function TopUpPage() {
         <h1 className="fade-up text-4xl font-bold tracking-tight md:text-5xl">Пополнение</h1>
         <p className="fade-up muted max-w-2xl">
           Курс: <b>1 ₽ = {CONFIG.vcPerRub} VC</b>.{" "}
-          {freekassaConfigured()
+          {auto
             ? "Оплата картой, СБП, кошельками и криптой — VC придут на баланс сразу после оплаты."
             : "Автоматической оплаты пока нет — вы оставляете заявку, переводите деньги и указываете контакт, а чиф-администратор сверяет перевод и начисляет VC вручную."}
+          {bestBonus > 0 && (
+            <>
+              {" "}
+              <b style={{ color: "var(--gold)" }}>Бонус до +{bestBonus}% VC</b> за выбор кассы.
+            </>
+          )}
         </p>
       </header>
 
@@ -45,7 +56,7 @@ export default async function TopUpPage() {
           minRub={CONFIG.minTopUpRub}
           maxRub={CONFIG.maxTopUpRub}
           hasPending={hasPending}
-          auto={freekassaConfigured()}
+          providers={providers}
         />
       </Reveal>
 
@@ -63,6 +74,12 @@ export default async function TopUpPage() {
                   <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                     <span className="tabular-nums">
                       {payment.amountRub} ₽ → {payment.vcAmount.toLocaleString("ru")} VC
+                      {payment.bonusVc > 0 && (
+                        <span style={{ color: "var(--gold)" }}>
+                          {" "}
+                          (+{payment.bonusVc.toLocaleString("ru")} бонусом)
+                        </span>
+                      )}
                     </span>
                     <span
                       style={{

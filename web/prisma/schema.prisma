@@ -222,6 +222,8 @@ model Payment {
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   amountRub  Int
   vcAmount   Int
+  /// Сколько из vcAmount дал бонус кассы — для истории и панели.
+  bonusVc    Int       @default(0)
   provider   String
   providerId String?   @unique
   /// pending | paid | rejected

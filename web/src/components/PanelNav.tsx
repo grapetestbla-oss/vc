@@ -9,11 +9,18 @@ export default function PanelNav({
   items: { href: string; label: string }[];
 }) {
   const pathname = usePathname();
+  // Подсвечиваем самый длинный подходящий пункт: иначе на вложенной странице
+  // горят сразу два — она сама и её родитель.
+  const current = items
+    .filter((item) =>
+      item.href === "/panel" ? pathname === "/panel" : pathname.startsWith(item.href),
+    )
+    .sort((left, right) => right.href.length - left.href.length)[0];
 
   return (
     <nav className="flex gap-1 overflow-x-auto md:flex-col">
       {items.map((item) => {
-        const active = item.href === "/panel" ? pathname === "/panel" : pathname.startsWith(item.href);
+        const active = current?.href === item.href;
         return (
           <Link
             key={item.href}

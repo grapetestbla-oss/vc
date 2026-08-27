@@ -8,25 +8,52 @@ const METHODS = ["СБП", "Карта", "ЮMoney", "Крипта", "Друго�
 /** Готовые суммы в рублях: на телефоне это основной способ выбрать сумму. */
 const PACKS = [100, 250, 500, 1000];
 
+export type ProviderOption = {
+  key: string;
+  title: string;
+  hint: string;
+  bonusPercent: number;
+};
+
 export default function TopUpForm({
   vcPerRub,
   minRub,
   maxRub,
   hasPending,
-  auto,
+  providers,
 }: {
   vcPerRub: number;
   minRub: number;
   maxRub: number;
   hasPending: boolean;
-  /** Оплата принимается автоматически: способ и контакт спрашивать не нужно. */
-  auto: boolean;
+  /** Подключённые кассы: у каждой свой бонус к VC. */
+  providers: ProviderOption[];
 }) {
   const router = useRouter();
   const [amount, setAmount] = useState(250);
+  const [provider, setProvider] = useState(providers[0]?.key ?? "manual");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
+
+  const current = providers.find((item) => item.key === provider) ?? providers[0];
+  const auto = current?.key !== "manual";
+  const bonusPercent = current?.bonusPercent ?? 0;
+  const vcFor = (rub: number) => {
+    const base = Math.floor(Math.max(0, rub) * vcPerRub);
+    return base + Math.floor((base * bonusPercent) / 100);
+  };
+
+  if (providers.length === 0) {
+    return (
+      <div className="panel p-5 sm:p-6">
+        <p className="muted text-sm">
+          Пополнение временно отключено. Загляните позже — кассы вернут, как только закончим
+          настройку.
+        </p>
+      </div>
+    );
+  }
 
   if (hasPending && !auto) {
     return (
@@ -41,6 +68,33 @@ export default function TopUpForm({
 
   return (
     <>
+      {providers.length > 1 && (
+        <div className="mb-4 grid gap-3 sm:grid-cols-2">
+          {providers.map((item) => {
+            const active = item.key === provider;
+            return (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => setProvider(item.key)}
+                className="panel panel-hover p-4 text-left transition-colors"
+                style={active ? { borderColor: "var(--gold)" } : undefined}
+              >
+                <div className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="font-semibold">{item.title}</span>
+                  {item.bonusPercent > 0 && (
+                    <span className="text-sm" style={{ color: "var(--gold)" }}>
+                      +{item.bonusPercent}% VC
+                    </span>
+                  )}
+                </div>
+                <div className="muted mt-1 text-sm">{item.hint}</div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {PACKS.map((rub) => {
           const active = amount === rub;
@@ -53,7 +107,7 @@ export default function TopUpForm({
               style={active ? { borderColor: "var(--gold)" } : undefined}
             >
               <div className="text-xl font-semibold" style={{ color: "var(--gold)" }}>
-                {(rub * vcPerRub).toLocaleString("ru")} VC
+                {vcFor(rub).toLocaleString("ru")} VC
               </div>
               <div className="muted mt-1 text-sm">{rub} ₽</div>
             </button>
@@ -73,6 +127,7 @@ export default function TopUpForm({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             amountRub: amount,
+            provider,
             method: form.get("method"),
             contact: form.get("contact"),
             comment: form.get("comment"),
@@ -80,8 +135,8 @@ export default function TopUpForm({
         });
         const data = await response.json();
 
-        // Автоматическая оплата: уводим на страницу провайдера, VC начислит
-        // его уведомление — ждать администрацию не нужно.
+        // Автоматическая оплата: уводим на страницу кассы, VC начислит
+        // её уведомление — ждать администрацию не нужно.
         if (response.ok && data.payUrl) {
           window.location.href = data.payUrl;
           return;
@@ -117,8 +172,13 @@ export default function TopUpForm({
         <div>
           <span className="eyebrow">Получите</span>
           <div className="mt-1 text-2xl font-semibold tabular-nums" style={{ color: "var(--gold)" }}>
-            {(Math.max(0, Math.floor(amount)) * vcPerRub).toLocaleString("ru")} VC
+            {vcFor(Math.floor(amount)).toLocaleString("ru")} VC
           </div>
+          {bonusPercent > 0 && (
+            <div className="muted text-xs">
+              включая бонус +{bonusPercent}% за оплату через {current?.title}
+            </div>
+          )}
         </div>
 
         {!auto && (

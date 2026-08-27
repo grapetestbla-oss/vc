@@ -1,8 +1,7 @@
 import { db } from "@/lib/db";
-import { applyTransaction } from "@/lib/economy";
 import { audit, clientIp } from "@/lib/audit";
-import { payPartnerShare } from "@/lib/partnershare";
 import { ipAllowed, notificationValid, parseNotification } from "@/lib/freekassa";
+import { creditPayment, freekassaReady, getPaymentConfig } from "@/lib/payments";
 
 /** Форму FreeKassa шлёт как application/x-www-form-urlencoded. */
 async function readForm(request: Request): Promise<Record<string, string>> {
@@ -25,12 +24,17 @@ async function readForm(request: Request): Promise<Record<string, string>> {
 export async function POST(request: Request) {
   const form = await readForm(request);
   const ip = clientIp(request);
+  const config = await getPaymentConfig();
 
+  if (!freekassaReady(config)) {
+    await audit({ actorId: null, action: "payment.freekassa.disabled", ip, meta: { form } });
+    return new Response("disabled", { status: 503 });
+  }
   if (!ipAllowed(ip)) {
     await audit({ actorId: null, action: "payment.freekassa.bad-ip", ip, meta: { form } });
     return new Response("bad ip", { status: 403 });
   }
-  if (!notificationValid(form)) {
+  if (!notificationValid(config.freekassa, form)) {
     await audit({ actorId: null, action: "payment.freekassa.bad-sign", ip, meta: { form } });
     return new Response("bad sign", { status: 400 });
   }
@@ -60,48 +64,10 @@ export async function POST(request: Request) {
   }
 
   // Повтор уведомления: платёж уже проведён — просто подтверждаем приём.
-  const claimed = await db.payment.updateMany({
-    where: { id: payment.id, status: "pending" },
-    data: {
-      status: "paid",
-      paidAt: new Date(),
-      providerId: notification.transactionId,
-      reviewNote: "Автоматически: FreeKassa",
-    },
-  });
-  if (claimed.count === 0) return new Response("YES");
-
-  const balance = await applyTransaction({
-    userId: payment.userId,
-    type: "TOPUP",
-    amount: payment.vcAmount,
-    meta: {
-      paymentId: payment.id,
-      amountRub: payment.amountRub,
-      provider: "freekassa",
-      transactionId: notification.transactionId,
-    },
-  });
-
-  const share = await payPartnerShare({
-    userId: payment.userId,
-    creditedVc: payment.vcAmount,
+  await creditPayment({
     paymentId: payment.id,
-  });
-
-  await audit({
-    actorId: null,
-    action: "payment.freekassa.paid",
-    targetUserId: payment.userId,
-    ip,
-    meta: {
-      paymentId: payment.id,
-      amountRub: payment.amountRub,
-      vcAmount: payment.vcAmount,
-      balance,
-      partnerShare: share,
-      transactionId: notification.transactionId,
-    },
+    providerId: notification.transactionId,
+    note: "Автоматически: FreeKassa",
   });
 
   return new Response("YES");

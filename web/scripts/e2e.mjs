@@ -1241,8 +1241,9 @@ const run = async () => {
   check("минимальная ставка проверяется и на общем столе", smallBet.status === 400, smallBet.json);
 
   // Дожидаемся розыгрыша: раунд обязан разрешиться сам, без чьей-либо кнопки.
+  // Ждём с запасом больше длины раунда, иначе проверка ловит не баг, а таймер.
   let resolved = null;
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 140; i++) {
     const state = await api("/api/games/live?game=ROULETTE", { cookie: steve.session });
     const done = state.json?.history?.find((item) => item.number === bettingRound.round.number);
     if (done) {
@@ -1815,14 +1816,15 @@ const run = async () => {
   await api("/api/panel/balance", {
     method: "POST",
     cookie: steve.session,
-    body: { userId: luckyMe.json.id, amount: 20000, reason: "на кейсы" },
+    body: { userId: luckyMe.json.id, amount: 80000, reason: "на кейсы" },
   });
 
   const caseList = await api("/api/mc/cases?login=Lucky", { serverToken: TOKEN });
   const legendCase = caseList.json.cases.find((item) => item.key === "legends") ?? caseList.json.cases[0];
 
   let announced = null;
-  for (let attempt = 0; attempt < 12 && !announced; attempt++) {
+  // Эпика в кейсе редка: коротким циклом проверка ловила удачу, а не код.
+  for (let attempt = 0; attempt < 80 && !announced; attempt++) {
     await api("/api/mc/cases", {
       method: "POST",
       serverToken: TOKEN,
@@ -1950,6 +1952,201 @@ const run = async () => {
   check("оплата видна в истории игрока", (await historyPage.text()).includes("Начислено"), {
     userId: payerMe.json.id,
   });
+
+  console.log("— Кассы и бонусы в панели —");
+  const providersByPlayer = await api("/api/panel/payment/providers", { cookie: alex.session });
+  check("игрок не видит настройки касс", providersByPlayer.status === 403);
+
+  const providersView = await api("/api/panel/payment/providers", { cookie: steve.session });
+  check("chief видит настройки касс", providersView.status === 200, providersView.json);
+  check(
+    "ключи FreeKassa показаны маской",
+    typeof providersView.json?.freekassa?.secret2 === "string" &&
+      !providersView.json.freekassa.secret2.includes(FK_SECRET2),
+    providersView.json?.freekassa,
+  );
+
+  // Заглушка Платеги: настоящую кассу в прогоне дёргать нечем.
+  const { createServer } = await import("node:http");
+  let plategaRequest = null;
+  const plategaStub = createServer((request, response) => {
+    let raw = "";
+    request.on("data", (chunk) => (raw += chunk));
+    request.on("end", () => {
+      plategaRequest = {
+        url: request.url,
+        merchantId: request.headers["x-merchantid"],
+        secret: request.headers["x-secret"],
+        body: JSON.parse(raw || "{}"),
+      };
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(
+        JSON.stringify({
+          transactionId: "tx-" + plategaRequest.body.payload,
+          redirect: "https://pay.platega.io/тест",
+          status: "PENDING",
+        }),
+      );
+    });
+  });
+  await new Promise((resolve) => plategaStub.listen(0, "127.0.0.1", resolve));
+  const plategaStubUrl = `http://127.0.0.1:${plategaStub.address().port}`;
+
+  const PL_MERCHANT = "merchant-uuid";
+  const PL_SECRET = "platega-secret";
+  const setPlatega = await api("/api/panel/payment/providers", {
+    method: "POST",
+    cookie: steve.session,
+    body: {
+      provider: "platega",
+      patch: {
+        enabled: true,
+        bonusPercent: 14,
+        merchantId: PL_MERCHANT,
+        secret: PL_SECRET,
+        apiUrl: plategaStubUrl,
+      },
+    },
+  });
+  check("chief подключает Платегу", setPlatega.json?.ok === true, setPlatega.json);
+  check(
+    "Платега появилась в списке доступных",
+    setPlatega.json?.active?.includes("platega"),
+    setPlatega.json?.active,
+  );
+  check("бонус кассы сохранён", setPlatega.json?.platega?.bonusPercent === 14, setPlatega.json?.platega);
+
+  const buyer = await register("Bonusman");
+  const plInvoice = await api("/api/payments/create", {
+    method: "POST",
+    cookie: buyer.session,
+    body: { amountRub: 1000, provider: "platega" },
+  });
+  check("счёт Платеги создан", plInvoice.json?.ok === true, plInvoice.json);
+  check(
+    "бонус 14% начислен к сумме: 1000 ₽ → 2280 VC",
+    plInvoice.json?.vcAmount === 2280 && plInvoice.json?.bonusVc === 280,
+    plInvoice.json,
+  );
+  check("касса вернула ссылку на оплату", plInvoice.json?.payUrl?.includes("pay.platega.io"), plInvoice.json);
+  check(
+    "в кассу ушли ключи и номер счёта",
+    plategaRequest?.merchantId === PL_MERCHANT &&
+      plategaRequest?.secret === PL_SECRET &&
+      plategaRequest?.body?.payload === plInvoice.json.paymentId &&
+      plategaRequest?.body?.paymentDetails?.amount === 1000,
+    plategaRequest,
+  );
+
+  async function plategaCallback(body, headers = {}) {
+    const response = await fetch(BASE + "/api/payments/platega", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-MerchantId": PL_MERCHANT,
+        "X-Secret": PL_SECRET,
+        ...headers,
+      },
+      body: JSON.stringify(body),
+    });
+    return { status: response.status, text: await response.text() };
+  }
+
+  const plBadSecret = await plategaCallback(
+    { id: "tx-" + plInvoice.json.paymentId, amount: 1000, status: "CONFIRMED" },
+    { "X-Secret": "wrong-secret" },
+  );
+  check("уведомление с чужим ключом отклоняется", plBadSecret.status === 403, plBadSecret);
+
+  const balanceBeforePlatega = (await api("/api/me", { cookie: buyer.session })).json.balanceVc;
+  const plPaid = await plategaCallback({
+    id: "tx-" + plInvoice.json.paymentId,
+    amount: 1000,
+    currency: "RUB",
+    status: "CONFIRMED",
+    payload: plInvoice.json.paymentId,
+  });
+  check("оплата Платеги принята", plPaid.status === 200, plPaid);
+  const afterPlatega = await api("/api/me", { cookie: buyer.session });
+  check(
+    "VC с бонусом начислены",
+    afterPlatega.json.balanceVc === balanceBeforePlatega + 2280,
+    afterPlatega.json,
+  );
+
+  const plRepeat = await plategaCallback({
+    id: "tx-" + plInvoice.json.paymentId,
+    amount: 1000,
+    status: "CONFIRMED",
+  });
+  const afterPlRepeat = await api("/api/me", { cookie: buyer.session });
+  check(
+    "повтор уведомления не начисляет второй раз",
+    plRepeat.status === 200 && afterPlRepeat.json.balanceVc === balanceBeforePlatega + 2280,
+    afterPlRepeat.json,
+  );
+
+  const plCancelInvoice = await api("/api/payments/create", {
+    method: "POST",
+    cookie: buyer.session,
+    body: { amountRub: 500, provider: "platega" },
+  });
+  const plCanceled = await plategaCallback({
+    id: "tx-" + plCancelInvoice.json.paymentId,
+    amount: 500,
+    status: "CANCELED",
+  });
+  const afterCancel = await api("/api/me", { cookie: buyer.session });
+  check(
+    "отменённый платёж не начисляет VC",
+    plCanceled.status === 200 && afterCancel.json.balanceVc === balanceBeforePlatega + 2280,
+    afterCancel.json,
+  );
+
+  const topupWithBonus = await fetch(BASE + "/topup", { headers: { Cookie: buyer.session } });
+  // React разбивает текст комментариями-разделителями — склеиваем обратно.
+  const topupHtml = (await topupWithBonus.text()).replace(/<!-- -->/g, "");
+  check("на странице пополнения видно бонус кассы", topupHtml.includes("+14% VC"), {
+    has: topupHtml.includes("Платега"),
+  });
+
+  const providersPage = await fetch(BASE + "/panel/payments/providers", {
+    headers: { Cookie: steve.session },
+  });
+  const providersHtml = await providersPage.text();
+  check(
+    "страница касс открывается у chief",
+    providersPage.status === 200 && providersHtml.includes("Платёжные системы"),
+    { status: providersPage.status },
+  );
+  check(
+    "ключи касс не утекают на страницу",
+    !providersHtml.includes(PL_SECRET) && !providersHtml.includes(FK_SECRET2),
+    { leaked: true },
+  );
+
+  const offPlatega = await api("/api/panel/payment/providers", {
+    method: "POST",
+    cookie: steve.session,
+    body: { provider: "platega", patch: { enabled: false } },
+  });
+  check(
+    "выключенная касса пропадает у игроков",
+    !offPlatega.json?.active?.includes("platega"),
+    offPlatega.json?.active,
+  );
+
+  const afterOff = await api("/api/payments/create", {
+    method: "POST",
+    cookie: buyer.session,
+    body: { amountRub: 500, provider: "platega" },
+  });
+  check(
+    "счёт по выключенной кассе не создаётся",
+    afterOff.json?.provider !== "platega",
+    afterOff.json,
+  );
+  plategaStub.close();
 
   console.log("— Итог —");
   console.log(`Пройдено: ${passed}, провалено: ${failed}`);

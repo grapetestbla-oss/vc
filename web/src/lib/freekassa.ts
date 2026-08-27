@@ -1,15 +1,11 @@
 import { createHash } from "node:crypto";
+import type { FreeKassaConfig } from "./payments";
 
 /**
  * FreeKassa, протокол SCI. Подпись формы — md5(магазин:сумма:секрет1:валюта:заказ),
- * подпись уведомления — md5(магазин:сумма:секрет2:заказ). Секреты живут только
- * в переменных окружения: по ним можно подделать оплату.
+ * подпись уведомления — md5(магазин:сумма:секрет2:заказ). Ключи приходят из
+ * настроек касс: их заводит чиф-администратор в панели.
  */
-const MERCHANT = process.env.FREEKASSA_MERCHANT_ID ?? "";
-const SECRET1 = process.env.FREEKASSA_SECRET1 ?? "";
-const SECRET2 = process.env.FREEKASSA_SECRET2 ?? "";
-const PAY_URL = process.env.FREEKASSA_PAY_URL ?? "https://pay.fk.money/";
-const CURRENCY = process.env.FREEKASSA_CURRENCY ?? "RUB";
 
 /**
  * С этих адресов приходят уведомления. Список меняется, поэтому вынесен в
@@ -26,23 +22,20 @@ function md5(value: string): string {
   return createHash("md5").update(value).digest("hex");
 }
 
-export function freekassaConfigured(): boolean {
-  return Boolean(MERCHANT && SECRET1 && SECRET2);
-}
-
 /** Ссылка на оплату: сумму и номер заказа подписываем первым секретом. */
-export function paymentUrl(params: {
-  orderId: string;
-  amountRub: number;
-  email?: string | null;
-}): string {
+export function paymentUrl(
+  config: FreeKassaConfig,
+  params: { orderId: string; amountRub: number; email?: string | null },
+): string {
   const amount = params.amountRub.toFixed(2);
-  const signature = md5([MERCHANT, amount, SECRET1, CURRENCY, params.orderId].join(":"));
+  const signature = md5(
+    [config.merchantId, amount, config.secret1, config.currency, params.orderId].join(":"),
+  );
 
-  const url = new URL(PAY_URL);
-  url.searchParams.set("m", MERCHANT);
+  const url = new URL(config.payUrl);
+  url.searchParams.set("m", config.merchantId);
   url.searchParams.set("oa", amount);
-  url.searchParams.set("currency", CURRENCY);
+  url.searchParams.set("currency", config.currency);
   url.searchParams.set("o", params.orderId);
   url.searchParams.set("s", signature);
   url.searchParams.set("lang", "ru");
@@ -71,11 +64,13 @@ export function parseNotification(form: Record<string, string>): Notification {
 }
 
 /** Подпись уведомления. Сумму берём строкой как прислали: пересчёт ломает хэш. */
-export function notificationValid(form: Record<string, string>): boolean {
+export function notificationValid(config: FreeKassaConfig, form: Record<string, string>): boolean {
   const expected = md5(
-    [form.MERCHANT_ID ?? "", form.AMOUNT ?? "", SECRET2, form.MERCHANT_ORDER_ID ?? ""].join(":"),
+    [form.MERCHANT_ID ?? "", form.AMOUNT ?? "", config.secret2, form.MERCHANT_ORDER_ID ?? ""].join(
+      ":",
+    ),
   );
-  return expected === (form.SIGN ?? "").toLowerCase() && (form.MERCHANT_ID ?? "") === MERCHANT;
+  return expected === (form.SIGN ?? "").toLowerCase() && (form.MERCHANT_ID ?? "") === config.merchantId;
 }
 
 /** Проверка адреса отправителя. Пустой список в настройках выключает её. */

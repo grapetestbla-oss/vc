@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { db } from "@/lib/db";
 import { requirePanel } from "@/lib/panel";
 import { CONFIG } from "@/lib/config";
@@ -43,6 +44,13 @@ export default async function PanelPaymentsPage() {
           Курс 1 ₽ = {CONFIG.vcPerRub} VC · за сутки одобрено {paidToday._sum.amountRub ?? 0} ₽
         </p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight">Заявки на пополнение</h1>
+        <p className="muted mt-2 text-sm">
+          Кассы, ключи и бонусы —{" "}
+          <Link href="/panel/payments/providers" className="underline hover:text-white">
+            в платёжных системах
+          </Link>
+          . Оплаченные через кассу счета сюда не попадают: VC начисляются сами.
+        </p>
       </div>
 
       <section className="space-y-4">
@@ -55,7 +63,9 @@ export default async function PanelPaymentsPage() {
               <h3 className="text-lg font-semibold">{payment.user.login}</h3>
               <span className="text-sm" style={{ color: "var(--gold)" }}>
                 {payment.amountRub} ₽ → {payment.vcAmount.toLocaleString("ru")} VC
+                {payment.bonusVc > 0 && ` (бонус ${payment.bonusVc.toLocaleString("ru")})`}
               </span>
+              <span className="muted text-sm">{payment.provider}</span>
               <span className="muted text-sm">баланс {payment.user.balanceVc.toLocaleString("ru")} VC</span>
               <span className="muted ml-auto text-xs">{payment.createdAt.toLocaleString("ru")}</span>
             </div>
