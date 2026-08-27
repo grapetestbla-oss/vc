@@ -2148,6 +2148,126 @@ const run = async () => {
   );
   plategaStub.close();
 
+  console.log("— Каталог магазина в панели —");
+  const shopAdminByPlayer = await api("/api/panel/shop", { cookie: alex.session });
+  check("игрок не правит каталог", shopAdminByPlayer.status === 403);
+
+  const shopCatalogue = await api("/api/panel/shop", { cookie: steve.session });
+  check("chief видит каталог с выручкой", Array.isArray(shopCatalogue.json?.items), shopCatalogue.json);
+  const soldItem = shopCatalogue.json.items.find((item) => item.key === "tp_pack");
+  check("в каталоге видно, сколько раз купили", soldItem?.boughtTimes >= 1, soldItem);
+
+  const badKey = await api("/api/panel/shop", {
+    method: "POST",
+    cookie: steve.session,
+    body: { key: "Плохой Ключ", title: "х", description: "х", category: "utility", priceVc: 10, feature: "tp" },
+  });
+  check("кривой ключ отклоняется", badKey.status === 400, badKey.json);
+
+  const noFeature = await api("/api/panel/shop", {
+    method: "POST",
+    cookie: steve.session,
+    body: { key: "no_feature", title: "Без возможности", description: "х", category: "utility", priceVc: 10 },
+  });
+  check("товар без возможности не создаётся", noFeature.status === 400, noFeature.json);
+
+  const shopCreated = await api("/api/panel/shop", {
+    method: "POST",
+    cookie: steve.session,
+    body: {
+      key: "night_pack",
+      title: "Ночной телепорт ×3",
+      description: "Тестовый товар из панели.",
+      category: "teleport",
+      priceVc: 700,
+      kind: "CHARGES",
+      charges: 3,
+      feature: "tp",
+      payload: '{"cooldownSeconds": 60}',
+      sort: 5,
+    },
+  });
+  check("chief создаёт товар", shopCreated.json?.ok === true, shopCreated.json);
+
+  const shopDuplicate = await api("/api/panel/shop", {
+    method: "POST",
+    cookie: steve.session,
+    body: { key: "night_pack", title: "Дубль", description: "х", category: "utility", priceVc: 10, feature: "tp" },
+  });
+  check("второй товар с тем же ключом отклоняется", shopDuplicate.status === 400, shopDuplicate.json);
+
+  const shopBefore = await fetch(BASE + "/shop");
+  check("новый товар сразу на витрине", (await shopBefore.text()).includes("Ночной телепорт"));
+
+  const priceChange = await api("/api/panel/shop", {
+    method: "PATCH",
+    cookie: steve.session,
+    body: { key: "night_pack", priceVc: 250 },
+  });
+  check("цена меняется", priceChange.json?.ok === true, priceChange.json);
+
+  const buyerNew = await register("Nighty");
+  const buyerMe = await api("/api/me", { cookie: buyerNew.session });
+  await api("/api/panel/balance", {
+    method: "POST",
+    cookie: steve.session,
+    body: { userId: buyerMe.json.id, amount: 300, reason: "тест магазина" },
+  });
+  const boughtNew = await api("/api/shop/buy", {
+    method: "POST",
+    cookie: buyerNew.session,
+    body: { key: "night_pack" },
+  });
+  check("покупка идёт по новой цене", boughtNew.json?.balance === 50, boughtNew.json);
+
+  const deleteSold = await api("/api/panel/shop", {
+    method: "DELETE",
+    cookie: steve.session,
+    body: { key: "night_pack" },
+  });
+  check("купленный товар удалить нельзя", deleteSold.status === 400, deleteSold.json);
+
+  const shopHidden = await api("/api/panel/shop", {
+    method: "PATCH",
+    cookie: steve.session,
+    body: { key: "night_pack", active: false },
+  });
+  check("товар убирается с витрины", shopHidden.json?.ok === true, shopHidden.json);
+  const shopAfter = await fetch(BASE + "/shop");
+  check("скрытый товар пропал с витрины", !(await shopAfter.text()).includes("Ночной телепорт"));
+
+  const buyHidden = await api("/api/shop/buy", {
+    method: "POST",
+    cookie: buyerNew.session,
+    body: { key: "night_pack" },
+  });
+  check("скрытый товар не купить", buyHidden.status === 400, buyHidden.json);
+
+  const shopSpare = await api("/api/panel/shop", {
+    method: "POST",
+    cookie: steve.session,
+    body: {
+      key: "spare_pack",
+      title: "Черновик",
+      description: "Никто не купил.",
+      category: "utility",
+      priceVc: 100,
+      feature: "craft",
+    },
+  });
+  check("черновик создан", shopSpare.json?.ok === true, shopSpare.json);
+  const deleteSpare = await api("/api/panel/shop", {
+    method: "DELETE",
+    cookie: steve.session,
+    body: { key: "spare_pack" },
+  });
+  check("некупленный товар удаляется", deleteSpare.json?.ok === true, deleteSpare.json);
+
+  const shopPanelPage = await fetch(BASE + "/panel/shop", { headers: { Cookie: steve.session } });
+  check("страница каталога открывается у chief", shopPanelPage.status === 200, {
+    status: shopPanelPage.status,
+  });
+
   console.log("— Итог —");
   console.log(`Пройдено: ${passed}, провалено: ${failed}`);
   process.exit(failed === 0 ? 0 : 1);
