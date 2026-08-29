@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "./LangProvider";
 
 export default function GiveawayJoin({
   giveawayId,
@@ -14,6 +15,7 @@ export default function GiveawayJoin({
   requiredHours: number;
   joined: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -66,11 +68,15 @@ export default function GiveawayJoin({
               const data = await response.json();
               setBusy(false);
               setOk(response.ok);
-              setMessage(response.ok ? "Заявка принята" : (data.error ?? "Ошибка"));
+              setMessage(response.ok ? t("Заявка принята") : (data.error ?? t("Ошибка")));
               if (response.ok) router.refresh();
             }}
           >
-            {enough ? (busy ? "Отправляем…" : "Участвовать") : `Нужно ещё ${left} ч`}
+            {enough
+              ? busy
+                ? t("Отправляем…")
+                : t("Участвовать")
+              : t("Нужно ещё {n} ч", { n: left })}
           </button>
           {message && (
             <span className="block text-sm" style={{ color: ok ? "var(--gold)" : "var(--danger)" }}>

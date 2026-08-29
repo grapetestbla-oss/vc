@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "./LangProvider";
 import { PARTNER_PLATFORMS } from "@/lib/partners";
 
 export default function PartnerForm({ login }: { login: string }) {
+  const t = useT();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -14,10 +16,10 @@ export default function PartnerForm({ login }: { login: string }) {
     return (
       <div className="panel p-8 text-center">
         <h2 className="text-xl font-semibold" style={{ color: "var(--mint)" }}>
-          Заявка отправлена
+          {t("Заявка отправлена")}
         </h2>
         <p className="muted mt-2 text-sm">
-          Мы проверим охваты и вернёмся с ответом. Статус заявки виден в личном кабинете.
+          {t("Мы проверим охваты и вернёмся с ответом. Статус заявки виден в личном кабинете.")}
         </p>
       </div>
     );
@@ -41,20 +43,20 @@ export default function PartnerForm({ login }: { login: string }) {
         setBusy(false);
 
         if (!response.ok) {
-          setError(result.error ?? "Ошибка");
+          setError(result.error ?? t("Ошибка"));
           return;
         }
         setDone(true);
         router.refresh();
       }}
     >
-      <h2 className="text-xl font-semibold">Заявка от {login}</h2>
+      <h2 className="text-xl font-semibold">{t("Заявка от {login}", { login })}</h2>
 
       <label className="block space-y-1">
-        <span className="muted text-sm">Площадка</span>
+        <span className="muted text-sm">{t("Площадка")}</span>
         <select name="platform" className="input" required defaultValue="">
           <option value="" disabled>
-            Выберите
+            {t("Выберите")}
           </option>
           {PARTNER_PLATFORMS.map((platform) => (
             <option key={platform.key} value={platform.key}>
@@ -65,30 +67,30 @@ export default function PartnerForm({ login }: { login: string }) {
       </label>
 
       <label className="block space-y-1">
-        <span className="muted text-sm">Ссылка на канал</span>
+        <span className="muted text-sm">{t("Ссылка на канал")}</span>
         <input name="channelUrl" className="input" placeholder="https://" required />
       </label>
 
       <label className="block space-y-1">
-        <span className="muted text-sm">Охваты</span>
+        <span className="muted text-sm">{t("Охваты")}</span>
         <textarea
           name="audience"
           className="input min-h-24"
-          placeholder="Средние просмотры, зрители или участники за последние 7-30 дней"
+          placeholder={t("Средние просмотры, зрители или участники за последние 7-30 дней")}
           required
         />
         <span className="muted block text-xs">
-          Скриншот аналитики попросим отдельно — сразу приложите ссылку, если он есть.
+          {t("Скриншот аналитики попросим отдельно — сразу приложите ссылку, если он есть.")}
         </span>
       </label>
 
       <label className="block space-y-1">
-        <span className="muted text-sm">Контакт для связи</span>
-        <input name="contact" className="input" placeholder="Telegram или Discord" required />
+        <span className="muted text-sm">{t("Контакт для связи")}</span>
+        <input name="contact" className="input" placeholder={t("Telegram или Discord")} required />
       </label>
 
       <label className="block space-y-1">
-        <span className="muted text-sm">Желаемый промокод — необязательно</span>
+        <span className="muted text-sm">{t("Желаемый промокод — необязательно")}</span>
         <input
           name="desiredCode"
           className="input font-mono uppercase"
@@ -98,14 +100,14 @@ export default function PartnerForm({ login }: { login: string }) {
       </label>
 
       <label className="block space-y-1">
-        <span className="muted text-sm">Комментарий — необязательно</span>
+        <span className="muted text-sm">{t("Комментарий — необязательно")}</span>
         <textarea name="comment" className="input min-h-20" />
       </label>
 
       {error && <p className="text-sm" style={{ color: "var(--danger)" }}>{error}</p>}
 
       <button className="btn w-full" disabled={busy}>
-        {busy ? "Отправляем…" : "Отправить заявку"}
+        {busy ? t("Отправляем…") : t("Отправить заявку")}
       </button>
     </form>
   );

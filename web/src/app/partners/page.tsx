@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { currentUser } from "@/lib/session";
 import Reveal from "@/components/Reveal";
+import { translator } from "@/lib/i18n.server";
 import PartnerForm from "@/components/PartnerForm";
 import { PARTNER_PLATFORMS, PLATFORM_LABEL, STATUS_LABEL } from "@/lib/partners";
 import { CONFIG } from "@/lib/config";
@@ -11,6 +12,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Медиа-партнёрам — VanillaCraft" };
 
 export default async function PartnersPage() {
+  const t = await translator();
   const user = await currentUser();
   const [application, promo] = user
     ? await Promise.all([
@@ -28,23 +30,22 @@ export default async function PartnersPage() {
   return (
     <div className="space-y-12">
       <header className="space-y-3">
-        <p className="eyebrow fade-up">Сотрудничество</p>
+        <p className="eyebrow fade-up">{t("Сотрудничество")}</p>
         <h1 className="fade-up text-4xl font-bold tracking-tight md:text-5xl">
-          Медиа-партнёрам
+          {t("Медиа-партнёрам")}
         </h1>
         <p className="fade-up muted max-w-2xl">
-          Партнёр получает личный промокод, статус media на сервере и статистику по
-          своим игрокам в кабинете. Игрок, который ввёл ваш код при регистрации,
-          закрепляется за вами навсегда и получает {CONFIG.promoReward} VC, когда
-          дорастает до {CONFIG.promoRequiredLevel} уровня аккаунта. А вам приходит{" "}
-          {CONFIG.partnerSharePercent}% VC с каждого его пополнения — автоматически, пока код
-          активен.
+          {t("Партнёр получает личный промокод, статус media на сервере и статистику по своим игрокам в кабинете. Игрок, который ввёл ваш код при регистрации, закрепляется за вами навсегда и получает {reward} VC, когда дорастает до {level} уровня аккаунта. А вам приходит {share}% VC с каждого его пополнения — автоматически, пока код активен.", {
+            reward: CONFIG.promoReward,
+            level: CONFIG.promoRequiredLevel,
+            share: CONFIG.partnerSharePercent,
+          })}
         </p>
       </header>
 
       <Reveal>
         <section className="panel p-8">
-          <h2 className="text-xl font-semibold">Минимальные критерии</h2>
+          <h2 className="text-xl font-semibold">{t("Минимальные критерии")}</h2>
           <ul className="mt-5 space-y-3">
             {PARTNER_PLATFORMS.map((platform) => (
               <li
@@ -53,13 +54,12 @@ export default async function PartnersPage() {
                 style={{ borderColor: "var(--border)" }}
               >
                 <span className="min-w-44 font-medium">{platform.label}</span>
-                <span className="muted">{platform.requirement}</span>
+                <span className="muted">{t(platform.requirement)}</span>
               </li>
             ))}
           </ul>
           <p className="muted mt-5 text-sm">
-            Мы смотрим на живую аудиторию, а не на цифру подписчиков. Накрутки видно
-            сразу, и это отказ без второй попытки.
+            {t("Мы смотрим на живую аудиторию, а не на цифру подписчиков. Накрутки видно сразу, и это отказ без второй попытки.")}
           </p>
         </section>
       </Reveal>
@@ -68,16 +68,19 @@ export default async function PartnersPage() {
         <section className="grid gap-6 md:grid-cols-3">
           {[
             {
-              title: "Что получает партнёр",
-              text: `Личный промокод, ${CONFIG.partnerSharePercent}% VC с пополнений своих игроков, статус media в игре, красный ESP на себе, локальные погода и время, статистика в кабинете.`,
+              title: t("Что получает партнёр"),
+              text: t("Личный промокод, {share}% VC с пополнений своих игроков, статус media в игре, красный ESP на себе, локальные погода и время, статистика в кабинете.", { share: CONFIG.partnerSharePercent }),
             },
             {
-              title: "Что получает игрок",
-              text: `${CONFIG.promoReward} VC на кейсы и косметику при достижении ${CONFIG.promoRequiredLevel} уровня. Код вводится один раз при регистрации.`,
+              title: t("Что получает игрок"),
+              text: t("{reward} VC на кейсы и косметику при достижении {level} уровня. Код вводится один раз при регистрации.", {
+                reward: CONFIG.promoReward,
+                level: CONFIG.promoRequiredLevel,
+              }),
             },
             {
-              title: "Чего не будет",
-              text: "Игрового преимущества за код нет и не появится: VC тратятся только на косметику. Ванилла остаётся ваниллой.",
+              title: t("Чего не будет"),
+              text: t("Игрового преимущества за код нет и не появится: VC тратятся только на косметику. Ванилла остаётся ваниллой."),
             },
           ].map((card) => (
             <div key={card.title} className="panel panel-hover h-full p-6">
@@ -91,30 +94,35 @@ export default async function PartnersPage() {
       <Reveal delay={120}>
         {!user ? (
           <div className="panel p-8 text-center">
-            <p className="muted">Чтобы подать заявку, войдите в аккаунт.</p>
+            <p className="muted">{t("Чтобы подать заявку, войдите в аккаунт.")}</p>
             <div className="mt-4 flex justify-center gap-3">
-              <Link href="/login?next=/partners" className="btn">Войти</Link>
-              <Link href="/register" className="btn-ghost">Регистрация</Link>
+              <Link href="/login?next=/partners" className="btn">{t("Войти")}</Link>
+              <Link href="/register" className="btn-ghost">{t("Регистрация")}</Link>
             </div>
           </div>
         ) : promo ? (
           <div className="panel p-8">
-            <p className="eyebrow">Вы уже партнёр</p>
+            <p className="eyebrow">{t("Вы уже партнёр")}</p>
             <h2 className="mt-1 text-2xl font-semibold tracking-tight">{promo.code}</h2>
             <p className="muted mt-2 text-sm">
-              Активаций: {promo._count.activations} · награда игроку {promo.rewardVc} VC ·
-              нужен уровень {promo.requiredLevel}
+              {t("Активаций: {n} · награда игроку {reward} VC · нужен уровень {level}", {
+                n: promo._count.activations,
+                reward: promo.rewardVc,
+                level: promo.requiredLevel,
+              })}
             </p>
             <Link href="/cabinet" className="btn-ghost mt-4 text-sm">
-              Статистика в кабинете
+              {t("Статистика в кабинете")}
             </Link>
           </div>
         ) : application && application.status === "PENDING" ? (
           <div className="panel p-8">
-            <h2 className="text-xl font-semibold">Заявка на рассмотрении</h2>
+            <h2 className="text-xl font-semibold">{t("Заявка на рассмотрении")}</h2>
             <p className="muted mt-2 text-sm">
-              {PLATFORM_LABEL[application.platform]} · подана{" "}
-              {application.createdAt.toLocaleDateString("ru")}. Ответ придёт в кабинет.
+              {PLATFORM_LABEL[application.platform]} ·{" "}
+              {t("подана {date}. Ответ придёт в кабинет.", {
+                date: application.createdAt.toLocaleDateString("ru"),
+              })}
             </p>
           </div>
         ) : (
@@ -122,7 +130,7 @@ export default async function PartnersPage() {
             {application && (
               <div className="panel mb-6 p-6">
                 <p className="text-sm">
-                  Предыдущая заявка: {STATUS_LABEL[application.status]}
+                  {t("Предыдущая заявка:")} {t(STATUS_LABEL[application.status])}
                   {application.reviewNote && (
                     <span className="muted"> — {application.reviewNote}</span>
                   )}

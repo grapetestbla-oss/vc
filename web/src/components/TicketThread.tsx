@@ -1,3 +1,4 @@
+import { translator } from "@/lib/i18n.server";
 import { TICKET_STATUS_LABEL } from "@/lib/tickets";
 
 export type ThreadMessage = {
@@ -15,7 +16,7 @@ const STATUS_COLOR: Record<string, string | undefined> = {
 };
 
 /** Переписка по обращению: сообщения администрации выделены цветом. */
-export default function TicketThread({
+export default async function TicketThread({
   subject,
   status,
   createdAt,
@@ -28,13 +29,14 @@ export default function TicketThread({
   messages: ThreadMessage[];
   author?: string;
 }) {
+  const t = await translator();
   return (
     <div>
       <div className="flex flex-wrap items-baseline gap-3">
         <h3 className="text-lg font-semibold">{subject}</h3>
         {author && <span className="muted text-sm">{author}</span>}
         <span className="text-sm" style={{ color: STATUS_COLOR[status] }}>
-          {TICKET_STATUS_LABEL[status] ?? status}
+          {t(TICKET_STATUS_LABEL[status] ?? status)}
         </span>
         <span className="muted ml-auto text-xs">{createdAt.toLocaleString("ru")}</span>
       </div>
@@ -54,7 +56,7 @@ export default function TicketThread({
                 className="text-xs font-semibold"
                 style={{ color: message.fromStaff ? "var(--gold)" : undefined }}
               >
-                {message.fromStaff ? "Администрация" : (message.author?.login ?? "Игрок")}
+                {message.fromStaff ? t("Администрация") : (message.author?.login ?? t("Игрок"))}
               </span>
               <span className="muted text-xs">{message.createdAt.toLocaleString("ru")}</span>
             </div>

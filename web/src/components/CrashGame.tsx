@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useT } from "./LangProvider";
 import { useRouter } from "next/navigation";
 import { BetList, DisabledNotice, History, useCountdown, useTable } from "./LiveTable";
 
@@ -21,6 +22,7 @@ function colorFor(multiplier: number | null): string {
  * поставить нельзя, ставки к этому времени закрыты.
  */
 export default function CrashGame() {
+  const t = useT();
   const router = useRouter();
   const { state, reload, serverNow } = useTable("CRASH");
   const [bet, setBet] = useState(50);
@@ -75,14 +77,14 @@ export default function CrashGame() {
     });
     const data = await response.json();
     setBusy(false);
-    if (!response.ok) setError(data.error ?? "Ошибка");
+    if (!response.ok) setError(data.error ?? t("Ошибка"));
     else {
       reload();
       router.refresh();
     }
   }
 
-  if (!state) return <div className="panel muted p-6 text-sm">Подключаемся к столу…</div>;
+  if (!state) return <div className="panel muted p-6 text-sm">{t("Подключаемся к столу…")}</div>;
 
   const betting = state.round.phase === "betting";
   const mine = state.bets.find((item) => item.mine);
@@ -99,13 +101,13 @@ export default function CrashGame() {
       <div className="panel overflow-hidden p-5 sm:p-6">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <div>
-            <p className="eyebrow">Раунд #{state.round.number}</p>
+            <p className="eyebrow">{t("Раунд")} #{state.round.number}</p>
             <h2 className="mt-1 text-xl font-semibold">
-              {betting ? `Старт через ${left} с` : exploded ? "Взрыв" : "Полёт"}
+              {betting ? t("Старт через {n} с", { n: left }) : exploded ? t("Взрыв") : t("Полёт")}
             </h2>
           </div>
           <div className="text-right">
-            <p className="eyebrow">{exploded ? "Крах на" : "Множитель"}</p>
+            <p className="eyebrow">{exploded ? t("Крах на") : t("Множитель")}</p>
             <p
               className="text-4xl font-bold tabular-nums"
               style={{ color: exploded ? "#ff6b6b" : colorFor(shown) }}
@@ -150,7 +152,7 @@ export default function CrashGame() {
 
           {betting && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="muted text-sm">Ракета готовится к старту…</span>
+              <span className="muted text-sm">{t("Ракета готовится к старту…")}</span>
             </div>
           )}
         </div>
@@ -160,7 +162,7 @@ export default function CrashGame() {
       <div className="panel p-5 sm:p-6">
         <div className="flex flex-wrap items-end gap-3">
           <label className="block w-32">
-            <span className="eyebrow">Ставка, VC</span>
+            <span className="eyebrow">{t("Ставка, VC")}</span>
             <input
               type="number"
               inputMode="numeric"
@@ -172,7 +174,7 @@ export default function CrashGame() {
           </label>
 
           <label className="block w-32">
-            <span className="eyebrow">Забрать на</span>
+            <span className="eyebrow">{t("Забрать на")}</span>
             <input
               type="number"
               step="0.01"
@@ -185,10 +187,10 @@ export default function CrashGame() {
 
           <button className="btn" onClick={place} disabled={busy || !betting || Boolean(mine)}>
             {mine
-              ? `Ставка принята: ${mine.betVc} VC на x${mine.target}`
+              ? t("Ставка принята: {n} VC на x{target}", { n: mine.betVc, target: mine.target })
               : betting
-                ? "Поставить"
-                : "Ставки закрыты"}
+                ? t("Поставить")
+                : t("Ставки закрыты")}
           </button>
         </div>
 
@@ -198,8 +200,7 @@ export default function CrashGame() {
           </p>
         )}
         <p className="muted mt-3 text-xs">
-          Точка вывода выбирается заранее: ракета сама заберёт ставку на x{target || "…"}, если
-          долетит.
+          {t("Точка вывода выбирается заранее: ракета сама заберёт ставку на x{target}, если долетит.", { target: target || "…" })}
         </p>
       </div>
       ) : (

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "./LangProvider";
 import { rarityColor, rarityLabel, KIND_LABEL } from "@/lib/rarity";
 
 export default function CosmeticCard({
@@ -21,6 +22,7 @@ export default function CosmeticCard({
     obtainable: boolean;
   };
 }) {
+  const t = useT();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +39,7 @@ export default function CosmeticCard({
     const data = await response.json();
     setBusy(false);
     if (!response.ok) {
-      setError(data.error ?? "Ошибка");
+      setError(data.error ?? t("Ошибка"));
       return;
     }
     router.refresh();
@@ -54,12 +56,12 @@ export default function CosmeticCard({
             {item.name}
           </h3>
           <p className="muted text-xs">
-            {rarityLabel(item.rarity)} · {KIND_LABEL[item.kind]}
+            {t(rarityLabel(item.rarity))} · {t(KIND_LABEL[item.kind])}
             {item.serial && ` · #${item.serial}`}
           </p>
         </div>
         {item.serialLimit && (
-          <span className="muted shrink-0 text-xs">тираж {item.serialLimit}</span>
+          <span className="muted shrink-0 text-xs">{t("тираж")} {item.serialLimit}</span>
         )}
       </div>
 
@@ -72,7 +74,7 @@ export default function CosmeticCard({
             disabled={busy}
             onClick={() => call("/api/cosmetics/equip", { key: item.key, equipped: !item.equipped })}
           >
-            {item.equipped ? "Снять" : "Надеть"}
+            {item.equipped ? t("Снять") : t("Надеть")}
           </button>
         ) : item.shardPrice && item.obtainable ? (
           <button
@@ -80,11 +82,11 @@ export default function CosmeticCard({
             disabled={busy}
             onClick={() => call("/api/cosmetics/buy", { key: item.key })}
           >
-            Купить за {item.shardPrice} осколков
+            {t("Купить за {n} осколков", { n: item.shardPrice })}
           </button>
         ) : (
           <p className="muted text-center text-xs">
-            {item.obtainable ? "Выпадает только из кейсов" : "Награда за коллекцию"}
+            {item.obtainable ? t("Выпадает только из кейсов") : t("Награда за коллекцию")}
           </p>
         )}
       </div>

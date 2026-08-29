@@ -2,6 +2,8 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import Reveal from "@/components/Reveal";
 import CountUp from "@/components/CountUp";
+import { translate } from "@/lib/i18n";
+import { getLang } from "@/lib/i18n.server";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +26,8 @@ const FEATURES = [
 ];
 
 export default async function HomePage() {
+  const lang = await getLang();
+  const t = translate(lang);
   const dayAgo = new Date(Date.now() - 86_400_000);
   const [players, online, jailed, news] = await Promise.all([
     db.user.count(),
@@ -38,10 +42,10 @@ export default async function HomePage() {
   const todayRegistrations = await db.user.count({ where: { createdAt: { gt: dayAgo } } });
 
   const stats = [
-    { label: "Игроков", value: players },
-    { label: "Онлайн сейчас", value: online, live: true },
-    { label: "Новых за сутки", value: todayRegistrations },
-    { label: "Отрабатывают срок", value: jailed },
+    { label: t("Игроков"), value: players },
+    { label: t("Онлайн сейчас"), value: online, live: true },
+    { label: t("Новых за сутки"), value: todayRegistrations },
+    { label: t("Отрабатывают срок"), value: jailed },
   ];
 
   return (
@@ -52,21 +56,20 @@ export default async function HomePage() {
           className="fade-up mt-4 text-5xl font-bold leading-[1.05] tracking-tight md:text-7xl"
           style={{ animationDelay: "80ms" }}
         >
-          Ванилла,
+          {t("Ванилла,")}
           <br />
-          <span className="gradient-text">какой она была</span>
+          <span className="gradient-text">{t("какой она была")}</span>
         </h1>
         <p
           className="fade-up muted mt-6 max-w-xl text-lg"
           style={{ animationDelay: "160ms" }}
         >
-          Чистое выживание без приватов и китов за донат. Нарушил — идёшь на
-          исправительные работы, а не в бан-лист.
+          {t("Чистое выживание без приватов и китов за донат. Нарушил — идёшь на исправительные работы, а не в бан-лист.")}
         </p>
 
         <div className="fade-up mt-8 flex flex-wrap gap-3" style={{ animationDelay: "240ms" }}>
-          <Link href="/register" className="btn">Начать играть</Link>
-          <Link href="/news" className="btn-ghost">Что нового</Link>
+          <Link href="/register" className="btn">{t("Начать играть")}</Link>
+          <Link href="/news" className="btn-ghost">{t("Что нового")}</Link>
         </div>
 
         <div className="fade-up mt-14 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" style={{ animationDelay: "320ms" }}>
@@ -86,7 +89,7 @@ export default async function HomePage() {
 
       <section className="space-y-6">
         <Reveal>
-          <h2 className="text-3xl font-bold tracking-tight md:text-4xl">Как здесь устроено</h2>
+          <h2 className="text-3xl font-bold tracking-tight md:text-4xl">{t("Как здесь устроено")}</h2>
         </Reveal>
         <div className="grid gap-4 md:grid-cols-3">
           {FEATURES.map((feature, index) => (
@@ -96,8 +99,8 @@ export default async function HomePage() {
                   className="block h-1 w-10 rounded-full"
                   style={{ background: feature.accent }}
                 />
-                <h3 className="mt-4 text-xl font-semibold">{feature.title}</h3>
-                <p className="muted mt-3 text-sm leading-6">{feature.text}</p>
+                <h3 className="mt-4 text-xl font-semibold">{t(feature.title)}</h3>
+                <p className="muted mt-3 text-sm leading-6">{t(feature.text)}</p>
               </div>
             </Reveal>
           ))}
@@ -108,10 +111,10 @@ export default async function HomePage() {
         <section className="space-y-6">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <Reveal>
-              <h2 className="text-3xl font-bold tracking-tight md:text-4xl">Новости</h2>
+              <h2 className="text-3xl font-bold tracking-tight md:text-4xl">{t("Новости")}</h2>
             </Reveal>
             <Link href="/news" className="muted text-sm hover:text-white">
-              все новости →
+              {t("все новости")} →
             </Link>
           </div>
           <div className="grid gap-4 md:grid-cols-3">
@@ -119,7 +122,7 @@ export default async function HomePage() {
               <Reveal key={item.id} delay={index * 90}>
                 <Link href={`/news/${item.slug}`} className="panel panel-hover group block h-full p-6">
                   <span className="muted text-xs">
-                    {item.createdAt.toLocaleDateString("ru", { day: "numeric", month: "long" })}
+                    {item.createdAt.toLocaleDateString(lang, { day: "numeric", month: "long" })}
                   </span>
                   <h3 className="mt-2 text-lg font-semibold transition-colors group-hover:text-[var(--gold)]">
                     {item.title}
@@ -143,13 +146,12 @@ export default async function HomePage() {
           />
           <div className="relative">
             <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
-              Аккаунт один — для сайта и игры
+              {t("Аккаунт один — для сайта и игры")}
             </h2>
             <p className="muted mx-auto mt-4 max-w-xl">
-              Зарегистрируйтесь, зайдите на сервер под тем же ником и введите
-              пароль. С нового устройства сервер спросит код из личного кабинета.
+              {t("Зарегистрируйтесь, зайдите на сервер под тем же ником и введите пароль. С нового устройства сервер спросит код из личного кабинета.")}
             </p>
-            <Link href="/register" className="btn mt-8">Создать аккаунт</Link>
+            <Link href="/register" className="btn mt-8">{t("Создать аккаунт")}</Link>
           </div>
         </section>
       </Reveal>

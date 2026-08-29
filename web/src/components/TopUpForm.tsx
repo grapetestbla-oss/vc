@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "./LangProvider";
 
 const METHODS = ["СБП", "Карта", "ЮMoney", "Крипта", "Другое"];
 
@@ -29,6 +30,7 @@ export default function TopUpForm({
   /** Подключённые кассы: у каждой свой бонус к VC. */
   providers: ProviderOption[];
 }) {
+  const t = useT();
   const router = useRouter();
   const [amount, setAmount] = useState(250);
   const [provider, setProvider] = useState(providers[0]?.key ?? "manual");
@@ -48,8 +50,7 @@ export default function TopUpForm({
     return (
       <div className="panel p-5 sm:p-6">
         <p className="muted text-sm">
-          Пополнение временно отключено. Загляните позже — кассы вернут, как только закончим
-          настройку.
+          {t("Пополнение временно отключено. Загляните позже — кассы вернут, как только закончим настройку.")}
         </p>
       </div>
     );
@@ -59,8 +60,7 @@ export default function TopUpForm({
     return (
       <div className="panel p-5 sm:p-6">
         <p className="muted text-sm">
-          У вас уже есть заявка на рассмотрении. Дождитесь ответа администрации — новую можно
-          создать после того, как эту одобрят или отклонят.
+          {t("У вас уже есть заявка на рассмотрении. Дождитесь ответа администрации — новую можно создать после того, как эту одобрят или отклонят.")}
         </p>
       </div>
     );
@@ -81,14 +81,14 @@ export default function TopUpForm({
                 style={active ? { borderColor: "var(--gold)" } : undefined}
               >
                 <div className="flex flex-wrap items-baseline gap-x-2">
-                  <span className="font-semibold">{item.title}</span>
+                  <span className="font-semibold">{t(item.title)}</span>
                   {item.bonusPercent > 0 && (
                     <span className="text-sm" style={{ color: "var(--gold)" }}>
                       +{item.bonusPercent}% VC
                     </span>
                   )}
                 </div>
-                <div className="muted mt-1 text-sm">{item.hint}</div>
+                <div className="muted mt-1 text-sm">{t(item.hint)}</div>
               </button>
             );
           })}
@@ -146,15 +146,18 @@ export default function TopUpForm({
         setOk(response.ok);
         setMessage(
           response.ok
-            ? `Заявка создана на ${data.vcAmount.toLocaleString("ru")} VC. Переведите ${data.amountRub} ₽ и ждите подтверждения.`
-            : (data.error ?? "Ошибка"),
+            ? t("Заявка создана на {vc} VC. Переведите {rub} ₽ и ждите подтверждения.", {
+                vc: data.vcAmount.toLocaleString("ru"),
+                rub: data.amountRub,
+              })
+            : (data.error ?? t("Ошибка")),
         );
         if (response.ok) router.refresh();
       }}
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block">
-          <span className="eyebrow">Сумма, ₽</span>
+          <span className="eyebrow">{t("Сумма, ₽")}</span>
           <input
             name="amountRub"
             type="number"
@@ -170,20 +173,23 @@ export default function TopUpForm({
         </label>
 
         <div>
-          <span className="eyebrow">Получите</span>
+          <span className="eyebrow">{t("Получите")}</span>
           <div className="mt-1 text-2xl font-semibold tabular-nums" style={{ color: "var(--gold)" }}>
             {vcFor(Math.floor(amount)).toLocaleString("ru")} VC
           </div>
           {bonusPercent > 0 && (
             <div className="muted text-xs">
-              включая бонус +{bonusPercent}% за оплату через {current?.title}
+              {t("включая бонус +{n}% за оплату через {provider}", {
+                n: bonusPercent,
+                provider: t(current?.title ?? ""),
+              })}
             </div>
           )}
         </div>
 
         {!auto && (
         <label className="block">
-          <span className="eyebrow">Способ оплаты</span>
+          <span className="eyebrow">{t("Способ оплаты")}</span>
           <select name="method" className="input mt-1 w-full" required defaultValue={METHODS[0]}>
             {METHODS.map((method) => (
               <option key={method} value={method}>
@@ -196,11 +202,11 @@ export default function TopUpForm({
 
         {!auto && (
         <label className="block">
-          <span className="eyebrow">Контакт для связи</span>
+          <span className="eyebrow">{t("Контакт для связи")}</span>
           <input
             name="contact"
             className="input mt-1 w-full"
-            placeholder="Telegram, Discord или почта"
+            placeholder={t("Telegram, Discord или почта")}
             required
           />
         </label>
@@ -209,18 +215,24 @@ export default function TopUpForm({
 
       {!auto && (
         <label className="block">
-          <span className="eyebrow">Комментарий</span>
+          <span className="eyebrow">{t("Комментарий")}</span>
           <textarea
             name="comment"
             className="input mt-1 h-24 w-full"
-            placeholder="Например: перевод с карты **** 1234 в 19:40"
+            placeholder={t("Например: перевод с карты **** 1234 в 19:40")}
           />
         </label>
       )}
 
       <div className="space-y-3 sm:flex sm:flex-wrap sm:items-center sm:gap-3 sm:space-y-0">
         <button className="btn w-full sm:w-auto" disabled={busy}>
-          {busy ? (auto ? "Переходим к оплате…" : "Отправляем…") : auto ? "Перейти к оплате" : "Отправить заявку"}
+          {busy
+            ? auto
+              ? t("Переходим к оплате…")
+              : t("Отправляем…")
+            : auto
+              ? t("Перейти к оплате")
+              : t("Отправить заявку")}
         </button>
         {message && (
           <span

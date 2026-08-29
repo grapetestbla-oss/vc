@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import Reveal from "@/components/Reveal";
+import { translate } from "@/lib/i18n";
+import { getLang } from "@/lib/i18n.server";
 import { readingTime } from "@/lib/news";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +10,8 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Новости — VanillaCoins" };
 
 export default async function NewsPage() {
+  const lang = await getLang();
+  const t = translate(lang);
   const news = await db.news.findMany({
     where: { published: true },
     orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
@@ -20,12 +24,12 @@ export default async function NewsPage() {
   return (
     <div className="space-y-10">
       <header className="space-y-3">
-        <p className="eyebrow fade-up">Что происходит на сервере</p>
-        <h1 className="fade-up text-4xl font-bold tracking-tight md:text-5xl">Новости</h1>
+        <p className="eyebrow fade-up">{t("Что происходит на сервере")}</p>
+        <h1 className="fade-up text-4xl font-bold tracking-tight md:text-5xl">{t("Новости")}</h1>
       </header>
 
       {news.length === 0 && (
-        <p className="muted">Пока ничего не публиковали.</p>
+        <p className="muted">{t("Пока ничего не публиковали.")}</p>
       )}
 
       {lead && (
@@ -40,12 +44,12 @@ export default async function NewsPage() {
                   className="rounded-full px-3 py-1 text-xs font-medium"
                   style={{ background: "rgba(245,196,81,0.14)", color: "var(--gold)" }}
                 >
-                  Закреплено
+                  {t("Закреплено")}
                 </span>
               )}
               <span className="muted text-sm">
-                {lead.createdAt.toLocaleDateString("ru", { day: "numeric", month: "long" })} ·{" "}
-                {readingTime(lead.body)} мин чтения
+                {lead.createdAt.toLocaleDateString(lang, { day: "numeric", month: "long" })} ·{" "}
+                {t("{n} мин чтения", { n: readingTime(lead.body) })}
               </span>
             </div>
 
@@ -54,7 +58,7 @@ export default async function NewsPage() {
             </h2>
             <p className="muted mt-3 max-w-3xl text-lg">{lead.summary}</p>
             <span className="mt-6 inline-flex items-center gap-2 text-sm" style={{ color: "var(--gold)" }}>
-              Читать
+              {t("Читать")}
               <span className="transition-transform group-hover:translate-x-1">→</span>
             </span>
           </Link>
@@ -69,14 +73,15 @@ export default async function NewsPage() {
               className="panel panel-hover group flex h-full flex-col p-6"
             >
               <span className="muted text-xs">
-                {item.createdAt.toLocaleDateString("ru", { day: "numeric", month: "long" })}
+                {item.createdAt.toLocaleDateString(lang, { day: "numeric", month: "long" })}
               </span>
               <h3 className="mt-2 text-xl font-semibold transition-colors group-hover:text-[var(--gold)]">
                 {item.title}
               </h3>
               <p className="muted mt-2 line-clamp-3 flex-1 text-sm">{item.summary}</p>
               <span className="muted mt-4 text-xs">
-                {item.author?.login ?? "администрация"} · {readingTime(item.body)} мин
+                {item.author?.login ?? t("администрация")} ·{" "}
+                {t("{n} мин", { n: readingTime(item.body) })}
               </span>
             </Link>
           </Reveal>

@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useT } from "./LangProvider";
 import { useRouter, useSearchParams } from "next/navigation";
 
 export default function AuthForm({ mode }: { mode: "login" | "register" }) {
+  const t = useT();
   const router = useRouter();
   const params = useSearchParams();
   const [error, setError] = useState<string | null>(null);
@@ -35,12 +37,14 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
     setBusy(false);
 
     if (!response.ok) {
-      setError(data.error ?? "Ошибка");
+      setError(data.error ?? t("Ошибка"));
       return;
     }
     if (data.promoError) {
       // Аккаунт создан, но код не подошёл — говорим об этом до перехода.
-      setNotice(`Аккаунт создан, но промокод не принят: ${data.promoError}`);
+      setNotice(
+        t("Аккаунт создан, но промокод не принят: {error}", { error: data.promoError }),
+      );
       setTimeout(() => router.push("/cabinet"), 2500);
       router.refresh();
       return;
@@ -58,10 +62,10 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
   return (
     <form onSubmit={submit} className="panel mx-auto max-w-md space-y-4 p-6 sm:p-8">
       <h1 className="text-xl font-bold">
-        {mode === "login" ? "Вход" : "Регистрация"}
+        {mode === "login" ? t("Вход") : t("Регистрация")}
       </h1>
       <p className="muted text-sm">
-        Этот же логин и пароль используются для входа на сервере.
+        {t("Этот же логин и пароль используются для входа на сервере.")}
       </p>
 
       {mode === "register" && (
@@ -75,37 +79,40 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
       )}
 
       <label className="block space-y-1">
-        <span className="muted text-sm">Логин (ник в игре)</span>
+        <span className="muted text-sm">{t("Логин (ник в игре)")}</span>
         <input name="login" className="input" autoComplete="username" required />
       </label>
 
       {mode === "register" && (
         <>
           <label className="block space-y-1">
-            <span className="muted text-sm">Почта</span>
+            <span className="muted text-sm">{t("Почта")}</span>
             <input name="email" type="email" className="input" autoComplete="email" required />
           </label>
 
           <label className="block space-y-1">
-            <span className="muted text-sm">Промокод — необязательно</span>
+            <span className="muted text-sm">{t("Промокод — необязательно")}</span>
             <input
               name="promo"
               className="input font-mono uppercase"
-              placeholder="код блогера"
+              placeholder={t("код блогера")}
               autoCapitalize="characters"
               defaultValue={promoFromLink}
             />
             <span className="muted block text-xs">
               {promoFromLink
-                ? `Код ${promoFromLink} подставлен из ссылки партнёра. Его можно стереть или заменить — но только сейчас: после регистрации код не меняется.`
-                : "Вводится один раз при регистрации и навсегда остаётся за аккаунтом. Награда придёт, когда аккаунт дорастёт до третьего уровня."}
+                ? t(
+                    "Код {code} подставлен из ссылки партнёра. Его можно стереть или заменить — но только сейчас: после регистрации код не меняется.",
+                    { code: promoFromLink },
+                  )
+                : t("Вводится один раз при регистрации и навсегда остаётся за аккаунтом. Награда придёт, когда аккаунт дорастёт до третьего уровня.")}
             </span>
           </label>
         </>
       )}
 
       <label className="block space-y-1">
-        <span className="muted text-sm">Пароль</span>
+        <span className="muted text-sm">{t("Пароль")}</span>
         <input
           name="password"
           type="password"
@@ -126,9 +133,9 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
               required
             />
             <span className="muted">
-              Я принимаю{" "}
+              {t("Я принимаю")}{" "}
               <Link href="/terms" target="_blank" className="underline hover:text-white">
-                пользовательское соглашение
+                {t("пользовательское соглашение")}
               </Link>
             </span>
           </label>
@@ -142,9 +149,9 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
               required
             />
             <span className="muted">
-              Я согласен с{" "}
+              {t("Я согласен с")}{" "}
               <Link href="/privacy" target="_blank" className="underline hover:text-white">
-                политикой конфиденциальности
+                {t("политикой конфиденциальности")}
               </Link>
             </span>
           </label>
@@ -158,22 +165,22 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
         className="btn w-full"
         disabled={busy || (mode === "register" && (!acceptTerms || !acceptPrivacy))}
       >
-        {busy ? "…" : mode === "login" ? "Войти" : "Создать аккаунт"}
+        {busy ? "…" : mode === "login" ? t("Войти") : t("Создать аккаунт")}
       </button>
 
       <p className="muted text-center text-sm">
         {mode === "login" ? (
           <>
-            Нет аккаунта?{" "}
+            {t("Нет аккаунта?")}{" "}
             <Link href={next("/register")} className="underline hover:text-white">
-              Зарегистрироваться
+              {t("Зарегистрироваться")}
             </Link>
           </>
         ) : (
           <>
-            Уже есть аккаунт?{" "}
+            {t("Уже есть аккаунт?")}{" "}
             <Link href={next("/login")} className="underline hover:text-white">
-              Войти в существующий
+              {t("Войти в существующий")}
             </Link>
           </>
         )}

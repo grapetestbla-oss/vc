@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useT } from "./LangProvider";
 
 export type Bet = {
   login: string;
@@ -41,14 +42,14 @@ export type TableState = {
 
 /** Плашка вместо формы ставки, когда игра закрыта администрацией. */
 export function DisabledNotice({ game }: { game: string }) {
+  const t = useT();
   return (
     <div className="panel p-5 sm:p-6">
       <h2 className="text-lg font-semibold" style={{ color: "var(--danger)" }}>
-        {game} временно выключена
+        {t("{game} временно выключена", { game: t(game) })}
       </h2>
       <p className="muted mt-2 text-sm">
-        Администрация закрыла игру — новые ставки не принимаются. Ставки, сделанные раньше,
-        разыгрываются и выплачиваются как обычно.
+        {t("Администрация закрыла игру — новые ставки не принимаются. Ставки, сделанные раньше, разыгрываются и выплачиваются как обычно.")}
       </p>
     </div>
   );
@@ -99,18 +100,19 @@ export function useCountdown(target: number, serverNow: () => number) {
 }
 
 export function BetList({ bets, unit }: { bets: Bet[]; unit: string }) {
+  const t = useT();
   const total = bets.reduce((sum, bet) => sum + bet.betVc, 0);
 
   return (
     <div className="panel p-5 sm:p-6">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-lg font-semibold">Ставки раунда</h2>
+        <h2 className="text-lg font-semibold">{t("Ставки раунда")}</h2>
         <span className="muted text-sm tabular-nums">
           {bets.length} · {total.toLocaleString("ru")} VC
         </span>
       </div>
 
-      {bets.length === 0 && <p className="muted mt-3 text-sm">Пока никто не поставил.</p>}
+      {bets.length === 0 && <p className="muted mt-3 text-sm">{t("Пока никто не поставил.")}</p>}
 
       <div className="mt-3 max-h-64 space-y-1 overflow-y-auto pr-1">
         {bets.map((bet, index) => (
@@ -149,13 +151,14 @@ export function History({
   history: HistoryItem[];
   render: (item: HistoryItem) => { label: string; color: string };
 }) {
+  const t = useT();
   const [open, setOpen] = useState<number | null>(null);
 
   return (
     <div className="panel p-5 sm:p-6">
-      <h2 className="text-lg font-semibold">Прошлые раунды</h2>
+      <h2 className="text-lg font-semibold">{t("Прошлые раунды")}</h2>
       <p className="muted mt-1 text-sm">
-        Нажмите на результат — покажем сид раунда, по нему результат пересчитывается вручную.
+        {t("Нажмите на результат — покажем сид раунда, по нему результат пересчитывается вручную.")}
       </p>
 
       <div className="mt-4 flex flex-wrap gap-2">
@@ -172,7 +175,7 @@ export function History({
             </button>
           );
         })}
-        {history.length === 0 && <span className="muted text-sm">Раундов ещё не было.</span>}
+        {history.length === 0 && <span className="muted text-sm">{t("Раундов ещё не было.")}</span>}
       </div>
 
       {open !== null && (
@@ -182,8 +185,8 @@ export function History({
             if (!item) return null;
             return (
               <>
-                <div className="muted">раунд #{item.number}</div>
-                <div>бросок: {item.roll?.toFixed(8)}</div>
+                <div className="muted">{t("раунд")} #{item.number}</div>
+                <div>{t("бросок:")} {item.roll?.toFixed(8)}</div>
                 <div>server seed: {item.serverSeed}</div>
                 <div className="muted">hash: {item.serverSeedHash}</div>
               </>

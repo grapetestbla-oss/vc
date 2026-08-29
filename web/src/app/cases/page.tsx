@@ -3,11 +3,13 @@ import { db } from "@/lib/db";
 import CaseOpener from "@/components/CaseOpener";
 import { currentUser } from "@/lib/session";
 import Reveal from "@/components/Reveal";
+import { translator } from "@/lib/i18n.server";
 import { rarityColor, rarityLabel, KIND_LABEL } from "@/lib/rarity";
 
 export const dynamic = "force-dynamic";
 
 export default async function CasesPage() {
+  const t = await translator();
   const user = await currentUser();
   const cases = await db.caseType.findMany({
     where: { active: true },
@@ -34,22 +36,21 @@ export default async function CasesPage() {
   return (
     <div className="space-y-10">
       <header className="space-y-3">
-        <p className="eyebrow fade-up">Первый сезон</p>
-        <h1 className="fade-up text-4xl font-bold tracking-tight md:text-5xl">Кейсы</h1>
+        <p className="eyebrow fade-up">{t("Первый сезон")}</p>
+        <h1 className="fade-up text-4xl font-bold tracking-tight md:text-5xl">{t("Кейсы")}</h1>
         <p className="fade-up muted max-w-2xl">
-          Внутри — только то, что видно другим игрокам: шлейфы, ауры, питомцы, шляпы,
-          эффекты входа и метки в мире. Ничего, что даёт преимущество в игре.
-          Шансы указаны честно, дубли превращаются в осколки, а гарант не даёт
-          застрять в невезении.
+          {t("Внутри — только то, что видно другим игрокам: шлейфы, ауры, питомцы, шляпы, эффекты входа и метки в мире. Ничего, что даёт преимущество в игре. Шансы указаны честно, дубли превращаются в осколки, а гарант не даёт застрять в невезении.")}
         </p>
         {user && (
           <p className="fade-up text-sm">
             <span style={{ color: "var(--gold)" }}>{user.balanceVc.toLocaleString("ru")} VC</span>
             <span className="muted"> · </span>
-            <span style={{ color: "var(--mint)" }}>{user.shards.toLocaleString("ru")} осколков</span>
+            <span style={{ color: "var(--mint)" }}>
+              {t("{n} осколков", { n: user.shards.toLocaleString("ru") })}
+            </span>
             <span className="muted"> · </span>
             <Link href="/collection" className="muted underline hover:text-white">
-              моя коллекция
+              {t("моя коллекция")}
             </Link>
           </p>
         )}
@@ -61,7 +62,9 @@ export default async function CasesPage() {
           const pity = pityCounters.find((counter) => counter.caseKey === caseType.key);
           const slots = caseType.items.map((item) => ({
             id: item.id,
-            label: item.cosmetic?.name ?? `${item.amount} ${item.kind === "VC" ? "VC" : "оск."}`,
+            label:
+              item.cosmetic?.name ??
+              `${item.amount} ${item.kind === "VC" ? "VC" : t("оск.")}`,
             rarity: item.cosmetic?.rarity ?? "common",
             kind: item.cosmetic?.kind ?? null,
           }));
@@ -79,7 +82,9 @@ export default async function CasesPage() {
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <h2 className="text-2xl font-semibold">{caseType.name}</h2>
                   <span className="text-sm tabular-nums" style={{ color: "var(--gold)" }}>
-                    {caseType.freeDaily ? "бесплатно, раз в сутки" : `${caseType.priceVc} VC`}
+                    {caseType.freeDaily
+                      ? t("бесплатно, раз в сутки")
+                      : `${caseType.priceVc} VC`}
                   </span>
                 </div>
                 <p className="muted mt-2 text-sm">{caseType.description}</p>
@@ -96,12 +101,13 @@ export default async function CasesPage() {
                         />
                         <span style={{ color }}>
                           {item.cosmetic?.name ??
-                            `${item.amount} ${item.kind === "VC" ? "VC" : "осколков"}`}
+                            `${item.amount} ${item.kind === "VC" ? "VC" : t("осколков")}`}
                         </span>
                         {item.cosmetic && (
                           <span className="muted text-xs">
-                            {KIND_LABEL[item.cosmetic.kind]}
-                            {item.cosmetic.serialLimit && ` · всего ${item.cosmetic.serialLimit} шт.`}
+                            {t(KIND_LABEL[item.cosmetic.kind])}
+                            {item.cosmetic.serialLimit &&
+                              ` · ${t("всего {n} шт.", { n: item.cosmetic.serialLimit })}`}
                           </span>
                         )}
                         <span className="muted ml-auto tabular-nums text-xs">
@@ -128,7 +134,7 @@ export default async function CasesPage() {
                     />
                   ) : (
                     <Link href="/login?next=/cases" className="btn-ghost">
-                      Войти, чтобы открывать
+                      {t("Войти, чтобы открывать")}
                     </Link>
                   )}
                 </div>
@@ -140,33 +146,31 @@ export default async function CasesPage() {
 
       <Reveal>
         <section className="panel p-6">
-          <h2 className="text-xl font-semibold">Как это работает</h2>
+          <h2 className="text-xl font-semibold">{t("Как это работает")}</h2>
           <ul className="muted mt-4 grid gap-3 text-sm md:grid-cols-2">
             <li>
-              <span style={{ color: "var(--gold)" }}>Гарант.</span> Счётчик открытий
-              без легендарки виден прямо на кейсе. Дошёл до предела — легендарка выпадает
-              принудительно, счётчик обнуляется.
+              <span style={{ color: "var(--gold)" }}>{t("Гарант.")}</span>{" "}
+              {t("Счётчик открытий без легендарки виден прямо на кейсе. Дошёл до предела — легендарка выпадает принудительно, счётчик обнуляется.")}
             </li>
             <li>
-              <span style={{ color: "var(--gold)" }}>Дубли.</span> Уже имеющийся предмет
-              превращается в осколки: 30 за обычный, 90 за редкий, 300 за эпический,
-              900 за легендарный.
+              <span style={{ color: "var(--gold)" }}>{t("Дубли.")}</span>{" "}
+              {t("Уже имеющийся предмет превращается в осколки: 30 за обычный, 90 за редкий, 300 за эпический, 900 за легендарный.")}
             </li>
             <li>
-              <span style={{ color: "var(--gold)" }}>Осколки.</span> За них покупается
-              конкретный предмет из каталога — без всякой случайности.
+              <span style={{ color: "var(--gold)" }}>{t("Осколки.")}</span>{" "}
+              {t("За них покупается конкретный предмет из каталога — без всякой случайности.")}
             </li>
             <li>
-              <span style={{ color: "var(--gold)" }}>Коллекции.</span> Собрали весь набор —
-              получаете предмет, которого нет ни в одном кейсе.
+              <span style={{ color: "var(--gold)" }}>{t("Коллекции.")}</span>{" "}
+              {t("Собрали весь набор — получаете предмет, которого нет ни в одном кейсе.")}
             </li>
             <li>
-              <span style={{ color: "var(--gold)" }}>Экземпляры.</span> У части предметов
-              ограниченный тираж: вам достанется номер, и он останется за вами.
+              <span style={{ color: "var(--gold)" }}>{t("Экземпляры.")}</span>{" "}
+              {t("У части предметов ограниченный тираж: вам достанется номер, и он останется за вами.")}
             </li>
             <li>
-              <span style={{ color: "var(--gold)" }}>Честность.</span> Каждое открытие
-              подписано хэшем сида — результат нельзя подкрутить задним числом.
+              <span style={{ color: "var(--gold)" }}>{t("Честность.")}</span>{" "}
+              {t("Каждое открытие подписано хэшем сида — результат нельзя подкрутить задним числом.")}
             </li>
           </ul>
         </section>

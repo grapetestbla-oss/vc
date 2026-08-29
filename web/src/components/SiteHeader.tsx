@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import LogoutButton from "./LogoutButton";
+import LanguageSwitcher from "./LanguageSwitcher";
+import { useT } from "./LangProvider";
 
 const LINKS = [
   { href: "/news", label: "Новости" },
@@ -23,6 +25,7 @@ export default function SiteHeader({
   user: { login: string; balanceVc: number; adminLevel: number } | null;
   showGames?: boolean;
 }) {
+  const t = useT();
   const links = LINKS.filter((link) => showGames || link.href !== "/games");
 
   const pathname = usePathname();
@@ -63,7 +66,7 @@ export default function SiteHeader({
                 className="relative whitespace-nowrap rounded-lg px-2 py-1.5 text-sm transition-colors lg:px-3"
                 style={{ color: active ? "var(--text)" : "var(--muted)" }}
               >
-                {link.label}
+                {t(link.label)}
                 <span
                   className="absolute inset-x-3 -bottom-0.5 h-px origin-left transition-transform duration-300"
                   style={{
@@ -90,7 +93,7 @@ export default function SiteHeader({
               </Link>
               {user.adminLevel >= 3 && (
                 <Link href="/panel" className="btn-ghost hidden text-sm sm:inline-flex">
-                  Панель
+                  {t("Панель")}
                 </Link>
               )}
               <LogoutButton className="btn-ghost hidden text-sm md:inline-flex" />
@@ -98,17 +101,18 @@ export default function SiteHeader({
           ) : (
             <>
               <Link href="/login" className="btn-ghost text-sm">
-                Войти
+                {t("Войти")}
               </Link>
               <Link href="/register" className="btn text-sm">
-                Регистрация
+                {t("Регистрация")}
               </Link>
             </>
           )}
+          <LanguageSwitcher className="hidden sm:flex" />
           <button
             className="btn-ghost px-3 py-1.5 text-sm md:hidden"
             onClick={() => setOpen((value) => !value)}
-            aria-label="Меню"
+            aria-label={t("Меню")}
           >
             ☰
           </button>
@@ -126,23 +130,23 @@ export default function SiteHeader({
                 {user.balanceVc.toLocaleString("ru")} VC
               </span>
               <Link href="/topup" className="btn text-sm">
-                Пополнить
+                {t("Пополнить")}
               </Link>
             </div>
           )}
           {links.map((link) => (
             <Link key={link.href} href={link.href} className="muted block py-3 text-base">
-              {link.label}
+              {t(link.label)}
             </Link>
           ))}
           {user ? (
             <>
               <Link href="/cabinet" className="muted block py-3 text-base">
-                Личный кабинет
+                {t("Личный кабинет")}
               </Link>
               {user.adminLevel >= 3 && (
                 <Link href="/panel" className="muted block py-3 text-base">
-                  Панель
+                  {t("Панель")}
                 </Link>
               )}
               <LogoutButton className="btn-ghost mt-3 w-full justify-center" />
@@ -150,13 +154,16 @@ export default function SiteHeader({
           ) : (
             <div className="mt-3 flex gap-2">
               <Link href="/login" className="btn-ghost flex-1 justify-center">
-                Войти
+                {t("Войти")}
               </Link>
               <Link href="/register" className="btn flex-1">
-                Регистрация
+                {t("Регистрация")}
               </Link>
             </div>
           )}
+          <div className="mt-4 flex justify-center sm:hidden">
+            <LanguageSwitcher />
+          </div>
         </div>
       )}
     </header>

@@ -2335,6 +2335,30 @@ const run = async () => {
     status: shopPanelPage.status,
   });
 
+  console.log("— Язык сайта —");
+  const homeRu = await (await fetch(BASE + "/")).text();
+  check("по умолчанию сайт на русском", homeRu.includes("Начать играть"));
+
+  const homeEn = await (await fetch(BASE + "/", { headers: { Cookie: "lang=en" } })).text();
+  check("с кукой lang=en главная на английском", homeEn.includes("Start playing"), {
+    hasRu: homeEn.includes("Начать играть"),
+  });
+
+  const rulesEn = await (await fetch(BASE + "/rules", { headers: { Cookie: "lang=en" } })).text();
+  check("правила переводятся", rulesEn.includes("Not allowed"));
+
+  const shopEn = await (await fetch(BASE + "/shop", { headers: { Cookie: "lang=en" } })).text();
+  check("витрина магазина переводится", shopEn.includes("The VanillaCoins shop"));
+
+  const termsEn = await (await fetch(BASE + "/terms", { headers: { Cookie: "lang=en" } })).text();
+  check(
+    "юридический текст остаётся русским с пометкой",
+    termsEn.includes("legally binding") && termsEn.includes("Пользовательское соглашение"),
+  );
+
+  const badLang = await (await fetch(BASE + "/", { headers: { Cookie: "lang=zz" } })).text();
+  check("неизвестный язык не ломает страницу", badLang.includes("Начать играть"));
+
   console.log("— Итог —");
   console.log(`Пройдено: ${passed}, провалено: ${failed}`);
   process.exit(failed === 0 ? 0 : 1);

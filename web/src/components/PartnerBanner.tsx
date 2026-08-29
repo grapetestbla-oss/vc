@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useT } from "./LangProvider";
 
 /**
  * Готовый баннер партнёра: берём исходную картинку и подставляем в неё
@@ -176,6 +177,7 @@ export default function PartnerBanner({
   rewardVc: number;
   requiredLevel: number;
 }) {
+  const t = useT();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -194,7 +196,7 @@ export default function PartnerBanner({
       await document.fonts.load('400 48px "Russo One"', "ПРОМОКОД 0123");
       await document.fonts.ready;
     } catch {
-      setError("Не удалось загрузить картинку баннера");
+      setError(t("Не удалось загрузить картинку баннера"));
       return;
     }
 
@@ -269,10 +271,10 @@ export default function PartnerBanner({
 
       <div className="space-y-3 sm:flex sm:items-center sm:gap-3 sm:space-y-0">
         <button className="btn w-full sm:w-auto" onClick={download} disabled={!ready}>
-          {ready ? "Скачать баннер" : "Готовим баннер…"}
+          {ready ? t("Скачать баннер") : t("Готовим баннер…")}
         </button>
         <span className="muted block text-sm">
-          PNG 1376×768 — годится для шапки канала, поста и превью.
+          {t("PNG 1376×768 — годится для шапки канала, поста и превью.")}
         </span>
       </div>
 

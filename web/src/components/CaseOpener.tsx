@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "./LangProvider";
 import { rarityColor, rarityLabel, KIND_LABEL } from "@/lib/rarity";
 
 type Slot = {
@@ -55,6 +56,7 @@ export default function CaseOpener({
   slots: Slot[];
   pity: { current: number; threshold: number } | null;
 }) {
+  const t = useT();
   const router = useRouter();
   const [strip, setStrip] = useState<Slot[] | null>(null);
   const [offset, setOffset] = useState(0);
@@ -78,7 +80,7 @@ export default function CaseOpener({
 
     if (!response.ok) {
       setSpinning(false);
-      setError(data.error ?? "Ошибка");
+      setError(data.error ?? t("Ошибка"));
       return;
     }
 
@@ -91,7 +93,10 @@ export default function CaseOpener({
         }
       : {
           id: "reward",
-          label: data.kind === "VC" ? `${data.amount} VC` : `${data.amount} осколков`,
+          label:
+            data.kind === "VC"
+              ? `${data.amount} VC`
+              : t("{n} осколков", { n: data.amount }),
           rarity: "common",
           kind: null,
         };
@@ -149,7 +154,7 @@ export default function CaseOpener({
                 }}
               >
                 <span style={{ color: rarityColor(slot.rarity) }}>{slot.label}</span>
-                {slot.kind && <span className="muted">{KIND_LABEL[slot.kind]}</span>}
+                {slot.kind && <span className="muted">{t(KIND_LABEL[slot.kind])}</span>}
               </div>
             ))}
           </div>
@@ -174,34 +179,37 @@ export default function CaseOpener({
                   {result.cosmetic.name}
                 </span>
                 <span className="muted text-xs">
-                  {rarityLabel(result.cosmetic.rarity)} · {KIND_LABEL[result.cosmetic.kind]}
+                  {t(rarityLabel(result.cosmetic.rarity))} ·{" "}
+                  {t(KIND_LABEL[result.cosmetic.kind])}
                 </span>
                 {result.serial && (
                   <span className="text-xs" style={{ color: "var(--gold)" }}>
-                    экземпляр #{result.serial}
+                    {t("экземпляр")} #{result.serial}
                   </span>
                 )}
               </div>
               {result.duplicate && (
                 <p className="muted mt-1 text-sm">
-                  Дубль — начислено {result.amount} осколков.
+                  {t("Дубль — начислено {n} осколков.", { n: result.amount })}
                 </p>
               )}
               {result.fromPity && (
                 <p className="mt-1 text-sm" style={{ color: "var(--gold)" }}>
-                  Сработал гарант.
+                  {t("Сработал гарант.")}
                 </p>
               )}
             </>
           ) : (
             <span className="text-lg font-semibold">
-              {result.kind === "VC" ? `+${result.amount} VC` : `+${result.amount} осколков`}
+              {result.kind === "VC"
+                ? `+${result.amount} VC`
+                : `+${t("{n} осколков", { n: result.amount })}`}
             </span>
           )}
 
           {result.collectionRewards.length > 0 && (
             <p className="mt-2 text-sm" style={{ color: "var(--mint)" }}>
-              Коллекция собрана — награда добавлена в инвентарь.
+              {t("Коллекция собрана — награда добавлена в инвентарь.")}
             </p>
           )}
         </div>
@@ -210,7 +218,7 @@ export default function CaseOpener({
       {pity && pity.threshold > 0 && (
         <div>
           <div className="flex justify-between text-xs">
-            <span className="muted">Гарант легендарки</span>
+            <span className="muted">{t("Гарант легендарки")}</span>
             <span className="muted tabular-nums">
               {pity.current} / {pity.threshold}
             </span>
@@ -236,12 +244,12 @@ export default function CaseOpener({
         disabled={spinning || (free && (freeUsed || Boolean(result)))}
       >
         {spinning
-          ? "Открываем…"
+          ? t("Открываем…")
           : free
             ? freeUsed || result
-              ? "Следующий ящик — завтра"
-              : "Открыть бесплатно"
-            : `Открыть за ${price} VC`}
+              ? t("Следующий ящик — завтра")
+              : t("Открыть бесплатно")
+            : t("Открыть за {n} VC", { n: price })}
       </button>
 
       {error && <p className="text-sm" style={{ color: "var(--danger)" }}>{error}</p>}

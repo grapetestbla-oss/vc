@@ -4,11 +4,13 @@ import { db } from "@/lib/db";
 import { currentUser } from "@/lib/session";
 import CosmeticCard from "@/components/CosmeticCard";
 import Reveal from "@/components/Reveal";
+import { translator } from "@/lib/i18n.server";
 import { KIND_LABEL, rarityColor } from "@/lib/rarity";
 
 export const dynamic = "force-dynamic";
 
 export default async function CollectionPage() {
+  const t = await translator();
   const user = await currentUser();
   if (!user) redirect("/login?next=/collection");
 
@@ -37,15 +39,18 @@ export default async function CollectionPage() {
   return (
     <div className="space-y-10">
       <header className="space-y-3">
-        <p className="eyebrow fade-up">Первый сезон</p>
-        <h1 className="fade-up text-4xl font-bold tracking-tight md:text-5xl">Коллекция</h1>
+        <p className="eyebrow fade-up">{t("Первый сезон")}</p>
+        <h1 className="fade-up text-4xl font-bold tracking-tight md:text-5xl">{t("Коллекция")}</h1>
         <p className="fade-up muted max-w-2xl">
-          Собрано {ownedCount} из {totalCount} предметов сезона. Осколков:{" "}
-          <span style={{ color: "var(--mint)" }}>{user.shards.toLocaleString("ru")}</span>. Один
-          активный предмет на каждый вид — снимите текущий, чтобы надеть другой.
+          {t("Собрано {owned} из {total} предметов сезона. Осколков:", {
+            owned: ownedCount,
+            total: totalCount,
+          })}{" "}
+          <span style={{ color: "var(--mint)" }}>{user.shards.toLocaleString("ru")}</span>.{" "}
+          {t("Один активный предмет на каждый вид — снимите текущий, чтобы надеть другой.")}
         </p>
         <p className="fade-up">
-          <Link href="/cases" className="btn-ghost text-sm">К кейсам</Link>
+          <Link href="/cases" className="btn-ghost text-sm">{t("К кейсам")}</Link>
         </p>
       </header>
 
@@ -78,11 +83,11 @@ export default async function CollectionPage() {
                 </div>
                 {collection.reward && (
                   <p className="muted mt-3 text-sm">
-                    Награда:{" "}
+                    {t("Награда:")}{" "}
                     <span style={{ color: rarityColor(collection.reward.rarity) }}>
                       {collection.reward.name}
                     </span>
-                    {complete && ownedMap.has(collection.reward.key) && " — получена"}
+                    {complete && ownedMap.has(collection.reward.key) && ` — ${t("получена")}`}
                   </p>
                 )}
                 <p className="muted mt-2 text-xs">
@@ -97,7 +102,7 @@ export default async function CollectionPage() {
       {[...byKind.entries()].map(([kind, items], index) => (
         <section key={kind} className="space-y-4">
           <Reveal delay={index * 40}>
-            <h2 className="text-2xl font-bold tracking-tight">{KIND_LABEL[kind] ?? kind}</h2>
+            <h2 className="text-2xl font-bold tracking-tight">{t(KIND_LABEL[kind] ?? kind)}</h2>
           </Reveal>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {items.map((cosmetic, itemIndex) => {

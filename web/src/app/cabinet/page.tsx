@@ -10,6 +10,7 @@ import { partnerEarnings } from "@/lib/partnershare";
 import { CONFIG } from "@/lib/config";
 import { PLATFORM_LABEL, STATUS_LABEL } from "@/lib/partners";
 import Reveal from "@/components/Reveal";
+import { translator } from "@/lib/i18n.server";
 import CountUp from "@/components/CountUp";
 import LogoutButton from "@/components/LogoutButton";
 import PartnerBanner from "@/components/PartnerBanner";
@@ -19,6 +20,7 @@ import { headers } from "next/headers";
 export const dynamic = "force-dynamic";
 
 export default async function CabinetPage() {
+  const t = await translator();
   const user = await currentUser();
   if (!user) redirect("/login?next=/cabinet");
 
@@ -76,10 +78,10 @@ export default async function CabinetPage() {
           />
           <div className="relative flex flex-wrap items-end gap-8">
             <div>
-              <p className="eyebrow">Личный кабинет</p>
+              <p className="eyebrow">{t("Личный кабинет")}</p>
               <h1 className="mt-1 text-4xl font-bold tracking-tight">{user.login}</h1>
               <p className="muted mt-2 text-sm">
-                Уровень {level} · {hours} ч в игре
+                {t("Уровень {level} · {hours} ч в игре", { level, hours })}
                 {user.adminLevel > 0 && ` · ${ADMIN_LEVELS[user.adminLevel]?.title}`}
               </p>
             </div>
@@ -90,7 +92,7 @@ export default async function CabinetPage() {
               </div>
               <div className="mt-1 flex flex-wrap items-center justify-end gap-3">
                 <Link href="/topup" className="muted text-sm underline hover:text-white">
-                  пополнить
+                  {t("пополнить")}
                 </Link>
                 <LogoutButton />
               </div>
@@ -99,9 +101,12 @@ export default async function CabinetPage() {
 
           <div className="relative mt-8">
             <div className="flex justify-between text-xs">
-              <span className="muted">Уровень {level}</span>
+              <span className="muted">{t("Уровень {n}", { n: level })}</span>
               <span className="muted">
-                до {level + 1}: {Math.max(0, Math.ceil((levelEnd - user.playtimeSec) / 3600))} ч
+                {t("до {level}: {hours} ч", {
+                  level: level + 1,
+                  hours: Math.max(0, Math.ceil((levelEnd - user.playtimeSec) / 3600)),
+                })}
               </span>
             </div>
             <div className="mt-2 h-1.5 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.07)" }}>
@@ -119,10 +124,9 @@ export default async function CabinetPage() {
 
       <Reveal delay={60}>
         <section className="panel space-y-3 p-6">
-          <h2 className="font-semibold">Вход в игру</h2>
+          <h2 className="font-semibold">{t("Вход в игру")}</h2>
           <p className="muted text-sm">
-            Заходите на сервер под ником {user.login} и введите /login с этим же паролем.
-            С нового адреса сервер попросит код 2FA.
+            {t("Заходите на сервер под ником {login} и введите /login с этим же паролем. С нового адреса сервер попросит код 2FA.", { login: user.login })}
           </p>
           <TwoFactorCode />
         </section>
@@ -131,16 +135,20 @@ export default async function CabinetPage() {
       {myPromo && (
         <Reveal delay={70}>
           <section className="panel p-6">
-            <p className="eyebrow">Промокод аккаунта</p>
+            <p className="eyebrow">{t("Промокод аккаунта")}</p>
             <h2 className="mt-1 text-2xl font-semibold tracking-tight">{myPromo.code}</h2>
             <p className="muted mt-2 text-sm">
-              {myPromo.partner && `Партнёр: ${myPromo.partner}. `}
+              {myPromo.partner && `${t("Партнёр: {name}.", { name: myPromo.partner })} `}
               {myPromo.rewarded
-                ? `Награда ${myPromo.rewardVc} VC получена.`
-                : `Награда ${myPromo.rewardVc} VC придёт на ${myPromo.requiredLevel} уровне — сейчас у вас ${myPromo.level}.`}
+                ? t("Награда {n} VC получена.", { n: myPromo.rewardVc })
+                : t("Награда {n} VC придёт на {level} уровне — сейчас у вас {current}.", {
+                    n: myPromo.rewardVc,
+                    level: myPromo.requiredLevel,
+                    current: myPromo.level,
+                  })}
             </p>
             <p className="muted mt-1 text-xs">
-              Код привязан к аккаунту навсегда, сменить его нельзя.
+              {t("Код привязан к аккаунту навсегда, сменить его нельзя.")}
             </p>
           </section>
         </Reveal>
@@ -149,9 +157,9 @@ export default async function CabinetPage() {
       {application && (
         <Reveal delay={80}>
           <section className="panel p-6">
-            <p className="eyebrow">Заявка медиа-партнёра</p>
+            <p className="eyebrow">{t("Заявка медиа-партнёра")}</p>
             <h2 className="mt-1 text-lg font-semibold">
-              {PLATFORM_LABEL[application.platform] ?? application.platform} —{" "}
+              {t(PLATFORM_LABEL[application.platform] ?? application.platform)} —{" "}
               <span
                 style={{
                   color:
@@ -162,7 +170,7 @@ export default async function CabinetPage() {
                         : "var(--gold)",
                 }}
               >
-                {STATUS_LABEL[application.status]}
+                {t(STATUS_LABEL[application.status])}
               </span>
             </h2>
             {application.reviewNote && (
@@ -175,30 +183,31 @@ export default async function CabinetPage() {
       {promo && (
         <Reveal delay={90}>
           <section className="panel p-6">
-            <p className="eyebrow">Промокод партнёра</p>
+            <p className="eyebrow">{t("Промокод партнёра")}</p>
             <h2 className="mt-1 text-2xl font-semibold tracking-tight">{promo.code}</h2>
             <p className="muted mt-2 text-sm">
-              Активаций: {promo.activations.length} · награда {promo.rewardVc} VC ·
-              нужен уровень {promo.requiredLevel}
+              {t("Активаций: {n} · награда {reward} VC · нужен уровень {level}", {
+                n: promo.activations.length,
+                reward: promo.rewardVc,
+                level: promo.requiredLevel,
+              })}
             </p>
             <div className="mt-4 flex flex-wrap gap-6">
               <div>
-                <div className="eyebrow">Заработано с пополнений</div>
+                <div className="eyebrow">{t("Заработано с пополнений")}</div>
                 <div className="mt-1 text-2xl font-semibold tabular-nums" style={{ color: "var(--gold)" }}>
                   {earnings.toLocaleString("ru")} VC
                 </div>
               </div>
               <div>
-                <div className="eyebrow">Доля партнёра</div>
+                <div className="eyebrow">{t("Доля партнёра")}</div>
                 <div className="mt-1 text-2xl font-semibold tabular-nums">
                   {CONFIG.partnerSharePercent}%
                 </div>
               </div>
             </div>
             <p className="muted mt-3 text-xs">
-              {CONFIG.partnerSharePercent}% от каждого пополнения игрока, который ввёл ваш код,
-              приходят вам на баланс автоматически — в момент, когда администрация подтверждает
-              его заявку.
+              {t("{n}% от каждого пополнения игрока, который ввёл ваш код, приходят вам на баланс автоматически — в момент, когда администрация подтверждает его заявку.", { n: CONFIG.partnerSharePercent })}
             </p>
             <ul className="muted mt-4 grid gap-1 text-sm sm:grid-cols-2">
               {promo.activations.slice(0, 10).map((activation) => (
@@ -214,11 +223,10 @@ export default async function CabinetPage() {
       {promo && (
         <Reveal delay={100}>
           <section className="panel p-5 sm:p-6">
-            <p className="eyebrow">Ссылка для описания канала</p>
-            <h2 className="mt-1 text-lg font-semibold">Регистрация с вашим кодом</h2>
+            <p className="eyebrow">{t("Ссылка для описания канала")}</p>
+            <h2 className="mt-1 text-lg font-semibold">{t("Регистрация с вашим кодом")}</h2>
             <p className="muted mt-2 text-sm">
-              Игрок переходит по ссылке и попадает на регистрацию, где ваш код уже вписан —
-              вводить руками ничего не нужно, и код закрепляется за аккаунтом навсегда.
+              {t("Игрок переходит по ссылке и попадает на регистрацию, где ваш код уже вписан — вводить руками ничего не нужно, и код закрепляется за аккаунтом навсегда.")}
             </p>
             <div className="mt-4">
               <CopyField value={`${origin}/r/${promo.code}`} label="ref" />
@@ -230,11 +238,10 @@ export default async function CabinetPage() {
       {promo && (
         <Reveal delay={110}>
           <section className="panel p-5 sm:p-6">
-            <p className="eyebrow">Готовый баннер</p>
-            <h2 className="mt-1 text-lg font-semibold">Картинка с вашим промокодом</h2>
+            <p className="eyebrow">{t("Готовый баннер")}</p>
+            <h2 className="mt-1 text-lg font-semibold">{t("Картинка с вашим промокодом")}</h2>
             <p className="muted mt-2 mb-4 text-sm">
-              Ваш код подставлен в макет автоматически. Скачивайте и ставьте в шапку канала,
-              в описание видео или в пост — ничего дорисовывать не нужно.
+              {t("Ваш код подставлен в макет автоматически. Скачивайте и ставьте в шапку канала, в описание видео или в пост — ничего дорисовывать не нужно.")}
             </p>
             <PartnerBanner
               code={promo.code}
@@ -248,7 +255,7 @@ export default async function CabinetPage() {
       <div className="grid gap-6 md:grid-cols-2">
         <Reveal delay={120}>
           <section className="panel h-full p-6">
-            <h2 className="font-semibold">Операции</h2>
+            <h2 className="font-semibold">{t("Операции")}</h2>
             <table className="mt-3 w-full text-sm">
               <tbody>
                 {transactions.map((tx) => (
@@ -266,15 +273,18 @@ export default async function CabinetPage() {
                 ))}
                 {transactions.length === 0 && (
                   <tr>
-                    <td className="muted py-2">Пока пусто</td>
+                    <td className="muted py-2">{t("Пока пусто")}</td>
                   </tr>
                 )}
               </tbody>
             </table>
             {wagered > 0 && (
               <p className="muted mt-4 text-sm">
-                В играх поставлено {wagered} VC, итог {net > 0 ? "+" : ""}
-                {net} VC
+                {t("В играх поставлено {wagered} VC, итог {sign}{net} VC", {
+                  wagered,
+                  sign: net > 0 ? "+" : "",
+                  net,
+                })}
               </p>
             )}
           </section>
@@ -282,7 +292,7 @@ export default async function CabinetPage() {
 
         <Reveal delay={150}>
           <section className="panel h-full p-6">
-            <h2 className="font-semibold">Наказания</h2>
+            <h2 className="font-semibold">{t("Наказания")}</h2>
             <ul className="mt-3 space-y-2 text-sm">
               {punishments.map((punishment) => (
                 <li key={punishment.id} className="border-t pt-2" style={{ borderColor: "var(--border)" }}>
@@ -293,12 +303,12 @@ export default async function CabinetPage() {
                   <span className="muted"> · {punishment.issuedAt.toLocaleDateString("ru")}</span>
                 </li>
               ))}
-              {punishments.length === 0 && <li className="muted">Чисто</li>}
+              {punishments.length === 0 && <li className="muted">{t("Чисто")}</li>}
             </ul>
 
             {cosmetics.length > 0 && (
               <>
-                <h3 className="mt-6 font-semibold">Косметика</h3>
+                <h3 className="mt-6 font-semibold">{t("Косметика")}</h3>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {cosmetics.map((item) => (
                     <span

@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useT } from "./LangProvider";
 
 /** Поле «только чтение» с кнопкой копирования — для ссылки партнёра. */
 export default function CopyField({ value, label }: { value: string; label: string }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -29,7 +31,7 @@ export default function CopyField({ value, label }: { value: string; label: stri
         onFocus={(event) => event.currentTarget.select()}
       />
       <button className="btn-ghost w-full justify-center sm:w-auto" onClick={copy}>
-        {copied ? "Скопировано" : "Копировать"}
+        {copied ? t("Скопировано") : t("Копировать")}
       </button>
     </div>
   );

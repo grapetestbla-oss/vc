@@ -6,6 +6,7 @@ import { CONFIG } from "@/lib/config";
 import TopUpForm from "@/components/TopUpForm";
 import { activeProviders, getPaymentConfig } from "@/lib/payments";
 import Reveal from "@/components/Reveal";
+import { translator } from "@/lib/i18n.server";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default async function TopUpPage() {
+  const t = await translator();
   const user = await currentUser();
   if (!user) redirect("/login?next=/topup");
 
@@ -34,17 +36,22 @@ export default async function TopUpPage() {
   return (
     <div className="space-y-8">
       <header className="space-y-3">
-        <p className="eyebrow fade-up">Баланс: {user.balanceVc.toLocaleString("ru")} VC</p>
-        <h1 className="fade-up text-4xl font-bold tracking-tight md:text-5xl">Пополнение</h1>
+        <p className="eyebrow fade-up">
+          {t("Баланс: {n} VC", { n: user.balanceVc.toLocaleString("ru") })}
+        </p>
+        <h1 className="fade-up text-4xl font-bold tracking-tight md:text-5xl">{t("Пополнение")}</h1>
         <p className="fade-up muted max-w-2xl">
-          Курс: <b>1 ₽ = {CONFIG.vcPerRub} VC</b>.{" "}
+          {t("Курс:")} <b>{t("1 ₽ = {n} VC", { n: CONFIG.vcPerRub })}</b>.{" "}
           {auto
-            ? "Оплата картой, СБП, кошельками и криптой — VC придут на баланс сразу после оплаты."
-            : "Автоматической оплаты пока нет — вы оставляете заявку, переводите деньги и указываете контакт, а чиф-администратор сверяет перевод и начисляет VC вручную."}
+            ? t("Оплата картой, СБП, кошельками и криптой — VC придут на баланс сразу после оплаты.")
+            : t("Автоматической оплаты пока нет — вы оставляете заявку, переводите деньги и указываете контакт, а чиф-администратор сверяет перевод и начисляет VC вручную.")}
           {bestBonus > 0 && (
             <>
               {" "}
-              <b style={{ color: "var(--gold)" }}>Бонус до +{bestBonus}% VC</b> за выбор кассы.
+              <b style={{ color: "var(--gold)" }}>
+                {t("Бонус до +{n}% VC", { n: bestBonus })}
+              </b>{" "}
+              {t("за выбор кассы.")}
             </>
           )}
         </p>
@@ -63,7 +70,7 @@ export default async function TopUpPage() {
       {payments.length > 0 && (
         <Reveal>
           <section className="panel p-5 sm:p-6">
-            <h2 className="text-lg font-semibold">Мои заявки</h2>
+            <h2 className="text-lg font-semibold">{t("Мои заявки")}</h2>
             <div className="mt-4 space-y-3">
               {payments.map((payment) => (
                 <div
@@ -77,7 +84,7 @@ export default async function TopUpPage() {
                       {payment.bonusVc > 0 && (
                         <span style={{ color: "var(--gold)" }}>
                           {" "}
-                          (+{payment.bonusVc.toLocaleString("ru")} бонусом)
+                          {t("(+{n} бонусом)", { n: payment.bonusVc.toLocaleString("ru") })}
                         </span>
                       )}
                     </span>
@@ -91,7 +98,7 @@ export default async function TopUpPage() {
                               : undefined,
                       }}
                     >
-                      {STATUS_LABEL[payment.status] ?? payment.status}
+                      {t(STATUS_LABEL[payment.status] ?? payment.status)}
                     </span>
                   </div>
                   <div className="muted mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs">
@@ -108,9 +115,15 @@ export default async function TopUpPage() {
 
       <Reveal>
         <p className="muted text-sm">
-          VanillaCoins нельзя вывести обратно в деньги или передать другому игроку. Потратить их
-          можно в <Link href="/shop" className="underline hover:text-white">магазине</Link> и на{" "}
-          <Link href="/cases" className="underline hover:text-white">кейсы</Link>.
+          {t("VanillaCoins нельзя вывести обратно в деньги или передать другому игроку. Потратить их можно в")}{" "}
+          <Link href="/shop" className="underline hover:text-white">
+            {t("магазине")}
+          </Link>{" "}
+          {t("и на")}{" "}
+          <Link href="/cases" className="underline hover:text-white">
+            {t("кейсы")}
+          </Link>
+          .
         </p>
       </Reveal>
     </div>

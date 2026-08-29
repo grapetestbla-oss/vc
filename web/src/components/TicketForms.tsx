@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "./LangProvider";
 
 /** Новое обращение: тема и первое сообщение. */
 export function NewTicketForm() {
+  const t = useT();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -31,33 +33,33 @@ export function NewTicketForm() {
         const result = await response.json();
         setBusy(false);
         setOk(response.ok);
-        setMessage(response.ok ? "Обращение создано" : (result.error ?? "Ошибка"));
+        setMessage(response.ok ? t("Обращение создано") : (result.error ?? t("Ошибка")));
         if (response.ok) {
           form.reset();
           router.refresh();
         }
       }}
     >
-      <h2 className="text-lg font-semibold">Новое обращение</h2>
+      <h2 className="text-lg font-semibold">{t("Новое обращение")}</h2>
 
       <label className="block">
-        <span className="eyebrow">Тема</span>
-        <input name="subject" className="input mt-1 w-full" placeholder="Коротко о проблеме" required />
+        <span className="eyebrow">{t("Тема")}</span>
+        <input name="subject" className="input mt-1 w-full" placeholder={t("Коротко о проблеме")} required />
       </label>
 
       <label className="block">
-        <span className="eyebrow">Сообщение</span>
+        <span className="eyebrow">{t("Сообщение")}</span>
         <textarea
           name="text"
           className="input mt-1 h-32 w-full"
-          placeholder="Опишите, что случилось: ник, время, что делали. Чем подробнее, тем быстрее разберёмся."
+          placeholder={t("Опишите, что случилось: ник, время, что делали. Чем подробнее, тем быстрее разберёмся.")}
           required
         />
       </label>
 
       <div className="space-y-2 sm:flex sm:items-center sm:gap-3 sm:space-y-0">
         <button className="btn w-full sm:w-auto" disabled={busy}>
-          {busy ? "Отправляем…" : "Отправить"}
+          {busy ? t("Отправляем…") : t("Отправить")}
         </button>
         {message && (
           <span className="block text-sm" style={{ color: ok ? "var(--gold)" : "var(--danger)" }}>
@@ -79,6 +81,7 @@ export function TicketReply({
   endpoint: "/api/tickets" | "/api/panel/ticket";
   canClose: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -94,7 +97,7 @@ export function TicketReply({
     });
     const result = await response.json();
     setBusy(false);
-    setMessage(response.ok ? null : (result.error ?? "Ошибка"));
+    setMessage(response.ok ? null : (result.error ?? t("Ошибка")));
     if (response.ok) {
       setText("");
       router.refresh();
@@ -105,17 +108,17 @@ export function TicketReply({
     <div className="mt-4 space-y-2">
       <textarea
         className="input h-24 w-full"
-        placeholder="Ответ"
+        placeholder={t("Ответ")}
         value={text}
         onChange={(event) => setText(event.target.value)}
       />
       <div className="flex flex-wrap gap-2">
         <button className="btn" disabled={busy || text.trim().length < 2} onClick={() => send("reply")}>
-          Ответить
+          {t("Ответить")}
         </button>
         {canClose && (
           <button className="btn-ghost" disabled={busy} onClick={() => send("close")}>
-            Закрыть обращение
+            {t("Закрыть обращение")}
           </button>
         )}
         {message && (

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "./LangProvider";
 
 export default function ShopBuy({
   itemKey,
@@ -14,6 +15,7 @@ export default function ShopBuy({
   disabled: boolean;
   hint: string | null;
 }) {
+  const t = useT();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -30,14 +32,20 @@ export default function ShopBuy({
     const data = await response.json();
     setBusy(false);
     setOk(response.ok);
-    setMessage(response.ok ? "Куплено — команда уже работает в игре" : (data.error ?? "Ошибка"));
+    setMessage(
+      response.ok ? t("Куплено — команда уже работает в игре") : (data.error ?? t("Ошибка")),
+    );
     if (response.ok) router.refresh();
   }
 
   return (
     <div className="mt-4">
       <button className="btn w-full" onClick={buy} disabled={busy || disabled}>
-        {disabled ? (hint ?? "Недоступно") : busy ? "Покупаем…" : `Купить за ${priceVc.toLocaleString("ru")} VC`}
+        {disabled
+          ? (hint ?? t("Недоступно"))
+          : busy
+            ? t("Покупаем…")
+            : t("Купить за {n} VC", { n: priceVc.toLocaleString("ru") })}
       </button>
       {message && (
         <p className="mt-2 text-sm" style={{ color: ok ? "var(--gold)" : "var(--danger)" }}>

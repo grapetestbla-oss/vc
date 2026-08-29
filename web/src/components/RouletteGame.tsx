@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useLang, useT } from "./LangProvider";
+import { pluralRu } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 import { BetList, DisabledNotice, History, useCountdown, useTable } from "./LiveTable";
 
@@ -21,6 +23,8 @@ function colorFor(multiplier: number): string {
  * ровно то, что посчитал сервер.
  */
 export default function RouletteGame() {
+  const t = useT();
+  const lang = useLang();
   const router = useRouter();
   const { state, reload, serverNow } = useTable("ROULETTE");
   const [bet, setBet] = useState(50);
@@ -57,14 +61,14 @@ export default function RouletteGame() {
     });
     const data = await response.json();
     setBusy(false);
-    if (!response.ok) setError(data.error ?? "Ошибка");
+    if (!response.ok) setError(data.error ?? t("Ошибка"));
     else {
       reload();
       router.refresh();
     }
   }
 
-  if (!state) return <div className="panel muted p-6 text-sm">Подключаемся к столу…</div>;
+  if (!state) return <div className="panel muted p-6 text-sm">{t("Подключаемся к столу…")}</div>;
 
   const zones = state.zones;
   const betting = state.round.phase === "betting";
@@ -91,14 +95,16 @@ export default function RouletteGame() {
       <div className="panel p-5 sm:p-6">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <div>
-            <p className="eyebrow">Раунд #{state.round.number}</p>
+            <p className="eyebrow">{t("Раунд")} #{state.round.number}</p>
             <h2 className="mt-1 text-xl font-semibold">
-              {betting ? `Ставки закроются через ${left} с` : `Результат · новый раунд через ${left} с`}
+              {betting
+                ? t("Ставки закроются через {n} с", { n: left })
+                : t("Результат · новый раунд через {n} с", { n: left })}
             </h2>
           </div>
           {state.round.result !== null && (
             <div className="text-right">
-              <p className="eyebrow">Выпало</p>
+              <p className="eyebrow">{t("Выпало")}</p>
               <p
                 className="text-3xl font-bold tabular-nums"
                 style={{ color: colorFor(state.round.result) }}
@@ -133,7 +139,7 @@ export default function RouletteGame() {
               className="absolute inset-[22%] flex flex-col items-center justify-center rounded-full text-center"
               style={{ background: "rgba(10,11,15,0.92)", border: "1px solid var(--border)" }}
             >
-              <span className="eyebrow">бросок</span>
+              <span className="eyebrow">{t("бросок")}</span>
               <span className="text-lg font-semibold tabular-nums">
                 {state.round.roll !== null ? state.round.roll.toFixed(4) : "…"}
               </span>
@@ -158,7 +164,10 @@ export default function RouletteGame() {
               />
               x{group.multiplier}
               <span className="muted">
-                {group.count} {group.count === 1 ? "сектор" : group.count < 5 ? "сектора" : "секторов"} ·{" "}
+                {lang === "en"
+                  ? `${group.count} ${group.count === 1 ? "sector" : "sectors"}`
+                  : `${group.count} ${pluralRu(group.count, "сектор", "сектора", "секторов")}`}{" "}
+                ·{" "}
                 {Math.round((group.count / zones.length) * 1000) / 10}%
               </span>
             </span>
@@ -170,7 +179,7 @@ export default function RouletteGame() {
       <div className="panel p-5 sm:p-6">
         <div className="flex flex-wrap items-end gap-3">
           <label className="block w-36">
-            <span className="eyebrow">Ставка, VC</span>
+            <span className="eyebrow">{t("Ставка, VC")}</span>
             <input
               type="number"
               inputMode="numeric"
@@ -195,10 +204,10 @@ export default function RouletteGame() {
 
           <button className="btn" onClick={place} disabled={busy || !betting || Boolean(mine)}>
             {mine
-              ? `Ставка принята: ${mine.betVc} VC`
+              ? t("Ставка принята: {n} VC", { n: mine.betVc })
               : betting
-                ? "Поставить"
-                : "Ставки закрыты"}
+                ? t("Поставить")
+                : t("Ставки закрыты")}
           </button>
         </div>
 
@@ -208,8 +217,7 @@ export default function RouletteGame() {
           </p>
         )}
         <p className="muted mt-3 text-xs">
-          Множитель один на всех: выпавший сектор умножает ставку каждого. Пустых секторов нет,
-          минимальный — x2.
+          {t("Множитель один на всех: выпавший сектор умножает ставку каждого. Пустых секторов нет, минимальный — x2.")}
         </p>
       </div>
       ) : (

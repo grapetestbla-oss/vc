@@ -4,12 +4,14 @@ import { currentUser } from "@/lib/session";
 import { activeGiveaways, hoursOf, GIVEAWAY_STATUS_LABEL } from "@/lib/giveaways";
 import GiveawayJoin from "@/components/GiveawayJoin";
 import Reveal from "@/components/Reveal";
+import { translator } from "@/lib/i18n.server";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Розыгрыши — VanillaCraft" };
 
 export default async function GiveawaysPage() {
+  const t = await translator();
   const user = await currentUser();
 
   const [active, finished, myEntries] = await Promise.all([
@@ -32,18 +34,16 @@ export default async function GiveawaysPage() {
     <div className="space-y-8">
       <header className="space-y-3">
         <p className="eyebrow fade-up">
-          {user ? `Наиграно: ${hours} ч` : "Розыгрыши среди игроков сервера"}
+          {user ? t("Наиграно: {n} ч", { n: hours }) : t("Розыгрыши среди игроков сервера")}
         </p>
-        <h1 className="fade-up text-4xl font-bold tracking-tight md:text-5xl">Розыгрыши</h1>
+        <h1 className="fade-up text-4xl font-bold tracking-tight md:text-5xl">{t("Розыгрыши")}</h1>
         <p className="fade-up muted max-w-2xl">
-          Участвуют те, кто действительно играет: у каждого розыгрыша своё условие по наигранному
-          времени. Победителя выбирает сервер по сохранённому сиду — его видно после розыгрыша,
-          результат можно пересчитать.
+          {t("Участвуют те, кто действительно играет: у каждого розыгрыша своё условие по наигранному времени. Победителя выбирает сервер по сохранённому сиду — его видно после розыгрыша, результат можно пересчитать.")}
         </p>
       </header>
 
       {active.length === 0 && (
-        <p className="muted text-sm">Сейчас активных розыгрышей нет. Загляните позже.</p>
+        <p className="muted text-sm">{t("Сейчас активных розыгрышей нет. Загляните позже.")}</p>
       )}
 
       {active.map((giveaway, index) => (
@@ -51,10 +51,12 @@ export default async function GiveawaysPage() {
           <section className="panel p-5 sm:p-6">
             <div className="flex flex-wrap items-baseline gap-3">
               <h2 className="text-xl font-semibold">{giveaway.title}</h2>
-              <span className="muted text-sm">участников: {giveaway._count.entries}</span>
+              <span className="muted text-sm">
+                {t("участников: {n}", { n: giveaway._count.entries })}
+              </span>
               {giveaway.endsAt && (
                 <span className="muted ml-auto text-xs">
-                  до {giveaway.endsAt.toLocaleString("ru")}
+                  {t("до {date}", { date: giveaway.endsAt.toLocaleString("ru") })}
                 </span>
               )}
             </div>
@@ -66,7 +68,7 @@ export default async function GiveawaysPage() {
               <p className="muted mt-2 whitespace-pre-wrap text-sm">{giveaway.description}</p>
             )}
             <p className="muted mt-3 text-sm">
-              Условие: {giveaway.requiredHours} ч на сервере.
+              {t("Условие: {n} ч на сервере.", { n: giveaway.requiredHours })}
             </p>
 
             {user ? (
@@ -78,7 +80,7 @@ export default async function GiveawaysPage() {
               />
             ) : (
               <Link href="/login?next=/giveaways" className="btn mt-5 inline-flex">
-                Войти, чтобы участвовать
+                {t("Войти, чтобы участвовать")}
               </Link>
             )}
           </section>
@@ -88,7 +90,7 @@ export default async function GiveawaysPage() {
       {finished.length > 0 && (
         <Reveal>
           <section className="panel p-5 sm:p-6">
-            <h2 className="text-lg font-semibold">Прошедшие розыгрыши</h2>
+            <h2 className="text-lg font-semibold">{t("Прошедшие розыгрыши")}</h2>
             <div className="mt-4 space-y-3">
               {finished.map((giveaway) => (
                 <div
@@ -99,13 +101,14 @@ export default async function GiveawaysPage() {
                   <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                     <span className="font-medium">{giveaway.title}</span>
                     <span style={{ color: "var(--gold)" }}>{giveaway.winner?.login ?? "—"}</span>
-                    <span className="muted">{GIVEAWAY_STATUS_LABEL[giveaway.status]}</span>
+                    <span className="muted">{t(GIVEAWAY_STATUS_LABEL[giveaway.status])}</span>
                     <span className="muted ml-auto text-xs">
                       {giveaway.drawnAt?.toLocaleString("ru")}
                     </span>
                   </div>
                   <div className="muted mt-1 break-all font-mono text-xs">
-                    приз: {giveaway.prize} · участников: {giveaway.drawnFrom ?? 0} · сид:{" "}
+                    {t("приз:")} {giveaway.prize} ·{" "}
+                    {t("участников: {n}", { n: giveaway.drawnFrom ?? 0 })} · {t("сид:")}{" "}
                     {giveaway.drawSeed}
                   </div>
                 </div>

@@ -1,4 +1,5 @@
 import Reveal from "@/components/Reveal";
+import { translator } from "@/lib/i18n.server";
 
 const SECTIONS = [
   {
@@ -29,24 +30,25 @@ const SECTIONS = [
   },
 ];
 
-export default function RulesPage() {
+export default async function RulesPage() {
+  const t = await translator();
   return (
     <div className="space-y-10">
       <header className="space-y-3">
-        <p className="eyebrow fade-up">Коротко и без юридического тумана</p>
-        <h1 className="fade-up text-4xl font-bold tracking-tight md:text-5xl">Правила</h1>
+        <p className="eyebrow fade-up">{t("Коротко и без юридического тумана")}</p>
+        <h1 className="fade-up text-4xl font-bold tracking-tight md:text-5xl">{t("Правила")}</h1>
       </header>
 
       <div className="grid gap-5 md:grid-cols-3">
         {SECTIONS.map((section, index) => (
           <Reveal key={section.title} delay={index * 80}>
             <section className="panel panel-hover h-full p-6">
-              <h2 className="text-xl font-semibold">{section.title}</h2>
+              <h2 className="text-xl font-semibold">{t(section.title)}</h2>
               <ul className="muted mt-4 space-y-3 text-sm leading-6">
                 {section.items.map((item) => (
                   <li key={item} className="flex gap-2">
                     <span style={{ color: "var(--gold)" }}>—</span>
-                    <span>{item}</span>
+                    <span>{t(item)}</span>
                   </li>
                 ))}
               </ul>

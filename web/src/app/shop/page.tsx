@@ -5,12 +5,14 @@ import { levelFromPlaytime } from "@/lib/levels";
 import { CATEGORY_LABEL, listShopItems } from "@/lib/shop";
 import ShopBuy from "@/components/ShopBuy";
 import Reveal from "@/components/Reveal";
+import { translator } from "@/lib/i18n.server";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Магазин — VanillaCraft" };
 
 export default async function ShopPage() {
+  const t = await translator();
   const user = await currentUser();
   const [items, purchases] = await Promise.all([
     listShopItems(),
@@ -28,18 +30,19 @@ export default async function ShopPage() {
     <div className="space-y-10">
       <header className="space-y-3">
         <p className="eyebrow fade-up">
-          {user ? `Баланс: ${user.balanceVc.toLocaleString("ru")} VC` : "Магазин за VanillaCoins"}
+          {user
+            ? t("Баланс: {n} VC", { n: user.balanceVc.toLocaleString("ru") })
+            : t("Магазин за VanillaCoins")}
         </p>
-        <h1 className="fade-up text-4xl font-bold tracking-tight md:text-5xl">Магазин</h1>
+        <h1 className="fade-up text-4xl font-bold tracking-tight md:text-5xl">{t("Магазин")}</h1>
         <p className="fade-up muted max-w-2xl">
-          Здесь продаются удобства, а не преимущество: ни оружия, ни ресурсов, ни защиты в бою.
-          Всё покупается за VC и работает прямо в игре — команды включаются сразу после покупки.
+          {t("Здесь продаются удобства, а не преимущество: ни оружия, ни ресурсов, ни защиты в бою. Всё покупается за VC и работает прямо в игре — команды включаются сразу после покупки.")}
         </p>
       </header>
 
       {categories.map((category) => (
         <section key={category} className="space-y-4">
-          <h2 className="text-xl font-semibold">{CATEGORY_LABEL[category] ?? category}</h2>
+          <h2 className="text-xl font-semibold">{t(CATEGORY_LABEL[category] ?? category)}</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {items
               .filter((item) => item.category === category)
@@ -49,11 +52,11 @@ export default async function ShopPage() {
                 const alreadyPermanent = Boolean(purchase?.permanent);
                 const disabled = !user || locked || alreadyPermanent;
                 const hint = !user
-                  ? "Войдите, чтобы купить"
+                  ? t("Войдите, чтобы купить")
                   : locked
-                    ? `Нужен уровень ${item.requiredLevel}`
+                    ? t("Нужен уровень {n}", { n: item.requiredLevel })
                     : alreadyPermanent
-                      ? "Уже куплено навсегда"
+                      ? t("Уже куплено навсегда")
                       : null;
 
                 return (
@@ -70,10 +73,12 @@ export default async function ShopPage() {
 
                       <div className="muted mt-4 text-xs">
                         {item.kind === "PERMANENT"
-                          ? "Навсегда"
-                          : `${item.charges} использований за покупку`}
-                        {purchase && !purchase.permanent && ` · у вас осталось ${purchase.chargesLeft}`}
-                        {purchase?.permanent && " · куплено"}
+                          ? t("Навсегда")
+                          : t("{n} использований за покупку", { n: item.charges })}
+                        {purchase &&
+                          !purchase.permanent &&
+                          ` · ${t("у вас осталось {n}", { n: purchase.chargesLeft })}`}
+                        {purchase?.permanent && ` · ${t("куплено")}`}
                       </div>
 
                       {user ? (
@@ -85,7 +90,7 @@ export default async function ShopPage() {
                         />
                       ) : (
                         <Link href="/login?next=/shop" className="btn mt-4 w-full text-center">
-                          Войти
+                          {t("Войти")}
                         </Link>
                       )}
                     </article>
@@ -98,8 +103,11 @@ export default async function ShopPage() {
 
       <Reveal>
         <p className="muted text-sm">
-          Не хватает VC? <Link href="/topup" className="underline hover:text-white">Пополните баланс</Link>{" "}
-          или откройте бесплатный кейс. Купленное нельзя передать другому игроку и вернуть деньгами.
+          {t("Не хватает VC?")}{" "}
+          <Link href="/topup" className="underline hover:text-white">
+            {t("Пополните баланс")}
+          </Link>{" "}
+          {t("или откройте бесплатный кейс. Купленное нельзя передать другому игроку и вернуть деньгами.")}
         </p>
       </Reveal>
     </div>
