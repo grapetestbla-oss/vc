@@ -26,6 +26,10 @@ public final class CosmeticSet {
         return items.containsKey(kind);
     }
 
+    public boolean isEmpty() {
+        return items.isEmpty();
+    }
+
     public void clear() {
         items.clear();
     }

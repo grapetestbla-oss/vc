@@ -19,7 +19,10 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Transformation;
 import org.joml.Vector3f;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Level;
@@ -38,6 +41,8 @@ public final class CosmeticEngine {
     private final Map<UUID, CosmeticSet> sets = new HashMap<>();
     private final Map<UUID, UUID> pets = new HashMap<>();
     private final Map<UUID, UUID> titles = new HashMap<>();
+    /** Что было надето в прошлый раз: по нему видно, менялось ли что-то. */
+    private final Map<UUID, String> signatures = new HashMap<>();
     private double phase;
 
     public CosmeticEngine(VanillaCorePlugin plugin) {
@@ -48,8 +53,19 @@ public final class CosmeticEngine {
         return sets.computeIfAbsent(player.getUniqueId(), id -> new CosmeticSet());
     }
 
-    /** Применяет косметику из профиля, который вернул сайт. */
-    public void apply(Player player, JsonArray cosmetics) {
+    /**
+     * Применяет косметику из профиля, который вернул сайт. Возвращает false,
+     * если набор не изменился: перевыдавать питомца и титул на каждой проверке
+     * нельзя — они бы моргали и телепортировались.
+     */
+    public boolean apply(Player player, JsonArray cosmetics) {
+        String signature = signature(cosmetics);
+        if (signature.equals(signatures.get(player.getUniqueId()))
+                && setOf(player).has(CosmeticSet.Kind.HAT) == hasHat(player)) {
+            return false;
+        }
+        signatures.put(player.getUniqueId(), signature);
+
         CosmeticSet set = setOf(player);
         set.clear();
 
@@ -72,6 +88,31 @@ public final class CosmeticEngine {
         applyPet(player, set);
         applyTitle(player, set);
         plugin.refreshDisplayName(player);
+        return true;
+    }
+
+    /** Подпись набора: ключи всех надетых предметов по порядку. */
+    private static String signature(JsonArray cosmetics) {
+        List<String> keys = new ArrayList<>();
+        for (int i = 0; i < cosmetics.size(); i++) {
+            JsonObject entry = cosmetics.get(i).getAsJsonObject();
+            keys.add(entry.get("kind").getAsString() + ":" + entry.get("key").getAsString());
+        }
+        Collections.sort(keys);
+        return String.join(",", keys);
+    }
+
+    private boolean hasHat(Player player) {
+        return isHat(player.getInventory().getHelmet());
+    }
+
+    /**
+     * Наблюдателя не видно другим игрокам, а пассажира ему не посадить —
+     * шляпа, питомец и титул в этом режиме просто не появятся. Молча это
+     * оставлять нельзя: со стороны выглядит как сломанная косметика.
+     */
+    public boolean hiddenByGameMode(Player player) {
+        return player.getGameMode() == org.bukkit.GameMode.SPECTATOR && !setOf(player).isEmpty();
     }
 
     public TextColor nameColor(Player player) {
@@ -309,6 +350,7 @@ public final class CosmeticEngine {
         removePet(player);
         removeTitle(player);
         sets.remove(player.getUniqueId());
+        signatures.remove(player.getUniqueId());
     }
 
     public void shutdown() {

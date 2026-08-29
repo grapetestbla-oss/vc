@@ -79,7 +79,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         config.validate().forEach(problem -> getLogger().warning(problem));
         Accounts.setPrefix(config.bedrockPrefix);
 
-        messages = new Messages(getConfig());
+        messages = new Messages(this);
         api = new ApiClient(this, config.apiUrl, config.apiToken);
         auth = new AuthManager(this, messages);
 
@@ -125,8 +125,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
         bind("2fa", authCommands);
 
         StaffCommands staff = new StaffCommands(this, messages);
-        for (String name : List.of("spec", "esp", "ajail", "warn", "ban", "check", "asms", "news",
-                "reports", "tp", "tphere", "spark")) {
+        for (String name : List.of("spec", "esp", "ajail", "unjail", "warn", "ban", "check", "asms",
+                "news", "reports", "tp", "tphere", "spark")) {
             bind(name, staff);
         }
 
@@ -174,6 +174,13 @@ public final class VanillaCorePlugin extends JavaPlugin {
                 config.newsPollSeconds * 20L + 40L, config.newsPollSeconds * 20L);
         // Частицы рисуем четыре раза в секунду: чаще — лишняя нагрузка, реже — рвано.
         getServer().getScheduler().runTaskTimer(this, cosmetics::tick, 20L, 5L);
+
+        // Косметику перечитываем на ходу: игрок надевает её на сайте и ждёт,
+        // что она появится в игре, а не после перезахода.
+        if (config.cosmeticRefreshSeconds > 0) {
+            getServer().getScheduler().runTaskTimer(this, this::refreshCosmetics, 200L,
+                    config.cosmeticRefreshSeconds * 20L);
+        }
 
         if (config.tabEnabled) {
             getServer().getScheduler().runTaskTimer(this, tabList::refresh, 40L,
@@ -267,6 +274,13 @@ public final class VanillaCorePlugin extends JavaPlugin {
     }
 
     /** Перечитывает косметику игрока с сайта — после покупки или смены предмета. */
+    /** Перечитывает косметику всем, кто в сети: набор мог поменяться на сайте. */
+    private void refreshCosmetics() {
+        for (Player player : getServer().getOnlinePlayers()) {
+            if (auth.authenticated(player)) reloadCosmetics(player);
+        }
+    }
+
     public void reloadCosmetics(Player player) {
         api.onMain(api.get("/api/mc/profile?login=" + Accounts.name(player)), response -> {
             if (!player.isOnline() || response.get("_status").getAsInt() != 200) return;

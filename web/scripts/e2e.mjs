@@ -147,6 +147,38 @@ const run = async () => {
   });
   check("состояние деморгана синхронизируется", jailSync.json?.ok === true);
 
+  console.log("— Снятие наказаний —");
+  const unjailByPlayer = await api("/api/mc/unjail", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { targetLogin: "Griefer", actorLogin: "Griefer" },
+  });
+  check("игрок сам себя не выпускает", unjailByPlayer.status === 403, unjailByPlayer.json);
+
+  const unjail = await api("/api/mc/unjail", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { targetLogin: "Griefer" },
+  });
+  check("/unjail выпускает из деморгана", unjail.json?.ok === true, unjail.json);
+
+  const unjailAgain = await api("/api/mc/unjail", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { targetLogin: "Griefer" },
+  });
+  check("повторный /unjail говорит, что игрок свободен", unjailAgain.status === 404, unjailAgain.json);
+
+  const jailGone = await api("/api/mc/profile?login=Griefer", { serverToken: TOKEN });
+  check("в профиле деморгана больше нет", jailGone.json?.jail === null, jailGone.json?.jail);
+
+  const jailAgain = await api("/api/mc/punish", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { type: "JAIL", targetLogin: "Griefer", reason: "снова", minutes: 30 },
+  });
+  check("после выпуска деморган выдаётся снова", jailAgain.json?.ok === true, jailAgain.json);
+
   const warn1 = await api("/api/mc/punish", {
     method: "POST",
     serverToken: TOKEN,
@@ -411,6 +443,41 @@ const run = async () => {
     body: { userId: me.json.id, type: "BAN", reason: "просто так", days: 30 },
   });
   check("игрок не банит через панель", punishAsPlayer.status === 403);
+
+  console.log("— Снятие наказаний в панели —");
+  const punishedUser = await register("Naughty");
+  const punishedMe = await api("/api/me", { cookie: punishedUser.session });
+  const panelWarn = await api("/api/panel/punish", {
+    method: "POST",
+    cookie: steve.session,
+    body: { userId: punishedMe.json.id, type: "WARN", reason: "мат в чате" },
+  });
+  check("chief выдаёт варн из панели", panelWarn.json?.ok === true, panelWarn.json);
+
+  const warnRow = await api("/api/panel/punish?login=Naughty", { cookie: steve.session });
+  const warnId = warnRow.json?.punishments?.find((item) => item.type === "WARN")?.id;
+  check("наказание видно в карточке", Boolean(warnId), warnRow.json);
+
+  const liftByPlayer = await api("/api/panel/punish", {
+    method: "DELETE",
+    cookie: alex.session,
+    body: { punishmentId: warnId },
+  });
+  check("игрок не снимает наказания", liftByPlayer.status === 403);
+
+  const lift = await api("/api/panel/punish", {
+    method: "DELETE",
+    cookie: steve.session,
+    body: { punishmentId: warnId },
+  });
+  check("chief снимает варн", lift.json?.ok === true, lift.json);
+
+  const liftTwice = await api("/api/panel/punish", {
+    method: "DELETE",
+    cookie: steve.session,
+    body: { punishmentId: warnId },
+  });
+  check("снятое наказание повторно не снимается", liftTwice.status === 409, liftTwice.json);
 
   const staffByPlayer = await api("/api/panel/staff", {
     method: "POST",

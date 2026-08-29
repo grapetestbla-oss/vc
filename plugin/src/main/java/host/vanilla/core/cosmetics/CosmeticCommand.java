@@ -31,7 +31,9 @@ public final class CosmeticCommand implements CommandExecutor {
             return true;
         }
 
-        if (args.length > 0 && args[0].equalsIgnoreCase("reload")) {
+        if (args.length > 0 && (args[0].equalsIgnoreCase("reload")
+                || args[0].equalsIgnoreCase("обновить")
+                || args[0].equalsIgnoreCase("refresh"))) {
             plugin.reloadCosmetics(player);
             player.sendMessage(plugin.messages().get("cosmetics.reloaded"));
             return true;
@@ -50,7 +52,13 @@ public final class CosmeticCommand implements CommandExecutor {
                     "key", item.key(),
                     "serial", item.serial() == null ? "" : " #" + item.serial())));
         }
-        if (empty) player.sendMessage(plugin.messages().get("cosmetics.empty"));
+        if (empty) {
+            player.sendMessage(plugin.messages().get("cosmetics.empty"));
+        } else if (engine.hiddenByGameMode(player)) {
+            // Иначе выглядит как поломка: надето, а в игре ничего не видно.
+            player.sendMessage(plugin.messages().get("cosmetics.spectator"));
+        }
+        player.sendMessage(plugin.messages().get("cosmetics.hint"));
 
         player.sendMessage(Component.text("Открыть коллекцию на сайте →", NamedTextColor.AQUA)
                 .clickEvent(ClickEvent.openUrl(plugin.config().siteUrl + "/collection")));

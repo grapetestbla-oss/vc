@@ -56,6 +56,11 @@ news:
   # Как часто проверять, не появилось ли новостей для объявления в игре.
   poll-seconds: 60
 
+cosmetics:
+  # Как часто перечитывать надетую косметику с сайта, секунды. 0 — только при
+  # входе и по команде /cosmetics обновить.
+  refresh-seconds: 45
+
 season:
   # Название сезона: видно в списке игроков и в приветствии при входе.
   name: "Season I"
@@ -130,6 +135,7 @@ messages:
   staff.esp-on: "<gray>ESP включён."
   staff.esp-off: "<gray>ESP выключен."
   staff.usage-ajail: "<yellow>/ajail <ник> <причина> <минуты>"
+  staff.usage-unjail: "<yellow>/unjail <ник>"
   staff.usage-warn: "<yellow>/warn <ник> <причина>"
   staff.usage-ban: "<yellow>/ban <ник> <причина> <дни>"
   staff.usage-check: "<yellow>/check <ник> <ссылка> либо /check <ник> pass|fail"
@@ -137,6 +143,7 @@ messages:
   staff.usage-news: "<yellow>/news <текст>"
   staff.usage-tp: "<yellow>/tp <ник>"
   staff.jailed: "<gray><player> отправлен в деморган на <minutes> мин."
+  staff.unjailed: "<gray><player> выпущен из деморгана."
   staff.warned: "<gray><player> получил варн."
   staff.auto-ban: "<gray>У <player> второй варн — выдан автоматический бан."
   staff.banned: "<gray><player> забанен на <days> дн."
@@ -254,6 +261,8 @@ messages:
   cosmetics.line: "<dark_gray>· <gray><kind>: <white><key><gold><serial>"
   cosmetics.empty: "<gray>Ничего не надето. Загляните в коллекцию на сайте."
   cosmetics.reloaded: "<green>Косметика обновлена."
+  cosmetics.spectator: "<yellow>Вы в режиме наблюдателя: шляпу, питомца и титул другие игроки не увидят. Выйдите из наблюдателя командой /spec."
+  cosmetics.hint: "<gray>Надеть и снять косметику можно в коллекции на сайте."
   cosmetics.hat-blocked: "<yellow>Шляпа не надета: снимите шлем, слот занят бронёй."
 
   news.header: "<dark_gray>▬▬▬ <gold><bold>НОВОСТЬ<reset> <dark_gray>▬▬▬\n<yellow><title>"

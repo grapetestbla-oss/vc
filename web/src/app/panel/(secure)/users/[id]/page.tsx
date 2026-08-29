@@ -5,7 +5,9 @@ import { audit } from "@/lib/audit";
 import { levelFromPlaytime } from "@/lib/levels";
 import { accountsSharingIp } from "@/lib/antifraud";
 import { ADMIN_LEVELS } from "@/lib/config";
+import { canLift } from "@/lib/punishments";
 import UserActions from "@/components/UserActions";
+import PunishmentRow from "@/components/PunishmentRow";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +20,11 @@ export default async function UserCard({ params }: { params: Promise<{ id: strin
     where: { id },
     include: {
       knownIps: { orderBy: { lastSeen: "desc" }, take: 20 },
-      punishments: { orderBy: { issuedAt: "desc" }, take: 25, include: { by: { select: { login: true } } } },
+      punishments: {
+        orderBy: { issuedAt: "desc" },
+        take: 25,
+        include: { by: { select: { login: true, adminLevel: true } } },
+      },
       transactions: { orderBy: { createdAt: "desc" }, take: 25 },
       flags: { orderBy: { createdAt: "desc" }, take: 20 },
       loginAttempts: { orderBy: { createdAt: "desc" }, take: 25 },
@@ -56,14 +62,21 @@ export default async function UserCard({ params }: { params: Promise<{ id: strin
           <h2 className="font-semibold">Наказания</h2>
           <ul className="mt-3 space-y-2 text-sm">
             {user.punishments.map((p) => (
-              <li key={p.id} className="border-t pt-2" style={{ borderColor: "var(--border)" }}>
-                <span className={p.active ? "text-red-400" : "muted"}>{p.type}</span> — {p.reason}
-                <span className="muted">
-                  {" "}
-                  · {p.issuedAt.toLocaleString("ru")}
-                  {p.by && ` · ${p.by.login}`}
-                </span>
-              </li>
+              <PunishmentRow
+                key={p.id}
+                id={p.id}
+                type={p.type}
+                reason={p.reason}
+                issuedAt={p.issuedAt.toLocaleString("ru")}
+                by={p.by?.login ?? null}
+                active={p.active}
+                liftedAt={p.liftedAt?.toLocaleString("ru") ?? null}
+                liftedBy={null}
+                canLift={
+                  canLift(admin.adminLevel, p.type) === null &&
+                  (p.by?.adminLevel ?? 0) <= admin.adminLevel
+                }
+              />
             ))}
             {user.punishments.length === 0 && <li className="muted">Нет</li>}
           </ul>

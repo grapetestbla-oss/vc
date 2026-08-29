@@ -48,6 +48,7 @@ public final class StaffCommands implements CommandExecutor, TabCompleter {
             case "spec" -> spec(admin, level);
             case "esp" -> esp(admin, level);
             case "ajail" -> ajail(admin, level, args);
+            case "unjail" -> unjail(admin, level, args);
             case "warn" -> warn(admin, level, args);
             case "ban" -> ban(admin, level, args);
             case "check" -> check(admin, level, args);
@@ -124,6 +125,30 @@ public final class StaffCommands implements CommandExecutor, TabCompleter {
             }
             admin.sendMessage(messages.get("staff.jailed", Map.of(
                     "player", target, "minutes", String.valueOf(minutes))));
+        });
+        return true;
+    }
+
+    /** Досрочный выпуск из деморгана. Доступен с хелпера, как и сам /ajail. */
+    private boolean unjail(Player admin, int level, String[] args) {
+        if (denied(admin, level, 2)) return true;
+        if (args.length < 1) {
+            admin.sendMessage(messages.get("staff.usage-unjail"));
+            return true;
+        }
+        String target = Accounts.name(args[0]);
+
+        plugin.api().onMain(plugin.api().post("/api/mc/unjail", Map.of(
+                "targetLogin", target,
+                "actorLogin", Accounts.name(admin))), response -> {
+            if (!ok(admin, response)) return;
+
+            // Игрока в сети выпускаем сразу: инвентарь и точку возврата знает плагин.
+            Player targetPlayer = Accounts.findOnline(target);
+            if (targetPlayer != null) plugin.jail().release(targetPlayer, true);
+
+            admin.sendMessage(messages.get("staff.unjailed", Map.of("player", target)));
+            plugin.logAdminAction(admin, "unjail", target, Map.of());
         });
         return true;
     }
@@ -278,11 +303,23 @@ public final class StaffCommands implements CommandExecutor, TabCompleter {
         return true;
     }
 
+    /** Коды сайта — служебные. В чат идёт понятный текст, а не «already_jailed». */
+    private static final Map<String, String> ERRORS = Map.of(
+            "target_not_found", "такого игрока нет на сайте",
+            "already_jailed", "игрок уже в деморгане",
+            "not_jailed", "игрок не в деморгане",
+            "forbidden", "недостаточно прав",
+            "unauthorized", "сервер не авторизован на сайте",
+            "bad request", "команда заполнена не полностью");
+
     private boolean ok(Player admin, JsonObject response) {
         int status = response.get("_status").getAsInt();
         if (status == 200) return true;
-        String message = response.has("message") ? response.get("message").getAsString()
-                : response.has("error") ? response.get("error").getAsString() : "ошибка";
+
+        String code = response.has("error") ? response.get("error").getAsString() : "";
+        String message = response.has("message") && !response.get("message").isJsonNull()
+                ? response.get("message").getAsString()
+                : ERRORS.getOrDefault(code, code.isBlank() ? "сайт не ответил" : code);
         admin.sendMessage(messages.get("staff.error", Map.of("error", message)));
         return false;
     }

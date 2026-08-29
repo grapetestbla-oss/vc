@@ -165,6 +165,8 @@ public final class SparkManager {
             for (Player player : spark.location.getWorld().getPlayers()) {
                 if (!plugin.auth().authenticated(player)) continue;
                 if (plugin.jail().isJailed(player)) continue;
+                // Наблюдатель пролетает сквозь стены: забирать искру ему нечестно.
+                if (player.getGameMode() == org.bukkit.GameMode.SPECTATOR) continue;
                 double radius = plugin.config().sparkClaimRadius;
                 if (player.getLocation().distanceSquared(spark.location) > radius * radius) continue;
 

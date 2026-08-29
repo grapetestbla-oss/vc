@@ -44,6 +44,9 @@ public final class PluginConfig {
     /// На каком расстоянии игроки могут играть в кости.
     public final int diceRadius;
 
+    /// Как часто перечитывать надетую косметику с сайта. 0 — не перечитывать.
+    public final int cosmeticRefreshSeconds;
+
     /// Название сезона в списке игроков и в приветствии.
     public final String seasonName;
     public final boolean tabEnabled;
@@ -95,6 +98,9 @@ public final class PluginConfig {
         maintenancePollSeconds = Math.max(5, c.getInt("maintenance.poll-seconds", 10));
         giveawayNotifySeconds = Math.max(0, c.getInt("giveaway.notify-seconds", 900));
         diceRadius = Math.max(3, Math.min(32, c.getInt("dice.radius", 8)));
+
+        int cosmeticRefresh = c.getInt("cosmetics.refresh-seconds", 45);
+        cosmeticRefreshSeconds = cosmeticRefresh <= 0 ? 0 : Math.max(10, cosmeticRefresh);
 
         seasonName = c.getString("season.name", "Season I");
         tabEnabled = c.getBoolean("season.tab-enabled", true);

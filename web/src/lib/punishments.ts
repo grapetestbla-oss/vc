@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { audit } from "./audit";
-import type { Punishment } from "@prisma/client";
+import type { Punishment, PunishmentType } from "@prisma/client";
 
 export const WARN_DAYS = 7;
 export const WARN_TO_BAN_DAYS = 5;
@@ -103,6 +103,29 @@ export async function issueBan(params: {
     meta: { days: params.days, reason: params.reason },
   });
   return ban;
+}
+
+/** Кто может снять наказание. Бан — только чиф, остальное — с хелпера. */
+export function canLift(adminLevel: number, type: PunishmentType): string | null {
+  if (type === "BAN") return adminLevel >= 5 ? null : "Бан снимает только чиф-администратор";
+  return adminLevel >= 2 ? null : "Нужен уровень helper";
+}
+
+/**
+ * Досрочный выпуск из деморгана. Возвращает снятое наказание или null, если
+ * игрок и так на свободе — чтобы команда в игре сказала об этом человеческим
+ * текстом, а не молча ничего не сделала.
+ */
+export async function liftJail(params: {
+  userId: string;
+  byUserId: string | null;
+}): Promise<Punishment | null> {
+  const jail = await db.punishment.findFirst({
+    where: { userId: params.userId, type: "JAIL", active: true },
+    orderBy: { issuedAt: "desc" },
+  });
+  if (!jail) return null;
+  return liftPunishment(jail.id, params.byUserId);
 }
 
 export async function liftPunishment(id: string, byUserId: string | null) {
