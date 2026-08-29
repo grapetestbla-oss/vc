@@ -8,7 +8,7 @@ import { CONFIG } from "@/lib/config";
  * промокод партнёра — тот самый, который игроки вводят при регистрации.
  */
 export async function POST(request: Request) {
-  const admin = await requirePanel(4);
+  const admin = await requirePanel(4, "partners.review");
   if (!admin) return Response.json({ error: "Нужен 4 уровень" }, { status: 403 });
 
   const { id, approve, note, code } = (await request.json()) as {

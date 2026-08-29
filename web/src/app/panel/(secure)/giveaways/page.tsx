@@ -7,7 +7,7 @@ import { GiveawayActions, GiveawayForm } from "@/components/GiveawayAdmin";
 export const dynamic = "force-dynamic";
 
 export default async function PanelGiveawaysPage() {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "giveaways.manage");
   if (!admin) return null;
 
   const giveaways = await db.giveaway.findMany({

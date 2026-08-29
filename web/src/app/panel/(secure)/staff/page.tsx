@@ -1,24 +1,27 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requirePanel } from "@/lib/panel";
-import { ADMIN_LEVELS } from "@/lib/config";
+import { listRanks } from "@/lib/ranks";
 
 export const dynamic = "force-dynamic";
 
 export default async function StaffPage() {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "users.staff");
   if (!admin) return <p className="muted">Раздел доступен только chief administrator.</p>;
 
-  const staff = await db.user.findMany({
-    where: { adminLevel: { gt: 0 } },
-    orderBy: { adminLevel: "desc" },
-  });
+  const [staff, ranks] = await Promise.all([
+    db.user.findMany({ where: { adminLevel: { gt: 0 } }, orderBy: { adminLevel: "desc" } }),
+    listRanks(),
+  ]);
+  // Названия рангов берём из панели: их могли переименовать.
+  const byLevel = new Map(ranks.map((rank) => [rank.level, rank]));
 
   return (
     <div className="panel p-6">
       <h1 className="mb-4 text-xl font-semibold">Персонал</h1>
       <p className="muted mb-4 text-sm">
-        Уровень выдаётся в карточке игрока. Здесь — кто сейчас с админкой.
+        Уровень выдаётся в карточке игрока, а названия и права ранга правятся в разделе
+        «Ранги и права». Здесь — кто сейчас с админкой.
       </p>
       <table className="w-full text-sm">
         <thead className="muted text-left">
@@ -38,9 +41,9 @@ export default async function StaffPage() {
                 </Link>
               </td>
               <td>
-                {member.adminLevel} — {ADMIN_LEVELS[member.adminLevel]?.title}
+                {member.adminLevel} — {byLevel.get(member.adminLevel)?.title ?? "—"}
               </td>
-              <td>{ADMIN_LEVELS[member.adminLevel]?.prefix ?? "—"}</td>
+              <td>{byLevel.get(member.adminLevel)?.prefix ?? "—"}</td>
               <td className="muted">{member.lastSeenAt?.toLocaleString("ru") ?? "—"}</td>
             </tr>
           ))}

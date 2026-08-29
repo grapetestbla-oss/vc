@@ -3,7 +3,7 @@ import { requirePanel } from "@/lib/panel";
 import { audit, clientIp } from "@/lib/audit";
 
 export async function POST(request: Request) {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "promos.manage");
   if (!admin) return Response.json({ error: "forbidden" }, { status: 403 });
 
   const { code, rewardVc, maxUses, expiresAt } = (await request.json()) as {

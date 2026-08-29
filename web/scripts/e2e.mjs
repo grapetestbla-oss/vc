@@ -2359,6 +2359,178 @@ const run = async () => {
   const badLang = await (await fetch(BASE + "/", { headers: { Cookie: "lang=zz" } })).text();
   check("неизвестный язык не ломает страницу", badLang.includes("Начать играть"));
 
+  console.log("— Пачка кейсов и быстрое открытие —");
+  const bulkPlayer = await register("Bulky");
+  const bulkMe = await api("/api/me", { cookie: bulkPlayer.session });
+  await api("/api/panel/balance", {
+    method: "POST",
+    cookie: steve.session,
+    body: { userId: bulkMe.json.id, amount: 5000, reason: "на пачку кейсов" },
+  });
+
+  const bulkCases = await api("/api/mc/cases?login=Bulky", { serverToken: TOKEN });
+  const bulkCase = bulkCases.json.cases.find((item) => item.priceVc > 0);
+
+  const balanceBeforeBulk = (await api("/api/me", { cookie: bulkPlayer.session })).json.balanceVc;
+  const bulk = await api("/api/cases/open", {
+    method: "POST",
+    cookie: bulkPlayer.session,
+    body: { caseKey: bulkCase.key, count: 5 },
+  });
+  check("пачка открывается за один запрос", bulk.json?.opened === 5, {
+    opened: bulk.json?.opened,
+    error: bulk.json?.error,
+  });
+  check("результатов столько же, сколько кейсов", bulk.json?.results?.length === 5, bulk.json?.opened);
+  // Из кейса может выпасть и VC, поэтому сверяем точную арифметику, а не «стало меньше».
+  const wonVc = bulk.json.results
+    .filter((item) => item.kind === "VC")
+    .reduce((sum, item) => sum + item.amount, 0);
+  const balanceAfterBulk = (await api("/api/me", { cookie: bulkPlayer.session })).json.balanceVc;
+  check(
+    "списано ровно за пять кейсов, выигрыш зачислен",
+    balanceAfterBulk === balanceBeforeBulk - bulkCase.priceVc * 5 + wonVc,
+    { balanceBeforeBulk, balanceAfterBulk, price: bulkCase.priceVc, wonVc },
+  );
+  check(
+    "у каждого открытия свой сид",
+    new Set(bulk.json.results.map((item) => item.fairness.nonce)).size === 5,
+    bulk.json.results.map((item) => item.fairness.nonce),
+  );
+
+  const tooMany = await api("/api/cases/open", {
+    method: "POST",
+    cookie: bulkPlayer.session,
+    body: { caseKey: bulkCase.key, count: 99 },
+  });
+  check("больше пяти за раз не открыть", tooMany.json?.opened <= 5, tooMany.json?.opened);
+
+  const brokePlayer = await register("Broke");
+  const brokeMe = await api("/api/me", { cookie: brokePlayer.session });
+  await api("/api/panel/balance", {
+    method: "POST",
+    cookie: steve.session,
+    body: { userId: brokeMe.json.id, amount: bulkCase.priceVc * 2, reason: "на два кейса" },
+  });
+  const partial = await api("/api/cases/open", {
+    method: "POST",
+    cookie: brokePlayer.session,
+    body: { caseKey: bulkCase.key, count: 5 },
+  });
+  check("на сколько хватило VC — столько и открылось", partial.json?.opened === 2, partial.json?.opened);
+  check("недостача объясняется словами", Boolean(partial.json?.stopped), partial.json?.stopped);
+  check(
+    "баланс не ушёл в минус",
+    (await api("/api/me", { cookie: brokePlayer.session })).json.balanceVc === 0,
+    partial.json,
+  );
+
+  console.log("— Ранги и права —");
+  const ranksByPlayer = await api("/api/panel/ranks", { cookie: alex.session });
+  check("игрок не видит ранги", ranksByPlayer.status === 403);
+
+  const ranks = await api("/api/panel/ranks", { cookie: steve.session });
+  check("chief видит ранги и права", Array.isArray(ranks.json?.ranks), ranks.json);
+  check(
+    "встроенные уровни на месте",
+    [1, 2, 3, 4, 5].every((level) => ranks.json.ranks.some((rank) => rank.level === level)),
+    ranks.json?.ranks?.map((rank) => rank.level),
+  );
+  check(
+    "у чифа все права",
+    ranks.json.ranks.find((rank) => rank.level === 5)?.permissions.length ===
+      ranks.json.permissions.length,
+    ranks.json.ranks.find((rank) => rank.level === 5)?.permissions.length,
+  );
+
+  const renamed = await api("/api/panel/ranks", {
+    method: "PATCH",
+    cookie: steve.session,
+    body: { level: 3, title: "Модератор", prefix: "MOD", color: "#5ea9ff" },
+  });
+  check("ранг переименовывается", renamed.json?.rank?.title === "Модератор", renamed.json);
+
+  const badColor = await api("/api/panel/ranks", {
+    method: "PATCH",
+    cookie: steve.session,
+    body: { level: 3, color: "синий" },
+  });
+  check("цвет проверяется", badColor.status === 400, badColor.json);
+
+  const selfLock = await api("/api/panel/ranks", {
+    method: "PATCH",
+    cookie: steve.session,
+    body: { level: 5, permissions: ["users.view"] },
+  });
+  check("свой ранг нельзя запереть", selfLock.status === 400, selfLock.json);
+
+  const created = await api("/api/panel/ranks", {
+    method: "POST",
+    cookie: steve.session,
+    body: { level: 6, title: "Куратор", prefix: "CURATOR", permissions: ["panel.view", "logs.view"] },
+  });
+  check("новый ранг создаётся", created.json?.ok === true, created.json);
+
+  const duplicateRank = await api("/api/panel/ranks", {
+    method: "POST",
+    cookie: steve.session,
+    body: { level: 6, title: "Второй", permissions: [] },
+  });
+  check("занятый уровень не переиспользуется", duplicateRank.status === 400, duplicateRank.json);
+
+  const builtinDelete = await api("/api/panel/ranks", {
+    method: "DELETE",
+    cookie: steve.session,
+    body: { level: 3 },
+  });
+  check("встроенный ранг не удаляется", builtinDelete.status === 400, builtinDelete.json);
+
+  // Права куратора: панель видит, но наказывать не может.
+  const curator = await register("Curator");
+  const curatorMe = await api("/api/me", { cookie: curator.session });
+  await api("/api/panel/staff", {
+    method: "POST",
+    cookie: steve.session,
+    body: { userId: curatorMe.json.id, level: 6 },
+  });
+  // Панель требует отдельного входа по паролю — как и для чифа.
+  await api("/api/panel/verify", {
+    method: "POST",
+    cookie: curator.session,
+    body: { password: "password123" },
+  });
+  const curatorPanel = curator.session;
+  const curatorLogs = await api("/api/panel/punish?login=Alex", { cookie: curatorPanel });
+  check("без права наказаний раздел закрыт", curatorLogs.status === 403, curatorLogs.json);
+
+  const grant = await api("/api/panel/ranks", {
+    method: "PATCH",
+    cookie: steve.session,
+    body: { level: 6, permissions: ["panel.view", "logs.view", "users.view"] },
+  });
+  check("права ранга правятся", grant.json?.ok === true, grant.json);
+  const curatorAfter = await api("/api/panel/punish?login=Alex", { cookie: curatorPanel });
+  check("выданное право открывает раздел сразу", curatorAfter.status === 200, curatorAfter.json);
+
+  const occupiedDelete = await api("/api/panel/ranks", {
+    method: "DELETE",
+    cookie: steve.session,
+    body: { level: 6 },
+  });
+  check("занятый ранг не удаляется", occupiedDelete.status === 400, occupiedDelete.json);
+
+  await api("/api/panel/staff", {
+    method: "POST",
+    cookie: steve.session,
+    body: { userId: curatorMe.json.id, level: 0 },
+  });
+  const freeDelete = await api("/api/panel/ranks", {
+    method: "DELETE",
+    cookie: steve.session,
+    body: { level: 6 },
+  });
+  check("пустой ранг удаляется", freeDelete.json?.ok === true, freeDelete.json);
+
   console.log("— Итог —");
   console.log(`Пройдено: ${passed}, провалено: ${failed}`);
   process.exit(failed === 0 ? 0 : 1);

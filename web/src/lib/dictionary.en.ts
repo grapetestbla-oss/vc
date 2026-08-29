@@ -335,6 +335,12 @@ export const EN: Record<string, string> = {
   "Следующий ящик — завтра": "Next case tomorrow",
   "Открыть бесплатно": "Open for free",
   "Открыть за {n} VC": "Open for {n} VC",
+  "Открыть сразу": "Open at once",
+  "Быстрое открытие": "Fast opening",
+  "Открыть {count} за {n} VC": "Open {count} for {n} VC",
+  "дубль": "duplicate",
+  "гарант": "pity",
+
   "Как это работает": "How it works",
   "Выходим…": "Logging out…",
   "Скопировано": "Copied",

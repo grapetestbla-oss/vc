@@ -5,7 +5,7 @@ import ServerControl from "@/components/ServerControl";
 export const dynamic = "force-dynamic";
 
 export default async function PanelServerPage() {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "server.control");
   if (!admin) return null;
 
   return (

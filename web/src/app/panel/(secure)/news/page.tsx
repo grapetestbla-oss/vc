@@ -5,7 +5,7 @@ import NewsEditor from "@/components/NewsEditor";
 export const dynamic = "force-dynamic";
 
 export default async function PanelNewsPage() {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "news.manage");
   if (!admin) {
     return <p className="muted">Публиковать новости может только chief administrator.</p>;
   }

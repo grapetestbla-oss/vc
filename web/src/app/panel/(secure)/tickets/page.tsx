@@ -8,7 +8,7 @@ import { TICKET_STATUS_LABEL } from "@/lib/tickets";
 export const dynamic = "force-dynamic";
 
 export default async function PanelTicketsPage() {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "tickets.answer");
   if (!admin) return null;
 
   const [active, closed] = await Promise.all([

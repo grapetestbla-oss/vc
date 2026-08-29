@@ -5,7 +5,7 @@ import { requirePanel } from "@/lib/panel";
 export const dynamic = "force-dynamic";
 
 export default async function FlagsPage() {
-  const admin = await requirePanel(3);
+  const admin = await requirePanel(3, "flags.view");
   if (!admin) return null;
 
   const flags = await db.suspiciousFlag.findMany({

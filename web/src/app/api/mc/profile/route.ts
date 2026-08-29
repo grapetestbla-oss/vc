@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { serverTokenValid, unauthorized } from "@/lib/mcauth";
 import { levelFromPlaytime } from "@/lib/levels";
+import { rankOf } from "@/lib/ranks";
 
 /** Профиль игрока для плагина: баланс, уровень, админка, активные наказания. */
 export async function GET(request: Request) {
@@ -19,6 +20,8 @@ export async function GET(request: Request) {
   if (!user) return Response.json({ error: "not found" }, { status: 404 });
 
   const jail = user.punishments.find((p) => p.type === "JAIL");
+  // Ранг отдаём готовым: название и метку правят в панели, плагин их только рисует.
+  const rank = await rankOf(user.adminLevel);
 
   return Response.json({
     login: user.login,
@@ -26,6 +29,11 @@ export async function GET(request: Request) {
     level: levelFromPlaytime(user.playtimeSec),
     playtimeSec: user.playtimeSec,
     adminLevel: user.adminLevel,
+    rank: {
+      title: rank.title,
+      prefix: rank.prefix,
+      color: rank.color,
+    },
     cosmetics: user.cosmetics.map((owned) => ({
       key: owned.key,
       kind: owned.cosmetic.kind,

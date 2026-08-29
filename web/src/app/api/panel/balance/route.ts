@@ -4,7 +4,7 @@ import { audit, clientIp } from "@/lib/audit";
 
 /** Ручная корректировка баланса. Только 5 уровень и только с причиной в журнале. */
 export async function POST(request: Request) {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "users.balance");
   if (!admin) return Response.json({ error: "forbidden" }, { status: 403 });
 
   const { userId, amount, reason } = (await request.json()) as {

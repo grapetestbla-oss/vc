@@ -5,7 +5,7 @@ import TotpSetup from "@/components/TotpSetup";
 export const dynamic = "force-dynamic";
 
 export default async function SecurityPage() {
-  const admin = await requirePanel(3);
+  const admin = await requirePanel(3, "security.view");
   if (!admin) return null;
 
   const [attempts, staffWithout2fa] = await Promise.all([

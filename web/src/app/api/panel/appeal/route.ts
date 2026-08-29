@@ -3,7 +3,7 @@ import { reviewAppeal, AppealError } from "@/lib/appeals";
 
 /** Решение по заявлению о разбане. Только чиф-администратор. */
 export async function POST(request: Request) {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "appeals.review");
   if (!admin) return Response.json({ error: "forbidden" }, { status: 403 });
 
   const { appealId, approve, note } = (await request.json()) as {

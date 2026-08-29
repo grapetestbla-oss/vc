@@ -10,13 +10,13 @@ import {
 
 /** Каталог магазина правит только чиф-администратор: это цены и выручка. */
 export async function GET() {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "shop.manage");
   if (!admin) return Response.json({ error: "forbidden" }, { status: 403 });
   return Response.json({ items: await shopCatalogue() });
 }
 
 export async function POST(request: Request) {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "shop.manage");
   if (!admin) return Response.json({ error: "forbidden" }, { status: 403 });
 
   try {
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "shop.manage");
   if (!admin) return Response.json({ error: "forbidden" }, { status: 403 });
 
   try {
@@ -42,7 +42,7 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "shop.manage");
   if (!admin) return Response.json({ error: "forbidden" }, { status: 403 });
 
   const { key } = (await request.json()) as { key?: string };

@@ -4,7 +4,7 @@ import { audit, clientIp } from "@/lib/audit";
 import { CONFIG } from "@/lib/config";
 
 export async function POST(request: Request) {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "promos.manage");
   if (!admin) return Response.json({ error: "forbidden" }, { status: 403 });
 
   const { code, partnerLogin, rewardVc, requiredLevel } = (await request.json()) as {
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
 
 /** Правка существующего промокода: награда, нужный уровень, включён ли он. */
 export async function PATCH(request: Request) {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "promos.manage");
   if (!admin) return Response.json({ error: "forbidden" }, { status: 403 });
 
   const { code, rewardVc, requiredLevel, active } = (await request.json()) as {

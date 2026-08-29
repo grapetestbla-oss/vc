@@ -12,7 +12,7 @@ import {
 
 /** Состояние игрового сервера. Только чиф-администратор. */
 export async function GET() {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "server.control");
   if (!admin) return Response.json({ error: "forbidden" }, { status: 403 });
   if (!gamePanelConfigured()) return Response.json({ configured: false });
 
@@ -28,7 +28,7 @@ export async function GET() {
 
 /** Питание сервера и консольные команды. Каждое действие пишется в журнал. */
 export async function POST(request: Request) {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "server.control");
   if (!admin) return Response.json({ error: "forbidden" }, { status: 403 });
 
   const { action, signal, command } = (await request.json()) as {

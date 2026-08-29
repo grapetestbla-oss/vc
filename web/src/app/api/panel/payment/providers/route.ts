@@ -45,13 +45,13 @@ async function view() {
 export type ProvidersView = Awaited<ReturnType<typeof view>>;
 
 export async function GET() {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "payments.providers");
   if (!admin) return Response.json({ error: "forbidden" }, { status: 403 });
   return Response.json(await view());
 }
 
 export async function POST(request: Request) {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "payments.providers");
   if (!admin) return Response.json({ error: "forbidden" }, { status: 403 });
 
   const body = (await request.json()) as { provider?: string; patch?: ProviderPatch };

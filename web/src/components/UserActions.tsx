@@ -8,10 +8,13 @@ export default function UserActions({
   userId,
   login,
   adminLevel,
+  ranks = [],
 }: {
   userId: string;
   login: string;
   adminLevel: number;
+  /** Список рангов из панели: он может быть длиннее пяти встроенных. */
+  ranks?: { level: number; title: string }[];
 }) {
   const router = useRouter();
   const [message, setMessage] = useState<string | null>(null);
@@ -85,11 +88,11 @@ export default function UserActions({
           >
             <select name="level" className="input w-56">
               <option value="0">Снять админку</option>
-              <option value="1">1 — media</option>
-              <option value="2">2 — helper</option>
-              <option value="3">3 — administrator</option>
-              <option value="4">4 — pr assistant</option>
-              <option value="5">5 — chief administrator</option>
+              {ranks.map((rank) => (
+                <option key={rank.level} value={rank.level}>
+                  {rank.level} — {rank.title}
+                </option>
+              ))}
             </select>
             <button className="btn-ghost" disabled={busy}>Назначить</button>
           </form>

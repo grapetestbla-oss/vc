@@ -5,7 +5,7 @@ import { clientIp } from "@/lib/audit";
 
 /** Наказания игрока — для карточки и для снятия. */
 export async function GET(request: Request) {
-  const admin = await requirePanel(3);
+  const admin = await requirePanel(3, "users.view");
   if (!admin) return Response.json({ error: "forbidden" }, { status: 403 });
 
   const url = new URL(request.url);
@@ -45,7 +45,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const admin = await requirePanel(3);
+  const admin = await requirePanel(3, "punish.issue");
   if (!admin) return Response.json({ error: "forbidden" }, { status: 403 });
 
   const { userId, type, reason, minutes, days } = (await request.json()) as {
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
 
 /** Снятие наказания: досрочный выпуск, отмена варна, разбан. */
 export async function DELETE(request: Request) {
-  const admin = await requirePanel(3);
+  const admin = await requirePanel(3, "punish.lift");
   if (!admin) return Response.json({ error: "forbidden" }, { status: 403 });
 
   const { punishmentId, note } = (await request.json()) as {

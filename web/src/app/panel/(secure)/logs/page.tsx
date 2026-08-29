@@ -8,7 +8,7 @@ export default async function LogsPage({
 }: {
   searchParams: Promise<{ action?: string; actor?: string }>;
 }) {
-  const admin = await requirePanel(3);
+  const admin = await requirePanel(3, "logs.view");
   if (!admin) return null;
   const { action, actor } = await searchParams;
 

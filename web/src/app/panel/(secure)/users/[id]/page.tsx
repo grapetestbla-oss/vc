@@ -4,15 +4,15 @@ import { requirePanel } from "@/lib/panel";
 import { audit } from "@/lib/audit";
 import { levelFromPlaytime } from "@/lib/levels";
 import { accountsSharingIp } from "@/lib/antifraud";
-import { ADMIN_LEVELS } from "@/lib/config";
 import { canLift } from "@/lib/punishments";
+import { listRanks } from "@/lib/ranks";
 import UserActions from "@/components/UserActions";
 import PunishmentRow from "@/components/PunishmentRow";
 
 export const dynamic = "force-dynamic";
 
 export default async function UserCard({ params }: { params: Promise<{ id: string }> }) {
-  const admin = await requirePanel(3);
+  const admin = await requirePanel(3, "users.view");
   if (!admin) return null;
   const { id } = await params;
 
@@ -37,6 +37,7 @@ export default async function UserCard({ params }: { params: Promise<{ id: strin
   await audit({ actorId: admin.id, action: "admin.user.view", targetUserId: user.id });
 
   const neighbours = user.lastIp ? await accountsSharingIp(user.lastIp, user.id) : [];
+  const ranks = await listRanks();
   // Почта и полный список IP видны с 4 уровня — рядовому админу они не нужны.
   const seesPrivateData = admin.adminLevel >= 4;
 
@@ -47,14 +48,21 @@ export default async function UserCard({ params }: { params: Promise<{ id: strin
         <p className="muted mt-1 text-sm">
           Уровень {levelFromPlaytime(user.playtimeSec)} · {Math.floor(user.playtimeSec / 3600)} ч ·
           баланс {user.balanceVc} VC ·
-          {user.adminLevel > 0 ? ` ${ADMIN_LEVELS[user.adminLevel]?.title}` : " игрок"}
+          {user.adminLevel > 0
+            ? ` ${ranks.find((rank) => rank.level === user.adminLevel)?.title ?? user.adminLevel}`
+            : " игрок"}
         </p>
         {seesPrivateData && (
           <p className="muted mt-1 text-sm">
             {user.email} · регистрация {user.createdAt.toLocaleDateString("ru")} · последний IP {user.lastIp ?? "—"}
           </p>
         )}
-        <UserActions userId={user.id} login={user.login} adminLevel={admin.adminLevel} />
+        <UserActions
+          userId={user.id}
+          login={user.login}
+          adminLevel={admin.adminLevel}
+          ranks={ranks.map((rank) => ({ level: rank.level, title: rank.title }))}
+        />
       </section>
 
       <div className="grid gap-6 md:grid-cols-2">

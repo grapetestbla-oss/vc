@@ -6,7 +6,7 @@ import GameToggles from "@/components/GameToggles";
 export const dynamic = "force-dynamic";
 
 export default async function PanelGamesPage() {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "games.toggle");
   if (!admin) return null;
 
   const dayAgo = new Date(Date.now() - 86_400_000);

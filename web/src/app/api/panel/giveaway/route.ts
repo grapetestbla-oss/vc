@@ -3,7 +3,7 @@ import { cancelGiveaway, createGiveaway, drawGiveaway, GiveawayError } from "@/l
 
 /** Управление розыгрышами. Только чиф-администратор. */
 export async function POST(request: Request) {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "giveaways.manage");
   if (!admin) return Response.json({ error: "forbidden" }, { status: 403 });
 
   const body = (await request.json()) as {

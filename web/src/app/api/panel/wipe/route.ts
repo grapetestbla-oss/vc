@@ -4,7 +4,7 @@ import { wipeAccount } from "@/lib/wipe";
 
 /** Обнуление аккаунта: статистика на сайте и инвентарь в игре. Только 5 уровень. */
 export async function POST(request: Request) {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "users.wipe");
   if (!admin) return Response.json({ error: "forbidden" }, { status: 403 });
 
   const { userId, reason, clearInventory, confirm } = (await request.json()) as {

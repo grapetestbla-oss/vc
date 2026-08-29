@@ -9,6 +9,9 @@ type CaseItemWithCosmetic = CaseItem & { cosmetic: Cosmetic | null };
 
 export class CaseError extends Error {}
 
+/** Максимум кейсов за одно открытие на сайте. */
+export const MAX_BULK_OPEN = 5;
+
 /** Кладёт объявление о редкой находке в очередь поручений плагину. */
 async function announceDrop(params: {
   userId: string;

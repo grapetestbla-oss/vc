@@ -5,7 +5,7 @@ import { slugify } from "@/lib/news";
 
 /** Публикация новости. Только chief administrator. */
 export async function POST(request: Request) {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "news.manage");
   if (!admin) return Response.json({ error: "Нужен 5 уровень" }, { status: 403 });
 
   const { title, summary, body, coverUrl, pinned, broadcast, published } =
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
 
 /** Правка новости: снять с публикации, закрепить, поменять текст. */
 export async function PATCH(request: Request) {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "news.manage");
   if (!admin) return Response.json({ error: "Нужен 5 уровень" }, { status: 403 });
 
   const { id, ...fields } = (await request.json()) as {
@@ -81,7 +81,7 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "news.manage");
   if (!admin) return Response.json({ error: "Нужен 5 уровень" }, { status: 403 });
 
   const { id } = (await request.json()) as { id?: string };

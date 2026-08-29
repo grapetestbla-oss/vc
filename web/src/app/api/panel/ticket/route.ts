@@ -4,7 +4,7 @@ import { audit, clientIp } from "@/lib/audit";
 
 /** Ответы администрации в обращения. Разбирает их только чиф-администратор. */
 export async function POST(request: Request) {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "tickets.answer");
   if (!admin) return Response.json({ error: "forbidden" }, { status: 403 });
 
   const { action, ticketId, text } = (await request.json()) as {

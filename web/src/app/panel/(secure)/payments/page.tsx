@@ -13,7 +13,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default async function PanelPaymentsPage() {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "payments.review");
   if (!admin) return null;
 
   const [pending, history, paidToday] = await Promise.all([

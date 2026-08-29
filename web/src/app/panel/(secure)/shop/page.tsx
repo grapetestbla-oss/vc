@@ -6,7 +6,7 @@ import ShopAdmin, { type AdminShopItem } from "@/components/ShopAdmin";
 export const dynamic = "force-dynamic";
 
 export default async function PanelShopPage() {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "shop.manage");
   if (!admin) return null;
 
   const catalogue = await shopCatalogue();

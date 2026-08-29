@@ -218,6 +218,12 @@ public final class VanillaCorePlugin extends JavaPlugin {
 
             Profile profile = auth.profile(player);
             profile.setAdminLevel(response.get("adminLevel").getAsInt());
+            if (response.has("rank") && response.get("rank").isJsonObject()) {
+                JsonObject rank = response.getAsJsonObject("rank");
+                profile.setRank(
+                        rank.get("prefix").isJsonNull() ? null : rank.get("prefix").getAsString(),
+                        rank.get("color").isJsonNull() ? null : rank.get("color").getAsString());
+            }
             profile.setLevel(response.get("level").getAsInt());
             profile.setBalanceVc(response.get("balanceVc").getAsInt());
 
@@ -256,15 +262,27 @@ public final class VanillaCorePlugin extends JavaPlugin {
         }
     }
 
-    /** Имя в чате и в списке: префикс админки плюс купленный цвет ника. */
+    /** Имя в чате и в списке: метка ранга плюс купленный цвет ника. */
     public void refreshDisplayName(Player player) {
-        String prefix = switch (auth.adminLevel(player)) {
-            case 2 -> "<yellow>[HELPER]</yellow> ";
-            case 3 -> "<red>[ADMIN]</red> ";
-            case 4 -> "<light_purple>[PR]</light_purple> ";
-            case 5 -> "<dark_red>[Chief Admin]</dark_red> ";
-            default -> "";
-        };
+        // Метку и её цвет задают в панели, поэтому берём их из профиля. Если
+        // сайт ничего не прислал (старый ответ, ранг без метки) — падаем на
+        // встроенные названия уровней.
+        Profile profile = auth.profile(player);
+        String prefix;
+        if (profile.rankPrefix() != null && !profile.rankPrefix().isBlank()) {
+            String color = profile.rankColor() == null || profile.rankColor().isBlank()
+                    ? defaultRankColor(auth.adminLevel(player))
+                    : profile.rankColor();
+            prefix = "<color:" + color + ">[" + profile.rankPrefix() + "]</color> ";
+        } else {
+            prefix = switch (auth.adminLevel(player)) {
+                case 2 -> "<yellow>[HELPER]</yellow> ";
+                case 3 -> "<red>[ADMIN]</red> ";
+                case 4 -> "<light_purple>[PR]</light_purple> ";
+                case 5 -> "<dark_red>[Chief Admin]</dark_red> ";
+                default -> "";
+            };
+        }
 
         Component nick = Component.text(player.getName());
         net.kyori.adventure.text.format.TextColor color = cosmetics.nameColor(player);
@@ -273,6 +291,17 @@ public final class VanillaCorePlugin extends JavaPlugin {
         Component name = prefix.isEmpty() ? nick : Messages.mm(prefix).append(nick);
         player.displayName(name);
         player.playerListName(name);
+    }
+
+    /** Цвет метки, если в панели его не задали. */
+    private static String defaultRankColor(int adminLevel) {
+        return switch (adminLevel) {
+            case 2 -> "#ffe873";
+            case 3 -> "#ff6b6b";
+            case 4 -> "#d98cff";
+            case 5 -> "#a01414";
+            default -> "#9aa3b2";
+        };
     }
 
     /** Перечитывает косметику игрока с сайта — после покупки или смены предмета. */

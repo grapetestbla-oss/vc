@@ -6,7 +6,7 @@ import PromoRow from "@/components/PromoRow";
 export const dynamic = "force-dynamic";
 
 export default async function PromosPage() {
-  const admin = await requirePanel(3);
+  const admin = await requirePanel(3, "promos.view");
   if (!admin) return null;
 
   const [promos, bonuses] = await Promise.all([

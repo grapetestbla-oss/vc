@@ -4,13 +4,13 @@ import type { LiveGame } from "@prisma/client";
 
 /** Включение и выключение мини-игр. Только чиф-администратор. */
 export async function GET() {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "games.toggle");
   if (!admin) return Response.json({ error: "forbidden" }, { status: 403 });
   return Response.json(await getGameFlags());
 }
 
 export async function POST(request: Request) {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "games.toggle");
   if (!admin) return Response.json({ error: "forbidden" }, { status: 403 });
 
   const { game, enabled } = (await request.json()) as { game?: string; enabled?: boolean };

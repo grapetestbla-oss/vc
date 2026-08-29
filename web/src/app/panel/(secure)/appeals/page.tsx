@@ -7,7 +7,7 @@ import AppealReview from "@/components/AppealReview";
 export const dynamic = "force-dynamic";
 
 export default async function PanelAppealsPage() {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "appeals.review");
   if (!admin) return null;
 
   const [pending, history] = await Promise.all([

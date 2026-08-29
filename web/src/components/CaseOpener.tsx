@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useT } from "./LangProvider";
 import { rarityColor, rarityLabel, KIND_LABEL } from "@/lib/rarity";
@@ -25,6 +25,16 @@ type OpenResponse = {
   collectionRewards: string[];
   error?: string;
 };
+
+type BulkResponse = OpenResponse & {
+  results: OpenResponse[];
+  opened: number;
+  requested: number;
+  stopped: string | null;
+};
+
+/** Сколько кейсов можно открыть за раз — столько же принимает сервер. */
+const COUNTS = [1, 2, 3, 4, 5];
 
 const CARD_WIDTH = 120;
 const CARD_GAP = 12;
@@ -62,21 +72,44 @@ export default function CaseOpener({
   const [offset, setOffset] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState<OpenResponse | null>(null);
+  const [batch, setBatch] = useState<OpenResponse[] | null>(null);
+  const [count, setCount] = useState(1);
+  // Быстрый режим запоминается: тому, кто открывает пачками, барабан мешает.
+  const [fast, setFast] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const track = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    try {
+      setFast(localStorage.getItem("caseFast") === "1");
+    } catch {
+      // Приватный режим браузера: настройка просто не запомнится.
+    }
+  }, []);
+
+  function rememberFast(next: boolean) {
+    setFast(next);
+    try {
+      localStorage.setItem("caseFast", next ? "1" : "0");
+    } catch {
+      // см. выше
+    }
+  }
+
   async function open() {
     setError(null);
     setResult(null);
+    setBatch(null);
     setSpinning(true);
 
+    const times = free ? 1 : count;
     const response = await fetch("/api/cases/open", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ caseKey }),
+      body: JSON.stringify({ caseKey, count: times }),
     });
-    const data: OpenResponse = await response.json();
+    const data: BulkResponse = await response.json();
 
     if (!response.ok) {
       setSpinning(false);
@@ -84,19 +117,35 @@ export default function CaseOpener({
       return;
     }
 
-    const winner: Slot = data.cosmetic
+    const opened = data.results ?? [data];
+    // Кончились VC посреди пачки — сервер отдал то, что успел открыть.
+    if (data.stopped) setError(data.stopped);
+
+    // Быстрый режим и пачка барабан не крутят: 4 секунды на каждый кейс —
+    // это не праздник, а ожидание.
+    if (fast || opened.length > 1) {
+      setSpinning(false);
+      setStrip(null);
+      setBatch(opened);
+      setResult(opened.length === 1 ? opened[0] : null);
+      router.refresh();
+      return;
+    }
+
+    const single = opened[0];
+    const winner: Slot = single.cosmetic
       ? {
-          id: data.cosmetic.key,
-          label: data.cosmetic.name,
-          rarity: data.cosmetic.rarity,
-          kind: data.cosmetic.kind,
+          id: single.cosmetic.key,
+          label: single.cosmetic.name,
+          rarity: single.cosmetic.rarity,
+          kind: single.cosmetic.kind,
         }
       : {
           id: "reward",
           label:
-            data.kind === "VC"
-              ? `${data.amount} VC`
-              : t("{n} осколков", { n: data.amount }),
+            single.kind === "VC"
+              ? `${single.amount} VC`
+              : t("{n} осколков", { n: single.amount }),
           rarity: "common",
           kind: null,
         };
@@ -118,7 +167,7 @@ export default function CaseOpener({
 
     timer.current = setTimeout(() => {
       setSpinning(false);
-      setResult(data);
+      setResult(single);
       router.refresh();
     }, 4200);
   }
@@ -158,6 +207,42 @@ export default function CaseOpener({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {batch && batch.length > 1 && !spinning && (
+        <div className="fade-up grid gap-2 sm:grid-cols-2">
+          {batch.map((item, index) => {
+            const rarity = item.cosmetic?.rarity ?? "common";
+            return (
+              <div
+                key={index}
+                className="rounded-xl p-3 text-sm"
+                style={{
+                  border: `1px solid ${rarityColor(rarity)}55`,
+                  background: `${rarityColor(rarity)}10`,
+                }}
+              >
+                {item.cosmetic ? (
+                  <>
+                    <div style={{ color: rarityColor(rarity) }}>{item.cosmetic.name}</div>
+                    <div className="muted text-xs">
+                      {t(rarityLabel(rarity))} · {t(KIND_LABEL[item.cosmetic.kind])}
+                      {item.serial && ` · #${item.serial}`}
+                      {item.duplicate && ` · ${t("дубль")} +${item.amount}`}
+                      {item.fromPity && ` · ${t("гарант")}`}
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ color: "var(--gold)" }}>
+                    {item.kind === "VC"
+                      ? `+${item.amount} VC`
+                      : `+${t("{n} осколков", { n: item.amount })}`}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -238,6 +323,35 @@ export default function CaseOpener({
         </div>
       )}
 
+      {!free && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="eyebrow">{t("Открыть сразу")}</span>
+          {COUNTS.map((value) => (
+            <button
+              key={value}
+              type="button"
+              className="rounded-lg px-3 py-1 text-sm transition-colors"
+              style={{
+                background: value === count ? "rgba(245,196,81,0.14)" : "rgba(255,255,255,0.05)",
+                color: value === count ? "var(--gold)" : "var(--muted)",
+              }}
+              onClick={() => setCount(value)}
+              disabled={spinning}
+            >
+              ×{value}
+            </button>
+          ))}
+          <label className="muted ml-auto flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={fast}
+              onChange={(event) => rememberFast(event.target.checked)}
+            />
+            {t("Быстрое открытие")}
+          </label>
+        </div>
+      )}
+
       <button
         className="btn w-full"
         onClick={open}
@@ -249,7 +363,9 @@ export default function CaseOpener({
             ? freeUsed || result
               ? t("Следующий ящик — завтра")
               : t("Открыть бесплатно")
-            : t("Открыть за {n} VC", { n: price })}
+            : count > 1
+              ? t("Открыть {count} за {n} VC", { count, n: price * count })
+              : t("Открыть за {n} VC", { n: price })}
       </button>
 
       {error && <p className="text-sm" style={{ color: "var(--danger)" }}>{error}</p>}

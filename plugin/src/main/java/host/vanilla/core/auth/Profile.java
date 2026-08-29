@@ -13,6 +13,9 @@ public final class Profile {
     private int level;
     private int balanceVc;
     private int failedAttempts;
+    /// Метка ранга и её цвет — как их настроили в панели.
+    private String rankPrefix;
+    private String rankColor;
     private final Set<String> cosmetics = new HashSet<>();
     private final long joinedAt = System.currentTimeMillis();
 
@@ -29,6 +32,14 @@ public final class Profile {
 
     public int balanceVc() { return balanceVc; }
     public void setBalanceVc(int balanceVc) { this.balanceVc = balanceVc; }
+
+    public String rankPrefix() { return rankPrefix; }
+    public String rankColor() { return rankColor; }
+
+    public void setRank(String prefix, String color) {
+        this.rankPrefix = prefix;
+        this.rankColor = color;
+    }
 
     public Set<String> cosmetics() { return cosmetics; }
 

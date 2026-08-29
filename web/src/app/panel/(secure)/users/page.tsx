@@ -10,7 +10,7 @@ export default async function UsersPage({
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
-  const admin = await requirePanel(3);
+  const admin = await requirePanel(3, "users.view");
   if (!admin) return null;
   const { q } = await searchParams;
 

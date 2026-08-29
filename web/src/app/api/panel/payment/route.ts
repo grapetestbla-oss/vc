@@ -6,7 +6,7 @@ import { payPartnerShare } from "@/lib/partnershare";
 
 /** Разбор заявки на пополнение. Одобряет и отклоняет только 5 уровень. */
 export async function POST(request: Request) {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "payments.review");
   if (!admin) return Response.json({ error: "forbidden" }, { status: 403 });
 
   const { paymentId, action, note } = (await request.json()) as {

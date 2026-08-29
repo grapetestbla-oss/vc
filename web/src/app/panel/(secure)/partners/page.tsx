@@ -6,7 +6,7 @@ import { PLATFORM_LABEL, STATUS_LABEL } from "@/lib/partners";
 export const dynamic = "force-dynamic";
 
 export default async function PanelPartnersPage() {
-  const admin = await requirePanel(3);
+  const admin = await requirePanel(3, "partners.review");
   if (!admin) return null;
 
   const [pending, decided] = await Promise.all([

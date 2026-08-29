@@ -13,7 +13,7 @@ import PaymentProviders, { type ProviderState } from "@/components/PaymentProvid
 export const dynamic = "force-dynamic";
 
 export default async function PanelProvidersPage() {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "payments.providers");
   if (!admin) return null;
 
   const config = await getPaymentConfig();

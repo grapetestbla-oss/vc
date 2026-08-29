@@ -5,7 +5,7 @@ import MaintenanceToggle from "@/components/MaintenanceToggle";
 export const dynamic = "force-dynamic";
 
 export default async function PanelMaintenancePage() {
-  const admin = await requirePanel(5);
+  const admin = await requirePanel(5, "maintenance.toggle");
   if (!admin) return null;
 
   const maintenance = await getMaintenance();

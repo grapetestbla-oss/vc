@@ -8,7 +8,7 @@ import CountUp from "@/components/CountUp";
 export const dynamic = "force-dynamic";
 
 export default async function PanelHome() {
-  const admin = await requirePanel(3);
+  const admin = await requirePanel(3, "panel.view");
   if (!admin) return null;
   await audit({ actorId: admin.id, action: "panel.dashboard.view" });
 
