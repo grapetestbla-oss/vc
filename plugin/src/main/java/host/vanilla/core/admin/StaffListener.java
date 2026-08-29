@@ -62,10 +62,22 @@ public final class StaffListener implements Listener {
         blockIfStaff(event.getPlayer(), event);
     }
 
+    /**
+     * Наблюдатель и так не может трогать мир — событие до нас просто не дойдёт.
+     * Раньше здесь резался любой администратор от второго уровня, и после
+     * <code>/spec</code> он оставался без рук: блоки не ломались, кейс не
+     * ставился. Теперь запрет живёт только в приключении (там игрок ещё не
+     * авторизован) и включается целиком флагом staff.protect-world для тех,
+     * кому нужен старый режим «админ мир не трогает».
+     */
     private void blockIfStaff(Player player, org.bukkit.event.Cancellable event) {
-        if (!plugin.config().staffAlwaysSpectator) return;
-        if (plugin.auth().adminLevel(player) >= 2 && !plugin.jail().isJailed(player)) {
+        if (plugin.auth().adminLevel(player) < 2) return;
+        if (plugin.jail().isJailed(player)) return;
+
+        if (plugin.config().staffProtectWorld) {
             event.setCancelled(true);
+            return;
         }
+        if (player.getGameMode() == org.bukkit.GameMode.ADVENTURE) event.setCancelled(true);
     }
 }

@@ -14,16 +14,28 @@ import org.bukkit.entity.Display;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.inventory.InventoryType;
+import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.util.Transformation;
 import org.joml.AxisAngle4f;
 import org.joml.Vector3f;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * Открытие кейса блоком: игрок ставит помеченный сундук, над ним крутятся
@@ -40,32 +52,133 @@ public final class CaseListener implements Listener {
 
     private final VanillaCorePlugin plugin;
     private final Messages messages;
+    /** Кто сейчас крутит барабан: второй кейс подряд ломал бы анимацию. */
+    private final Set<UUID> spinning = new HashSet<>();
 
     public CaseListener(VanillaCorePlugin plugin, Messages messages) {
         this.plugin = plugin;
         this.messages = messages;
     }
 
-    @EventHandler(ignoreCancelled = true)
+    /**
+     * Установка кейса. Приоритет самый ранний и без ignoreCancelled: кейс —
+     * не настоящий блок, и чужие запреты на строительство (защита мира у
+     * администрации, приваты плагинов) не должны мешать его открыть.
+     */
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onPlace(BlockPlaceEvent event) {
-        ItemStack item = event.getItemInHand();
-        if (!item.hasItemMeta()) return;
-
-        String caseKey = item.getItemMeta().getPersistentDataContainer()
-                .get(plugin.cases().tag(), PersistentDataType.STRING);
+        String caseKey = caseKeyOf(event.getItemInHand());
         if (caseKey == null) return;
 
-        Player player = event.getPlayer();
         // Ставим не блок, а анимацию: сундук остался бы в мире пустышкой.
         event.setCancelled(true);
+        open(event.getPlayer(), event.getItemInHand(),
+                event.getBlock().getLocation().add(0.5, 0.6, 0.5), caseKey);
+    }
+
+    /**
+     * Открытие правым кликом. Установку блоком легко потерять: в чужом регионе,
+     * в наблюдателе, в воздухе — ничего не произойдёт. Клик работает всегда.
+     */
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onInteract(PlayerInteractEvent event) {
+        if (event.getHand() != EquipmentSlot.HAND) return;
+        if (event.getAction() != Action.RIGHT_CLICK_BLOCK && event.getAction() != Action.RIGHT_CLICK_AIR) return;
+
+        ItemStack item = event.getItem();
+        String caseKey = caseKeyOf(item);
+        if (caseKey == null) return;
+
+        event.setCancelled(true);
+        Location center = event.getClickedBlock() != null
+                ? event.getClickedBlock().getLocation().add(0.5, 1.6, 0.5)
+                : event.getPlayer().getLocation().add(
+                        event.getPlayer().getLocation().getDirection().setY(0).normalize().multiply(1.5)).add(0, 1.2, 0);
+        open(event.getPlayer(), item, center, caseKey);
+    }
+
+    /** Общая часть: проверки, списание предмета и запуск барабана. */
+    private void open(Player player, ItemStack item, Location center, String caseKey) {
         if (plugin.jail().isJailed(player)) {
             player.sendMessage(messages.get("cases.jailed"));
             return;
         }
+        if (spinning.contains(player.getUniqueId())) {
+            player.sendMessage(messages.get("cases.busy"));
+            return;
+        }
+        if (center.getWorld() == null) return;
 
+        spinning.add(player.getUniqueId());
         item.setAmount(item.getAmount() - 1);
-        Location center = event.getBlock().getLocation().add(0.5, 0.6, 0.5);
         spin(player, center, caseKey);
+    }
+
+    /**
+     * Открытие командой. Запасной путь на случай, когда клик по предмету
+     * перехватывает другой плагин или игрок просто не понял, что делать.
+     * Без ключа берётся первый кейс из инвентаря.
+     */
+    public boolean openFromInventory(Player player, String caseKey) {
+        for (ItemStack stack : player.getInventory().getContents()) {
+            String key = caseKeyOf(stack);
+            if (key == null) continue;
+            if (caseKey != null && !key.equalsIgnoreCase(caseKey)) continue;
+
+            Location center = player.getLocation()
+                    .add(player.getLocation().getDirection().setY(0).normalize().multiply(1.5))
+                    .add(0, 1.2, 0);
+            open(player, stack, center, key);
+            return true;
+        }
+        return false;
+    }
+
+    /** Ключ кейса у предмета в руке, либо null — значит это обычный предмет. */
+    private String caseKeyOf(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return null;
+        return item.getItemMeta().getPersistentDataContainer()
+                .get(plugin.cases().tag(), PersistentDataType.STRING);
+    }
+
+    /** Кейс — оплаченный предмет: его не выбрасывают и не теряют при смерти. */
+    @EventHandler(ignoreCancelled = true)
+    public void onDrop(PlayerDropItemEvent event) {
+        if (caseKeyOf(event.getItemDrop().getItemStack()) == null) return;
+        event.setCancelled(true);
+        event.getPlayer().sendMessage(messages.get("cases.no-drop"));
+    }
+
+    @EventHandler
+    public void onDeath(PlayerDeathEvent event) {
+        event.getDrops().removeIf(drop -> caseKeyOf(drop) != null);
+    }
+
+    /** И не уезжает в сундук: оттуда его забрал бы кто угодно. */
+    @EventHandler(ignoreCancelled = true)
+    public void onClick(InventoryClickEvent event) {
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+        if (event.getInventory().getType() == InventoryType.CRAFTING) return;
+
+        boolean movingCase = caseKeyOf(event.getCurrentItem()) != null
+                || caseKeyOf(event.getCursor()) != null;
+        if (!movingCase) return;
+
+        // Клик по своему инвентарю разрешаем, только если предмет остаётся у себя.
+        boolean toOwnInventory = event.getClickedInventory() != null
+                && event.getClickedInventory().equals(player.getInventory())
+                && !event.isShiftClick();
+        if (toOwnInventory) return;
+
+        event.setCancelled(true);
+        player.sendMessage(messages.get("cases.no-drop"));
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onDrag(InventoryDragEvent event) {
+        if (caseKeyOf(event.getOldCursor()) == null) return;
+        if (event.getInventory().getType() == InventoryType.CRAFTING) return;
+        event.setCancelled(true);
     }
 
     /** Барабан: предметы летают по кругу, пока сайт не скажет результат. */
@@ -108,6 +221,7 @@ public final class CaseListener implements Listener {
                     response -> {
                         plugin.getServer().getScheduler().cancelTask(task);
                         for (ItemDisplay display : displays) display.remove();
+                        spinning.remove(player.getUniqueId());
 
                         String status = response.has("status") ? response.get("status").getAsString() : "error";
                         if (!"ok".equals(status)) {

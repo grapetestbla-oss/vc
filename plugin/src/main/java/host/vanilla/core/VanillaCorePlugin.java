@@ -70,6 +70,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
     private DiceGame dice;
     private ShopManager shop;
     private ShopCommands shopCommands;
+    private CaseListener caseListener;
     private NamespacedKey hatKey;
 
     @Override
@@ -116,7 +117,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
         manager.registerEvents(new ReportMenuListener(this, reports), this);
         manager.registerEvents(new CosmeticListener(this, cosmetics), this);
         manager.registerEvents(new ShopListener(this, shopCommands, messages), this);
-        manager.registerEvents(new CaseListener(this, messages), this);
+        caseListener = new CaseListener(this, messages);
+        manager.registerEvents(caseListener, this);
     }
 
     private void registerCommands() {
@@ -331,6 +333,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
     public SparkManager sparks() { return sparks; }
     public GiveawayNotifier giveaways() { return giveaways; }
     public CaseShop cases() { return caseShop; }
+    public CaseListener caseOpening() { return caseListener; }
     public DiceGame dice() { return dice; }
     public TabList tabList() { return tabList; }
     public NamespacedKey hatKey() { return hatKey; }

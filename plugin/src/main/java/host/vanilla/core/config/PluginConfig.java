@@ -36,6 +36,8 @@ public final class PluginConfig {
     public final Set<String> jailAllowedCommands;
 
     public final boolean staffAlwaysSpectator;
+    /// Запрещать администрации ломать и ставить блоки даже в выживании.
+    public final boolean staffProtectWorld;
     public final int espRefreshSeconds;
     public final int newsPollSeconds;
     public final int maintenancePollSeconds;
@@ -93,6 +95,7 @@ public final class PluginConfig {
                 .collect(Collectors.toUnmodifiableSet());
 
         staffAlwaysSpectator = c.getBoolean("staff.always-spectator", true);
+        staffProtectWorld = c.getBoolean("staff.protect-world", false);
         espRefreshSeconds = Math.max(2, c.getInt("staff.esp-refresh-seconds", 5));
         newsPollSeconds = Math.max(30, c.getInt("news.poll-seconds", 60));
         maintenancePollSeconds = Math.max(5, c.getInt("maintenance.poll-seconds", 10));

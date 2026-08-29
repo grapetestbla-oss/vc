@@ -116,7 +116,10 @@ public final class CaseShop {
         meta.displayName(Component.text("Кейс: " + name, NamedTextColor.GOLD).decoration(
                 net.kyori.adventure.text.format.TextDecoration.ITALIC, false));
         List<Component> lore = new ArrayList<>();
-        lore.add(Component.text("Поставьте блок, чтобы открыть", NamedTextColor.GRAY));
+        lore.add(Component.text("Правый клик — открыть", NamedTextColor.GRAY)
+                .decoration(net.kyori.adventure.text.format.TextDecoration.ITALIC, false));
+        lore.add(Component.text("Не выбрасывается и не теряется при смерти", NamedTextColor.DARK_GRAY)
+                .decoration(net.kyori.adventure.text.format.TextDecoration.ITALIC, false));
         meta.lore(lore);
         meta.getPersistentDataContainer().set(caseKeyTag, PersistentDataType.STRING, caseKey);
         item.setItemMeta(meta);

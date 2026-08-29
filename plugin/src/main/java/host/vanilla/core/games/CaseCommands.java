@@ -45,7 +45,19 @@ public final class CaseCommands implements CommandExecutor {
             plugin.cases().openShop(player);
             return true;
         }
-        plugin.cases().buy(player, args[0].toLowerCase(Locale.ROOT));
+
+        String first = args[0].toLowerCase(Locale.ROOT);
+        // Открыть уже купленный кейс, не трогая предмет: клик мог перехватить
+        // другой плагин, а кейс оплачен и должен открываться при любом раскладе.
+        if (first.equals("open") || first.equals("открыть")) {
+            String key = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : null;
+            if (!plugin.caseOpening().openFromInventory(player, key)) {
+                player.sendMessage(messages.get("cases.none"));
+            }
+            return true;
+        }
+
+        plugin.cases().buy(player, first);
         return true;
     }
 

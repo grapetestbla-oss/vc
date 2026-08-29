@@ -95,6 +95,9 @@ season:
 staff:
   # Администрация со 2 уровня всегда в режиме наблюдателя.
   always-spectator: true
+  # true — администрация не может ломать и ставить блоки даже после /spec.
+  # По умолчанию false: вышел из наблюдателя — играешь как все.
+  protect-world: false
   esp-refresh-seconds: 5
 
 messages:
@@ -191,7 +194,10 @@ messages:
 
   cases.header: "<gold>━━━ КЕЙСЫ ━━━ <gray>баланс: <yellow><balance> VC"
   cases.line: "<white><name> <gray>— <yellow><price> VC <gray>· купить: <white>/cases <key>"
-  cases.howto: "<gray>Купленный кейс появится в инвентаре. Поставьте его блоком, чтобы открыть."
+  cases.howto: "<gray>Купленный кейс появится в инвентаре. Кликните им правой кнопкой, поставьте блоком или введите <white>/cases открыть<gray>."
+  cases.none: "<gray>Кейсов в инвентаре нет. Купить: <white>/cases <ключ>"
+  cases.busy: "<yellow>Кейс уже открывается — дождитесь результата."
+  cases.no-drop: "<yellow>Кейс не выбрасывается и не кладётся в сундук: откройте его правой кнопкой."
   cases.bought: "<green>Кейс «<name>» у вас в инвентаре. Баланс: <yellow><balance> VC"
   cases.buy-failed: "<red>Не куплено: <reason>"
   cases.open-failed: "<red>Кейс не открылся: <reason>. Предмет возвращён."
