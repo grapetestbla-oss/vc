@@ -14,6 +14,7 @@ import host.vanilla.core.auth.AuthCommands;
 import host.vanilla.core.auth.AuthListener;
 import host.vanilla.core.auth.AuthManager;
 import host.vanilla.core.auth.Profile;
+import host.vanilla.core.chat.ChatListener;
 import host.vanilla.core.config.PluginConfig;
 import host.vanilla.core.cosmetics.CosmeticCommand;
 import host.vanilla.core.cosmetics.CosmeticEngine;
@@ -129,6 +130,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         manager.registerEvents(new ReportMenuListener(this, reports), this);
         manager.registerEvents(new CosmeticListener(this, cosmetics), this);
         manager.registerEvents(new ShopListener(this, shopCommands, messages), this);
+        manager.registerEvents(new ChatListener(this, messages), this);
         caseListener = new CaseListener(this, messages);
         manager.registerEvents(caseListener, this);
     }
@@ -185,6 +187,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
         getServer().getScheduler().runTaskTimer(this, esp::refresh,
                 config.espRefreshSeconds * 20L, config.espRefreshSeconds * 20L);
         getServer().getScheduler().runTaskTimer(this, vanish::tick, 40L, 40L);
+        getServer().getScheduler().runTaskTimer(this, this::refreshShops,
+                400L, config.shopRefreshSeconds * 20L);
         getServer().getScheduler().runTaskTimer(this, inventories::reportAll,
                 600L, Math.max(15, config.inventoryReportSeconds) * 20L);
         getServer().getScheduler().runTaskTimer(this, this::reportPlaytime, 1200L, 1200L);
@@ -334,7 +338,17 @@ public final class VanillaCorePlugin extends JavaPlugin {
         };
     }
 
-    /** Перечитывает косметику игрока с сайта — после покупки или смены предмета. */
+    /**
+     * Держим кэш покупок свежим. Поручение о покупке приходит и так, но решение
+     * о страховке инвентаря принимается в момент смерти, где ждать ответа сайта
+     * уже поздно — значит, кэш не должен успевать устареть.
+     */
+    private void refreshShops() {
+        for (Player player : getServer().getOnlinePlayers()) {
+            if (auth.authenticated(player)) shop.refresh(player);
+        }
+    }
+
     /** Перечитывает косметику всем, кто в сети: набор мог поменяться на сайте. */
     private void refreshCosmetics() {
         for (Player player : getServer().getOnlinePlayers()) {
