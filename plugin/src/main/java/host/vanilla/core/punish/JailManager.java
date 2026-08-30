@@ -29,6 +29,7 @@ public final class JailManager {
     private final Map<UUID, Jail> jails = new HashMap<>();
 
     private JailJobs jobs;
+    private long lastTeleportWarning;
 
     /** Наряды заводятся после менеджера, поэтому связываем их отдельно. */
     public void setJobs(JailJobs jobs) {
@@ -96,6 +97,14 @@ public final class JailManager {
      * нельзя — иначе наказанный остаётся гулять по обычному миру.
      */
     private void sendToZone(Player player) {
+        // Игрока с пассажирами Minecraft телепортировать не даёт, а над головой
+        // может ехать косметический титул — из-за него перенос молча
+        // проваливался. В деморгане косметика и так не работает, поэтому
+        // снимаем её целиком: заодно уезжает питомец.
+        player.getPassengers().forEach(player::removePassenger);
+        if (player.isInsideVehicle()) player.leaveVehicle();
+        plugin.cosmetics().forget(player);
+
         if (player.getGameMode() != GameMode.SURVIVAL) {
             // Наблюдатель пролетает сквозь стены, творческий — летает.
             player.setSpectatorTarget(null);
@@ -105,8 +114,14 @@ public final class JailManager {
 
         Location spawn = zone.spawn();
         if (!player.teleport(spawn)) {
-            plugin.getLogger().warning("Не удалось перенести " + player.getName()
-                    + " в деморган — повторю через тик.");
+            // Повторы идут раз в секунду сторожем, поэтому в лог пишем не
+            // каждую попытку, а раз в полминуты — иначе он забивается.
+            long now = System.currentTimeMillis();
+            if (now - lastTeleportWarning > 30_000) {
+                lastTeleportWarning = now;
+                plugin.getLogger().warning("Не удалось перенести " + player.getName()
+                        + " в деморган: перенос отменён. Повторяю.");
+            }
         }
 
         // Выход из наблюдателя возвращает игрока туда, где он в него вошёл, —
@@ -168,6 +183,8 @@ public final class JailManager {
                 ? back
                 : plugin.getServer().getWorlds().get(0).getSpawnLocation());
         player.sendMessage(messages.get(early ? "jail.released-early" : "jail.released"));
+        // Косметику снимали при посадке — возвращаем, как только вышел.
+        plugin.reloadCosmetics(player);
         sync(player, jail, true);
     }
 
