@@ -14,7 +14,7 @@ import java.util.Map;
 
 /**
  * Поручения с сайта: очистка инвентаря после обнуления аккаунта, слепок
- * инвентаря для панели и подхват свежей покупки в магазине.
+ * инвентаря для панели, подхват свежей покупки в магазине и скин из кабинета.
  * Выполняем только для игроков в сети, остальные поручения остаются в очереди
  * и подтверждаются, лишь когда действительно исполнены.
  */
@@ -63,6 +63,10 @@ public final class ActionRunner {
                     done.add(item.get("id").getAsString());
                 }
 
+                if ("APPLY_SKIN".equals(kind) && applySkin(player, item)) {
+                    done.add(item.get("id").getAsString());
+                }
+
                 // Покупка на сайте: включаем её в игре, не дожидаясь перезахода.
                 if ("REFRESH_SHOP".equals(kind)) {
                     plugin.shop().refresh(player, () -> {
@@ -76,6 +80,47 @@ public final class ActionRunner {
                 plugin.api().post("/api/mc/actions", Map.of("ids", done));
             }
         });
+    }
+
+    /**
+     * Скин из личного кабинета. Своей реализации у нас нет — скины на
+     * offline-сервере раздаёт SkinsRestorer, и мы просто отдаём ему команды от
+     * консоли. Картинку он забирает по ссылке с нашего сайта: имя скина несёт
+     * время правки, иначе SkinsRestorer отдал бы прошлую картинку из кэша.
+     */
+    private boolean applySkin(Player player, JsonObject item) {
+        if (plugin.getServer().getPluginManager().getPlugin("SkinsRestorer") == null) {
+            plugin.getLogger().warning("Скин не применён: SkinsRestorer не установлен");
+            return true;
+        }
+        if (!item.has("payload") || !item.get("payload").isJsonObject()) return true;
+        JsonObject payload = item.getAsJsonObject("payload");
+        String mode = payload.has("mode") ? payload.get("mode").getAsString() : "";
+        String name = player.getName();
+
+        List<String> commands = switch (mode) {
+            case "clear" -> List.of("skin clear " + name);
+            // Для чужого ника модель не навязываем: она приедет вместе со скином.
+            case "nick" -> List.of("skin set " + payload.get("nick").getAsString() + " " + name);
+            case "url" -> List.of(
+                    "sr createcustom " + payload.get("name").getAsString() + " "
+                            + payload.get("url").getAsString() + " " + variant(payload),
+                    "skin set " + payload.get("name").getAsString() + " " + name);
+            default -> List.of();
+        };
+        if (commands.isEmpty()) return true;
+
+        for (String command : commands) {
+            plugin.getServer().dispatchCommand(plugin.getServer().getConsoleSender(), command);
+        }
+        player.sendMessage(messages.get(mode.equals("clear") ? "skin.cleared" : "skin.applied"));
+        return true;
+    }
+
+    /** SkinsRestorer ждёт classic или slim; чужое значение он бы не понял. */
+    private String variant(JsonObject payload) {
+        String value = payload.has("variant") ? payload.get("variant").getAsString() : "classic";
+        return "slim".equals(value) ? "slim" : "classic";
     }
 
     /** Редкая находка: объявляем всем, чтобы кейсы было видно со стороны. */

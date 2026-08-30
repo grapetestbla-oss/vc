@@ -40,6 +40,35 @@ async function api(path, { method = "GET", body, cookie, serverToken, ip } = {})
   return { status: response.status, json, cookie: response.headers.get("set-cookie") };
 }
 
+
+/** Крошечные валидные PNG: 64×64 годится под скин, 32×32 — нет. */
+const SKIN_PNG_64 = "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAJ0lEQVR4nO3BAQ0AAADCoPdPbQ43oAAAAAAAAAAAAAAAAAAAAIB3A0BAAAGP8slRAAAAAElFTkSuQmCC";
+const SKIN_PNG_32 = "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAGklEQVR4nO3BAQEAAACCIP+vbkhAAQAAAO8GECAAARlDNO4AAAAASUVORK5CYII=";
+
+async function postSkin(session, fields) {
+  const form = new FormData();
+  for (const [key, value] of Object.entries(fields)) {
+    if (key === "file") {
+      const bytes = Uint8Array.from(atob(value), (ch) => ch.charCodeAt(0));
+      form.set("file", new Blob([bytes], { type: "image/png" }), "skin.png");
+    } else {
+      form.set(key, value);
+    }
+  }
+  const response = await fetch(BASE + "/api/skin", {
+    method: "POST",
+    headers: { Cookie: session },
+    body: form,
+  });
+  let json = null;
+  try {
+    json = await response.json();
+  } catch {
+    json = null;
+  }
+  return { status: response.status, json };
+}
+
 let ipCounter = 0;
 
 async function register(login, password = "password123", promo) {
@@ -2456,6 +2485,51 @@ const run = async () => {
     brokeWon,
   });
   check("баланс не ушёл в минус", brokeLeft >= 0, brokeLeft);
+
+  console.log("— Скин из кабинета —");
+  const skinAnon = await api("/api/skin");
+  check("гость скин не ставит", skinAnon.status === 401);
+
+  const smallSkin = await postSkin(steve.session, { variant: "classic", file: SKIN_PNG_32 });
+  check("скин не того размера отклоняется", smallSkin.status === 400, smallSkin.json);
+
+  const badVariant = await postSkin(steve.session, { variant: "wide", file: SKIN_PNG_64 });
+  check("неизвестная модель отклоняется", badVariant.status === 400, badVariant.json);
+
+  const badNick = await postSkin(steve.session, { variant: "classic", nick: "ник с пробелом" });
+  check("кривой ник отклоняется", badNick.status === 400, badNick.json);
+
+  const skinSaved = await postSkin(steve.session, { variant: "slim", file: SKIN_PNG_64 });
+  check("скин сохраняется", skinSaved.json?.ok === true, skinSaved.json);
+  check("модель запомнилась", skinSaved.json?.variant === "slim", skinSaved.json);
+
+  const skinFile = await fetch(BASE + "/api/skins/Steve.png");
+  check("скин отдаётся публично картинкой", skinFile.headers.get("content-type") === "image/png");
+
+  const skinActions = await api("/api/mc/actions", { serverToken: TOKEN });
+  const applySkin = skinActions.json?.actions?.find(
+    (action) => action.kind === "APPLY_SKIN" && action.login === "Steve",
+  );
+  check("серверу ушло поручение о скине", applySkin?.payload?.mode === "url", applySkin?.payload);
+  check(
+    "ссылка на скин ведёт на наш сайт",
+    typeof applySkin?.payload?.url === "string" && applySkin.payload.url.endsWith("/api/skins/Steve.png"),
+    applySkin?.payload?.url,
+  );
+
+  const skinByNick = await postSkin(steve.session, { variant: "classic", nick: "Notch" });
+  check("скин по нику сохраняется", skinByNick.json?.kind === "NICK", skinByNick.json);
+  const nickActions = await api("/api/mc/actions", { serverToken: TOKEN });
+  const nickSkinActions = nickActions.json.actions.filter(
+    (action) => action.kind === "APPLY_SKIN" && action.login === "Steve",
+  );
+  check("поручение о скине не копится", nickSkinActions.length === 1, nickSkinActions.length);
+  check("плагину передан ник", nickSkinActions[0]?.payload?.nick === "Notch", nickSkinActions[0]?.payload);
+
+  const skinCleared = await api("/api/skin", { method: "DELETE", cookie: steve.session });
+  check("скин сбрасывается", skinCleared.json?.ok === true, skinCleared.json);
+  const goneFile = await fetch(BASE + "/api/skins/Steve.png");
+  check("после сброса картинки нет", goneFile.status === 404);
 
   console.log("— Регистрация и инвентарь —");
   const knownPlayer = await api("/api/mc/exists?login=Steve", { serverToken: TOKEN });

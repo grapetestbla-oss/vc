@@ -286,6 +286,8 @@ messages:
   chat.global-tag: "<dark_gray>[<gold>всем<dark_gray>]<reset> "
   chat.alone: "<gray>Рядом никого. Начните сообщение с <white><prefix><gray>, чтобы услышал весь сервер."
   chat.global-empty: "<gray>После <white><prefix><gray> нужен текст."
+  skin.applied: "<green>Скин с сайта применён."
+  skin.cleared: "<gray>Скин сброшен на стандартный."
   shop.activated: "<green>Покупка с сайта активирована. Что доступно — <white>/shop"
   shop.empty: "<gray>Вы пока ничего не покупали."
   shop.not-owned: "<red>Товар не куплен. Загляните на сайт: /shop"

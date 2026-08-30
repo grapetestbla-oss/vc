@@ -40,6 +40,7 @@ model User {
   totpEnabledAt DateTime?
 
   inventory            InventorySnapshot?
+  skin                 PlayerSkin?
   knownIps             KnownIp[]
   sessions             Session[]
   loginAttempts        LoginAttempt[]
@@ -486,6 +487,24 @@ model Appeal {
 
 /// Действие, которое должен выполнить плагин: например, очистить инвентарь
 /// после обнуления аккаунта. Ждёт в очереди, пока игрок не зайдёт в игру.
+/// Скин из личного кабинета. Сервер в offline-mode, скины раздаёт
+/// SkinsRestorer — он умеет брать текстуру по ссылке, поэтому картинку храним
+/// у себя и отдаём публично, а игре передаём адрес.
+model PlayerSkin {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// UPLOAD — своя картинка в data, NICK — берём скин чужого ника.
+  kind      String
+  data      Bytes?
+  nick      String?
+  /// classic (широкие руки) или slim (тонкие).
+  variant   String   @default("classic")
+  updatedAt DateTime @updatedAt
+
+  @@index([updatedAt])
+}
+
 /// Слепок инвентаря игрока для панели. Плагин присылает его раз в минуту, при
 /// выходе игрока и по запросу из карточки — храним только последний.
 model InventorySnapshot {

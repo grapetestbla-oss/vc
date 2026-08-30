@@ -5,6 +5,7 @@ import { currentUser } from "@/lib/session";
 import { levelFromPlaytime, nextLevelAt } from "@/lib/levels";
 import { ADMIN_LEVELS } from "@/lib/config";
 import TwoFactorCode from "@/components/TwoFactorCode";
+import SkinForm from "@/components/SkinForm";
 import { promoStatus } from "@/lib/promo";
 import { partnerEarnings } from "@/lib/partnershare";
 import { CONFIG } from "@/lib/config";
@@ -129,6 +130,16 @@ export default async function CabinetPage() {
             {t("Заходите на сервер под ником {login} и введите /login с этим же паролем. С нового адреса сервер попросит код 2FA.", { login: user.login })}
           </p>
           <TwoFactorCode />
+        </section>
+      </Reveal>
+
+      <Reveal delay={65}>
+        <section className="panel space-y-3 p-6">
+          <h2 className="font-semibold">{t("Скин")}</h2>
+          <p className="muted text-sm">
+            {t("Свой скин работает и с лицензии, и с пиратки. Загрузите картинку или возьмите скин чужого ника — сервер наденет его сам.")}
+          </p>
+          <SkinForm login={user.login} />
         </section>
       </Reveal>
 
