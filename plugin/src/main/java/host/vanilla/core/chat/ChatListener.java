@@ -33,7 +33,9 @@ public final class ChatListener implements Listener {
         this.messages = messages;
     }
 
-    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    // LOW: разбираем ещё не тронутое сообщение. BreweryX искажает речь пьяного
+    // игрока на этом же событии, и после него «!» в начале можно не узнать.
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onChat(AsyncChatEvent event) {
         int radius = plugin.config().chatLocalRadius;
         if (radius <= 0) return;
