@@ -2,6 +2,12 @@ services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
     environment:
       POSTGRES_USER: vanilla
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
@@ -18,6 +24,12 @@ services:
     build:
       context: ../web
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
     environment:
       DATABASE_URL: postgresql://vanilla:${POSTGRES_PASSWORD}@postgres:5432/vanilla
       MC_SERVER_TOKEN: ${MC_SERVER_TOKEN:?set MC_SERVER_TOKEN}
@@ -68,6 +80,12 @@ services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
     network_mode: host
     environment:
       SITE_DOMAIN: ${SITE_DOMAIN:-localhost}

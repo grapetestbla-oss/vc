@@ -24,9 +24,29 @@ cd "$APP_DIR/deploy"
 # Кэш сборки съедает диск быстрее всего: недельной давности слои уже не нужны,
 # а без места сборка падает с «no space left on device». Тома и образы
 # запущенных контейнеров команда не трогает.
-echo "==> Чистка кэша сборки"
-docker builder prune -f --filter 'until=168h' >/dev/null || true
-df -h / | tail -1
+echo "==> Чистка перед сборкой"
+# Кэш сборки и брошенные образы съедают диск быстрее всего, а без места
+# сборка падает на «no space left on device» — вместе с ней падает и Postgres.
+docker builder prune -af >/dev/null || true
+docker image prune -f >/dev/null || true
+# Логи контейнеров докер по умолчанию не ротирует: за неделю это гигабайты.
+truncate -s 0 /var/lib/docker/containers/*/*-json.log 2>/dev/null || true
+journalctl --vacuum-size=200M >/dev/null 2>&1 || true
+
+FREE_MB=$(df -Pm / | awk 'NR==2 {print $4}')
+echo "    свободно на диске: ${FREE_MB} МБ"
+if [ "$FREE_MB" -lt 2500 ]; then
+  echo "    мало места для сборки — убираю все неиспользуемые образы"
+  # Тома не трогаем: в них база. Без --volumes это безопасно.
+  docker image prune -af >/dev/null || true
+  FREE_MB=$(df -Pm / | awk 'NR==2 {print $4}')
+  echo "    стало: ${FREE_MB} МБ"
+fi
+if [ "$FREE_MB" -lt 1500 ]; then
+  echo "    Меньше 1.5 ГБ свободно: сборка почти наверняка упадёт, а Postgres"
+  echo "    остановится на записи. Освободите место и повторите."
+  exit 1
+fi
 
 # Схема: db push идёт из сборочной стадии — в рабочем образе нет Prisma CLI.
 # Он безопасен и когда менять нечего: просто скажет, что база уже в порядке.
@@ -36,5 +56,9 @@ $COMPOSE --env-file .env --profile tools run --rm --build migrator npx prisma db
 echo "==> Сборка и запуск сайта"
 $COMPOSE --env-file .env up -d --build web
 
+# Старый образ сайта после пересборки уже не нужен и держит гигабайт.
+docker image prune -f >/dev/null || true
+
 echo "==> Готово"
 $COMPOSE --env-file .env ps web
+df -h / | tail -1
