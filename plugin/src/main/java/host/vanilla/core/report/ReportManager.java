@@ -122,14 +122,81 @@ public final class ReportManager {
                     admin.sendMessage(messages.get("report.claimed", Map.of(
                             "player", entry.author(),
                             "text", entry.text())));
-
-                    Player author = Accounts.findOnline(entry.author());
-                    if (author == null) {
-                        admin.sendMessage(messages.get("report.author-offline"));
-                        return;
-                    }
-                    admin.sendMessage(messages.get("report.actions", Map.of("player", author.getName())));
+                    // Разбор начинается сразу: телепорты и закрытие — в меню,
+                    // чтобы не вспоминать команды посреди разбирательства.
+                    openActions(admin, entry);
                 });
+    }
+
+    /** Меню взятого репорта: телепорты к автору и закрытие. */
+    public void openActions(Player admin, Entry entry) {
+        Inventory inventory = Bukkit.createInventory(new ReportActionHolder(entry), 9,
+                Component.text("Репорт: " + entry.author(), NamedTextColor.GOLD));
+
+        boolean online = Accounts.findOnline(entry.author()) != null;
+        inventory.setItem(SLOT_INFO, button(Material.PAPER,
+                Component.text(entry.author(), NamedTextColor.YELLOW),
+                List.of(
+                        Component.text(entry.text(), NamedTextColor.WHITE),
+                        Component.text(online ? "Игрок в сети" : "Игрок не в сети",
+                                online ? NamedTextColor.GRAY : NamedTextColor.RED))));
+
+        inventory.setItem(SLOT_TP_TO, button(Material.ENDER_PEARL,
+                Component.text("Телепортироваться к игроку", NamedTextColor.AQUA),
+                List.of(Component.text("Вы окажетесь рядом с автором", NamedTextColor.GRAY))));
+
+        inventory.setItem(SLOT_TP_HERE, button(Material.LEAD,
+                Component.text("Телепортировать игрока к себе", NamedTextColor.AQUA),
+                List.of(Component.text("Автор окажется рядом с вами", NamedTextColor.GRAY))));
+
+        inventory.setItem(SLOT_CLOSE, button(Material.LIME_DYE,
+                Component.text("Закрыть репорт", NamedTextColor.GREEN),
+                List.of(Component.text("Пометить как разобранный", NamedTextColor.GRAY))));
+
+        inventory.setItem(SLOT_BACK, button(Material.ARROW,
+                Component.text("К списку репортов", NamedTextColor.GRAY), List.of()));
+
+        admin.openInventory(inventory);
+    }
+
+    /** Слоты меню одного репорта — их же читает листенер. */
+    public static final int SLOT_INFO = 0;
+    public static final int SLOT_TP_TO = 2;
+    public static final int SLOT_TP_HERE = 4;
+    public static final int SLOT_CLOSE = 6;
+    public static final int SLOT_BACK = 8;
+
+    private static ItemStack button(Material material, Component name, List<Component> lore) {
+        ItemStack item = new ItemStack(material);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.displayName(name.decoration(net.kyori.adventure.text.format.TextDecoration.ITALIC, false));
+            meta.lore(lore.stream()
+                    .map(line -> line.decoration(net.kyori.adventure.text.format.TextDecoration.ITALIC, false))
+                    .toList());
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+    /** Телепорт по репорту: обе стороны видят, что произошло. */
+    public void teleport(Player admin, Entry entry, boolean bringHere) {
+        Player author = Accounts.findOnline(entry.author());
+        if (author == null) {
+            admin.sendMessage(messages.get("report.author-offline"));
+            return;
+        }
+
+        if (bringHere) {
+            author.teleport(admin.getLocation());
+            author.sendMessage(messages.get("report.pulled", Map.of("admin", admin.getName())));
+            admin.sendMessage(messages.get("staff.tphere", Map.of("player", author.getName())));
+        } else {
+            admin.teleport(author.getLocation());
+            admin.sendMessage(messages.get("staff.tp", Map.of("player", author.getName())));
+        }
+        plugin.logAdminAction(admin, bringHere ? "report.tphere" : "report.tp", author.getName(),
+                Map.of("report", entry.id()));
     }
 
     public void close(Player admin, String id, String resolution) {

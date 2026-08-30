@@ -191,6 +191,7 @@ messages:
   report.taken: "<yellow>Этот репорт уже взял другой администратор."
   report.claimed: "<green>Репорт <player> закреплён за вами: <white><text>"
   report.actions: "<gray>Телепорт: <white>/tp <player><gray>, к себе: <white>/tphere <player>"
+  report.pulled: "<gold>Администратор <white><admin><gold> вызвал вас по репорту."
   report.author-offline: "<gray>Автор репорта не в сети."
   report.closed: "<gray>Репорт закрыт."
 

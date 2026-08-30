@@ -22,8 +22,10 @@ import org.joml.Vector3f;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Level;
 
@@ -43,6 +45,8 @@ public final class CosmeticEngine {
     private final Map<UUID, UUID> titles = new HashMap<>();
     /** Что было надето в прошлый раз: по нему видно, менялось ли что-то. */
     private final Map<UUID, String> signatures = new HashMap<>();
+    /** Кому уже сказали, что слот шлема занят: не повторяем на каждой проверке. */
+    private final Set<UUID> hatWarned = new HashSet<>();
     private double phase;
 
     public CosmeticEngine(VanillaCorePlugin plugin) {
@@ -129,13 +133,21 @@ public final class CosmeticEngine {
 
         if (hat == null) {
             if (isHat(helmet)) player.getInventory().setHelmet(null);
+            hatWarned.remove(player.getUniqueId());
             return;
         }
-        // Настоящий шлем важнее шляпы: снимать броню без спроса нельзя.
-        if (helmet != null && !isHat(helmet)) {
-            player.sendMessage(plugin.messages().get("cosmetics.hat-blocked"));
+        // Настоящий шлем важнее шляпы: снимать броню без спроса нельзя. Пустой
+        // слот приходит и как null, и как «воздух» — второе раньше принимали за
+        // броню, и шляпа не надевалась на голую голову.
+        if (!empty(helmet) && !isHat(helmet)) {
+            // Косметику перечитываем каждые 45 секунд, поэтому предупреждаем
+            // один раз — до тех пор, пока слот не освободится.
+            if (hatWarned.add(player.getUniqueId())) {
+                player.sendMessage(plugin.messages().get("cosmetics.hat-blocked"));
+            }
             return;
         }
+        hatWarned.remove(player.getUniqueId());
 
         Material material = Material.matchMaterial(hat.payload().get("material").getAsString());
         if (material == null) return;
@@ -150,8 +162,13 @@ public final class CosmeticEngine {
         player.getInventory().setHelmet(item);
     }
 
+    /** Пустой слот брони: и null, и «воздух», и стопка нулевого размера. */
+    private static boolean empty(ItemStack item) {
+        return item == null || item.getType().isAir() || item.getAmount() <= 0;
+    }
+
     public boolean isHat(ItemStack item) {
-        if (item == null || !item.hasItemMeta()) return false;
+        if (empty(item) || !item.hasItemMeta()) return false;
         return item.getItemMeta().getPersistentDataContainer()
                 .has(plugin.hatKey(), org.bukkit.persistence.PersistentDataType.BYTE);
     }
@@ -351,6 +368,7 @@ public final class CosmeticEngine {
         removeTitle(player);
         sets.remove(player.getUniqueId());
         signatures.remove(player.getUniqueId());
+        hatWarned.remove(player.getUniqueId());
     }
 
     public void shutdown() {

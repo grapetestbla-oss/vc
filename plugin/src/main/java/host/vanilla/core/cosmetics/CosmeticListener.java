@@ -52,6 +52,28 @@ public final class CosmeticListener implements Listener {
         engine.forget(event.getPlayer());
     }
 
+    /**
+     * Сняли шлем — возвращаем шляпу сразу, не дожидаясь плановой проверки.
+     * Событие Paper срабатывает на любую смену брони, включая смерть и клик.
+     */
+    @EventHandler
+    public void onArmorChange(com.destroystokyo.paper.event.player.PlayerArmorChangeEvent event) {
+        if (event.getSlotType() != com.destroystokyo.paper.event.player.PlayerArmorChangeEvent.SlotType.HEAD) {
+            return;
+        }
+        Player player = event.getPlayer();
+        if (!engine.setOf(player).has(CosmeticSet.Kind.HAT)) return;
+
+        ItemStack now = event.getNewItem();
+        boolean freed = now == null || now.getType().isAir();
+        if (!freed || engine.isHat(now)) return;
+
+        // Через тик: во время самого события инвентарь менять нельзя.
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            if (player.isOnline()) plugin.reloadCosmetics(player);
+        });
+    }
+
     /** Возвращает шляпу на место, если игрок снял броню и слот освободился. */
     public void refreshHat(Player player) {
         ItemStack helmet = player.getInventory().getHelmet();
