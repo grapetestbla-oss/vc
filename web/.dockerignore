@@ -1,0 +1,10 @@
+# Контекст сборки уезжает демону целиком, а `COPY . .` кладёт его в слой образа.
+# Локальные node_modules ещё и перетирали бы чистые из стадии deps.
+node_modules
+.next
+.git
+.env
+.env.*
+npm-debug.log*
+*.tsbuildinfo
+coverage

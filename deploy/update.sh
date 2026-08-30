@@ -59,6 +59,18 @@ $COMPOSE --env-file .env up -d --build web
 # Старый образ сайта после пересборки уже не нужен и держит гигабайт.
 docker image prune -f >/dev/null || true
 
+# Образ мигратора — это стадия builder со всеми зависимостями и исходниками,
+# полтора-два гигабайта. Между деплоями он не нужен, а на диске в 10 ГБ это
+# разница между «работает» и «Postgres упал на записи». Перенести миграцию в
+# рабочий образ нельзя: там нет зависимостей Prisma CLI, только клиент.
+MIGRATOR_IMAGE=$($COMPOSE --env-file .env --profile tools images -q migrator 2>/dev/null | head -1)
+if [ -n "${MIGRATOR_IMAGE:-}" ]; then
+  docker image rm -f "$MIGRATOR_IMAGE" >/dev/null 2>&1 || true
+fi
+# Кэш сборки между деплоями тоже только занимает место: следующая сборка будет
+# дольше, зато базе есть куда писать.
+docker builder prune -af >/dev/null 2>&1 || true
+
 echo "==> Готово"
 $COMPOSE --env-file .env ps web
 df -h / | tail -1

@@ -61,7 +61,11 @@ public final class ApiClient {
                         json.addProperty("_status", response.statusCode());
                         return json;
                     } catch (Exception e) {
-                        plugin.getLogger().warning("Некорректный ответ API " + path + ": " + response.body());
+                        // Сайт на ошибке отдаёт HTML-страницу целиком — это
+                        // десятки килобайт в лог на каждый запрос, а запросы
+                        // повторяются по таймеру. В логе нужен код и начало.
+                        plugin.getLogger().warning("Некорректный ответ API " + path
+                                + " (" + response.statusCode() + "): " + snippet(response.body()));
                         JsonObject error = new JsonObject();
                         error.addProperty("_status", response.statusCode());
                         error.addProperty("error", "bad_response");
@@ -75,6 +79,13 @@ public final class ApiClient {
                     error.addProperty("error", "network");
                     return error;
                 });
+    }
+
+    /** Первая строка ответа и не больше 200 символов — остального в логе не надо. */
+    private static String snippet(String body) {
+        if (body == null) return "пусто";
+        String line = body.strip().lines().findFirst().orElse("").strip();
+        return line.length() <= 200 ? line : line.substring(0, 200) + "…";
     }
 
     /** Возвращает выполнение в главный поток сервера — там можно трогать игроков. */
