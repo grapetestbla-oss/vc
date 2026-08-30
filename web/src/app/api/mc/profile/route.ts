@@ -20,6 +20,11 @@ export async function GET(request: Request) {
   if (!user) return Response.json({ error: "not found" }, { status: 404 });
 
   const jail = user.punishments.find((p) => p.type === "JAIL");
+  // Бан отдаём отдельно: плагин пускает игрока обратно по недавней сессии без
+  // пароля, и без этой проверки бан, выданный после выхода, не сработал бы.
+  const ban = user.punishments.find(
+    (p) => p.type === "BAN" && (!p.expiresAt || p.expiresAt.getTime() > Date.now()),
+  );
   // Ранг отдаём готовым: название и метку правят в панели, плагин их только рисует.
   const rank = await rankOf(user.adminLevel);
 
@@ -41,6 +46,7 @@ export async function GET(request: Request) {
       serial: owned.serial,
     })),
     warns: user.punishments.filter((p) => p.type === "WARN").length,
+    ban: ban ? { reason: ban.reason, expiresAt: ban.expiresAt } : null,
     jail: jail
       ? {
           id: jail.id,

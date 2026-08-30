@@ -171,6 +171,7 @@ const run = async () => {
 
   const jailGone = await api("/api/mc/profile?login=Griefer", { serverToken: TOKEN });
   check("в профиле деморгана больше нет", jailGone.json?.jail === null, jailGone.json?.jail);
+  check("у неотбаненного игрока бана в профиле нет", jailGone.json?.ban === null, jailGone.json?.ban);
 
   const jailAgain = await api("/api/mc/punish", {
     method: "POST",
@@ -951,6 +952,13 @@ const run = async () => {
     cookie: steve.session,
     body: { userId: bannedMe.json.id, type: "BAN", reason: "тестовый бан", days: 30 },
   });
+
+  const bannedProfile = await api("/api/mc/profile?login=Banned", { serverToken: TOKEN });
+  check(
+    "профиль отдаёт бан плагину — вернуться по старой сессии не выйдет",
+    bannedProfile.json?.ban?.reason === "тестовый бан",
+    bannedProfile.json?.ban,
+  );
 
   const shortAppeal = await api("/api/appeals", {
     method: "POST",

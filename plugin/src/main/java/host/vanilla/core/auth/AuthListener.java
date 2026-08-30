@@ -45,7 +45,7 @@ public final class AuthListener implements Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         plugin.onPlayerQuit(event.getPlayer());
-        auth.forget(event.getPlayer());
+        auth.onQuit(event.getPlayer());
     }
 
     private boolean blocked(Player player) {

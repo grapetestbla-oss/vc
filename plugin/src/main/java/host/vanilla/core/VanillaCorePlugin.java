@@ -233,6 +233,14 @@ public final class VanillaCorePlugin extends JavaPlugin {
         api.onMain(api.get("/api/mc/profile?login=" + Accounts.name(player)), response -> {
             if (!player.isOnline() || response.get("_status").getAsInt() != 200) return;
 
+            // Вернуться по недавней сессии можно без пароля, поэтому бан
+            // проверяем здесь: иначе выданный после выхода бан не сработал бы.
+            if (response.has("ban") && response.get("ban").isJsonObject()) {
+                String reason = response.getAsJsonObject("ban").get("reason").getAsString();
+                player.kick(messages.plain("auth.banned", Map.of("reason", reason)));
+                return;
+            }
+
             Profile profile = auth.profile(player);
             profile.setAdminLevel(response.get("adminLevel").getAsInt());
             if (response.has("rank") && response.get("rank").isJsonObject()) {

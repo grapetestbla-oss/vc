@@ -23,6 +23,15 @@ public final class AuthManager {
     private final VanillaCorePlugin plugin;
     private final Messages messages;
     private final Map<UUID, Profile> profiles = new ConcurrentHashMap<>();
+    /** Сессии тех, кто только что вышел: по ним можно вернуться без пароля. */
+    private final Map<UUID, Session> resumable = new ConcurrentHashMap<>();
+
+    /** Досидевшая до нового захода сессия: тот же профиль, тот же адрес, срок жизни. */
+    private record Session(Profile profile, String ip, long expiresAt) {
+        boolean valid(String from, long now) {
+            return now < expiresAt && ip.equals(from);
+        }
+    }
 
     public AuthManager(VanillaCorePlugin plugin, Messages messages) {
         this.plugin = plugin;
@@ -49,10 +58,36 @@ public final class AuthManager {
 
     public void forget(Player player) {
         profiles.remove(player.getUniqueId());
+        resumable.remove(player.getUniqueId());
+    }
+
+    /**
+     * Выход: если игрок был авторизован, придерживаем его профиль. Вернётся в
+     * течение grace-периода с того же адреса — пароль спрашивать не будем.
+     */
+    public void onQuit(Player player) {
+        Profile profile = profiles.remove(player.getUniqueId());
+        int grace = plugin.config().authGraceSeconds;
+        if (grace <= 0 || profile == null || !profile.authenticated()) return;
+        resumable.put(player.getUniqueId(),
+                new Session(profile, ip(player), System.currentTimeMillis() + grace * 1000L));
+    }
+
+    /** Забирает сессию, если она ещё жива и адрес тот же. Заодно чистит протухшие. */
+    private Session takeSession(Player player) {
+        long now = System.currentTimeMillis();
+        resumable.values().removeIf(session -> now >= session.expiresAt());
+        Session session = resumable.remove(player.getUniqueId());
+        return session != null && session.valid(ip(player), now) ? session : null;
     }
 
     /** Заход на сервер: гасим игрока и ждём пароль. */
     public void onJoin(Player player) {
+        Session session = takeSession(player);
+        if (session != null) {
+            resume(player, session);
+            return;
+        }
         Profile profile = profile(player);
         profile.setState(Profile.State.AWAITING_LOGIN);
         restrain(player);
@@ -64,6 +99,22 @@ public final class AuthManager {
                 player.kick(messages.get("auth.timeout"));
             }
         }, timeout * 20L);
+    }
+
+    /**
+     * Возвращаем игрока в игру по недавней сессии. Профиль всё равно
+     * перечитывается с сайта — бан или разжалование за эти минуты не пройдут
+     * мимо, потому что onPlayerAuthenticated тянет свежие данные.
+     */
+    private void resume(Player player, Session session) {
+        Profile profile = session.profile();
+        profile.setState(Profile.State.AUTHENTICATED);
+        profiles.put(player.getUniqueId(), profile);
+        release(player);
+        player.sendMessage(messages.get("auth.resumed", Map.of(
+                "player", Accounts.name(player),
+                "minutes", String.valueOf(Math.max(1, plugin.config().authGraceSeconds / 60)))));
+        plugin.onPlayerAuthenticated(player);
     }
 
     private void restrain(Player player) {
