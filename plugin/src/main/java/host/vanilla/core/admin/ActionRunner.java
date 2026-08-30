@@ -13,8 +13,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Поручения с сайта: очистка инвентаря после обнуления аккаунта и слепок
- * инвентаря для панели.
+ * Поручения с сайта: очистка инвентаря после обнуления аккаунта, слепок
+ * инвентаря для панели и подхват свежей покупки в магазине.
  * Выполняем только для игроков в сети, остальные поручения остаются в очереди
  * и подтверждаются, лишь когда действительно исполнены.
  */
@@ -60,6 +60,14 @@ public final class ActionRunner {
                 // Панель открыла инвентарь и просит свежий слепок вне очереди.
                 if ("SNAPSHOT_INVENTORY".equals(kind)) {
                     plugin.inventories().report(player);
+                    done.add(item.get("id").getAsString());
+                }
+
+                // Покупка на сайте: включаем её в игре, не дожидаясь перезахода.
+                if ("REFRESH_SHOP".equals(kind)) {
+                    plugin.shop().refresh(player, () -> {
+                        if (player.isOnline()) player.sendMessage(messages.get("shop.activated"));
+                    });
                     done.add(item.get("id").getAsString());
                 }
             }

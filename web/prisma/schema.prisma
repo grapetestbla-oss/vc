@@ -507,7 +507,7 @@ model InventorySnapshot {
 
 model ServerAction {
   id          String    @id @default(cuid())
-  /// WIPE_INVENTORY, SNAPSHOT_INVENTORY, BROADCAST_DROP
+  /// WIPE_INVENTORY, SNAPSHOT_INVENTORY, REFRESH_SHOP, BROADCAST_DROP
   kind        String
   login       String
   userId      String?

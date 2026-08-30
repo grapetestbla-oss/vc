@@ -28,6 +28,10 @@ public final class ShopManager {
         }
     }
 
+    /** Возможности магазина в том порядке, в каком их показывает /shop. */
+    public static final java.util.List<String> FEATURES =
+            java.util.List.of("tp", "home", "back", "enderchest", "craft", "keepinv");
+
     private final VanillaCorePlugin plugin;
 
     /** feature → покупка, по игроку. */
@@ -102,8 +106,21 @@ public final class ShopManager {
      * если списать не удалось, игрок ничего не получает.
      */
     public void use(Player player, String feature, Consumer<Integer> onSuccess, Consumer<String> onFail) {
+        use(player, feature, onSuccess, onFail, true);
+    }
+
+    private void use(Player player, String feature, Consumer<Integer> onSuccess,
+                     Consumer<String> onFail, boolean retry) {
         Entry entry = entry(player, feature);
         if (entry == null || !entry.usable()) {
+            // Могли купить минуту назад, а кэш ещё старый: перечитываем и пробуем
+            // ещё раз, прежде чем говорить «не куплено».
+            if (retry) {
+                refresh(player, () -> {
+                    if (player.isOnline()) use(player, feature, onSuccess, onFail, false);
+                });
+                return;
+            }
             onFail.accept("not_owned");
             return;
         }

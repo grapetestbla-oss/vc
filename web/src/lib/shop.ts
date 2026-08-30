@@ -26,7 +26,7 @@ export async function buyShopItem(userId: string, key: string) {
 
   const user = await db.user.findUniqueOrThrow({
     where: { id: userId },
-    select: { playtimeSec: true },
+    select: { playtimeSec: true, login: true },
   });
   const level = levelFromPlaytime(user.playtimeSec);
   if (level < item.requiredLevel) {
@@ -66,11 +66,26 @@ export async function buyShopItem(userId: string, key: string) {
       return left;
     });
 
+    await notifyServer(userId, user.login);
     return { balance, item };
   } catch (error) {
     if (error instanceof InsufficientFunds) throw new ShopError("Недостаточно VC");
     throw error;
   }
+}
+
+/**
+ * Плагин держит покупки в кэше и набирает его при входе, поэтому о покупке ему
+ * надо сказать: иначе купленное включалось бы только после перезахода. Кладём
+ * поручение, плагин заберёт его на ближайшем опросе.
+ */
+async function notifyServer(userId: string, login: string) {
+  const waiting = await db.serverAction.findFirst({
+    where: { userId, kind: "REFRESH_SHOP", deliveredAt: null },
+    select: { id: true },
+  });
+  if (waiting) return;
+  await db.serverAction.create({ data: { kind: "REFRESH_SHOP", login, userId } });
 }
 
 /** Что у игрока куплено — этим списком плагин решает, доступна ли команда. */

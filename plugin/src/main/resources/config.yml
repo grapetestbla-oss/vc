@@ -269,6 +269,7 @@ messages:
 
   shop.link: "<gold>Магазин: <yellow><url><gold>. Куплённое работает сразу в игре."
   shop.owned-line: "<gray>• <white><title> <gray>— осталось: <yellow><left>"
+  shop.activated: "<green>Покупка с сайта активирована. Что доступно — <white>/shop"
   shop.empty: "<gray>Вы пока ничего не покупали."
   shop.not-owned: "<red>Товар не куплен. Загляните на сайт: /shop"
   shop.use-failed: "<red>Не получилось: использования кончились или сайт не отвечает."

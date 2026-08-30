@@ -743,12 +743,27 @@ const run = async () => {
   const shopListNoToken = await api("/api/mc/shop?login=Shopper");
   check("магазин закрыт без токена сервера", shopListNoToken.status === 401);
 
+  // Плагин держит покупки в кэше, поэтому о покупке ему сообщают поручением.
+  const shopActions = await api("/api/mc/actions", { serverToken: TOKEN });
+  const shopRefresh = shopActions.json?.actions?.filter(
+    (action) => action.kind === "REFRESH_SHOP" && action.login === "Shopper",
+  );
+  check("покупка будит плагин", shopRefresh?.length === 1, shopActions.json?.actions);
+
   const buyTpAgain = await api("/api/shop/buy", {
     method: "POST",
     cookie: shopBuyer.session,
     body: { key: "tp_pack" },
   });
   check("докупка складывает заряды", buyTpAgain.json?.ok === true, buyTpAgain.json);
+  const shopActionsAgain = await api("/api/mc/actions", { serverToken: TOKEN });
+  check(
+    "вторая покупка не плодит поручение",
+    shopActionsAgain.json.actions.filter(
+      (action) => action.kind === "REFRESH_SHOP" && action.login === "Shopper",
+    ).length === 1,
+    shopActionsAgain.json.actions.map((action) => action.kind),
+  );
   const stacked = await api("/api/mc/shop?login=Shopper", { serverToken: TOKEN });
   check(
     "зарядов стало десять",
@@ -1062,8 +1077,12 @@ const run = async () => {
   check("покупки магазина сгорели", doomedShop.json?.items?.length === 0, doomedShop.json);
 
   const actions = await api("/api/mc/actions", { serverToken: TOKEN });
-  const wipeAction = actions.json?.actions?.find((item) => item.login === "Doomed");
-  check("плагин получил поручение очистить инвентарь", wipeAction?.kind === "WIPE_INVENTORY", actions.json);
+  // В очереди у игрока лежат и другие поручения (например, о покупке), поэтому
+  // ищем по виду, а не первое попавшееся.
+  const wipeAction = actions.json?.actions?.find(
+    (item) => item.login === "Doomed" && item.kind === "WIPE_INVENTORY",
+  );
+  check("плагин получил поручение очистить инвентарь", Boolean(wipeAction), actions.json);
 
   const actionsNoToken = await api("/api/mc/actions");
   check("поручения закрыты без токена сервера", actionsNoToken.status === 401);

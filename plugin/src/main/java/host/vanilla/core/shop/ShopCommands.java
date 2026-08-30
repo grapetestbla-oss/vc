@@ -67,11 +67,21 @@ public final class ShopCommands implements CommandExecutor, TabCompleter {
         };
     }
 
+    /**
+     * Список покупок всегда перечитываем с сайта: кэш набирается при входе, и
+     * без этого купленное только что не показывалось до перезахода.
+     */
     private boolean shop(Player player) {
         player.sendMessage(messages.get("shop.link", Map.of("url", plugin.config().siteUrl + "/shop")));
+        plugin.shop().refresh(player, () -> {
+            if (player.isOnline()) showOwned(player);
+        });
+        return true;
+    }
 
+    private void showOwned(Player player) {
         boolean any = false;
-        for (String feature : List.of("tp", "home", "back", "enderchest", "craft", "keepinv")) {
+        for (String feature : ShopManager.FEATURES) {
             ShopManager.Entry entry = plugin.shop().entry(player, feature);
             if (entry == null || !entry.usable()) continue;
             any = true;
@@ -80,7 +90,6 @@ public final class ShopCommands implements CommandExecutor, TabCompleter {
                     "left", entry.permanent() ? "навсегда" : entry.chargesLeft() + " шт.")));
         }
         if (!any) player.sendMessage(messages.get("shop.empty"));
-        return true;
     }
 
     /** Телепорт к игроку: заряд списывается только когда цель согласилась. */
