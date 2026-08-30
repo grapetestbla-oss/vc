@@ -98,8 +98,14 @@ public final class JailZone {
     }
 
     public Location spawn() {
-        World target = world != null ? world : plugin.getServer().getWorlds().get(0);
-        return new Location(target, 0.5, config.jailFloorY + 1, 0.5);
+        // Мир мог не создаться при запуске (или его снесли) — пробуем ещё раз,
+        // иначе игрока «посадят» в обычный мир и он этого даже не заметит.
+        if (world == null) prepare();
+        if (world == null) {
+            plugin.getLogger().severe("Мир деморгана недоступен: сажаем в обычный мир.");
+            return plugin.getServer().getWorlds().get(0).getSpawnLocation();
+        }
+        return new Location(world, 0.5, config.jailFloorY + 1, 0.5);
     }
 
     public boolean isInside(Location location) {

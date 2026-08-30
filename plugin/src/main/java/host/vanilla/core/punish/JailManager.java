@@ -70,7 +70,7 @@ public final class JailManager {
         if (jail.inventoryData() == null) {
             capture(player, jail); // отсидку выдали, пока игрок был оффлайн
         } else if (!zone.isInside(player.getLocation())) {
-            player.teleport(zone.spawn());
+            sendToZone(player);
         }
         player.sendMessage(messages.get("jail.jailed", Map.of(
                 "time", Messages.formatTime(jail.remainingSeconds()),
@@ -89,6 +89,38 @@ public final class JailManager {
         if (plugin.config().jailJobsEnabled) player.sendMessage(messages.get("jail.jobs.hint"));
     }
 
+    /**
+     * Переносит игрока в зону и убеждается, что он там оказался. Телепорт
+     * может не сработать: наблюдатель «прилип» к чужой камере, другой плагин
+     * отменил перемещение, мир не успел прогрузиться. Молча это оставлять
+     * нельзя — иначе наказанный остаётся гулять по обычному миру.
+     */
+    private void sendToZone(Player player) {
+        if (player.getGameMode() != GameMode.SURVIVAL) {
+            // Наблюдатель пролетает сквозь стены, творческий — летает.
+            player.setSpectatorTarget(null);
+            player.setGameMode(GameMode.SURVIVAL);
+        }
+        player.setFireTicks(0);
+
+        Location spawn = zone.spawn();
+        if (!player.teleport(spawn)) {
+            plugin.getLogger().warning("Не удалось перенести " + player.getName()
+                    + " в деморган — повторю через тик.");
+        }
+
+        // Выход из наблюдателя возвращает игрока туда, где он в него вошёл, —
+        // и делает это уже после нашего переноса. Поэтому проверяем ещё раз
+        // через пару тиков и, для верности, через полсекунды.
+        for (long delay : new long[] {2L, 10L}) {
+            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                if (!player.isOnline() || !jails.containsKey(player.getUniqueId())) return;
+                if (zone.isInside(player.getLocation())) return;
+                player.teleport(zone.spawn());
+            }, delay);
+        }
+    }
+
     private void capture(Player player, Jail jail) {
         jail.setReturnLocation(player.getLocation());
         try {
@@ -96,15 +128,13 @@ public final class JailManager {
         } catch (Exception e) {
             // Инвентарь не сохранён — не отбираем его, иначе вещи пропадут навсегда.
             plugin.getLogger().log(Level.SEVERE, "Не сохранён инвентарь " + player.getName(), e);
-            player.teleport(zone.spawn());
+            sendToZone(player);
             sync(player, jail, false);
             return;
         }
         player.getInventory().clear();
         player.getInventory().addItem(tool());
-        player.setGameMode(GameMode.SURVIVAL);
-        player.setFireTicks(0);
-        player.teleport(zone.spawn());
+        sendToZone(player);
         sync(player, jail, false);
     }
 
@@ -141,12 +171,18 @@ public final class JailManager {
         sync(player, jail, true);
     }
 
-    /** Раз в секунду: списываем срок у сидящих онлайн. */
+    /** Раз в секунду: списываем срок у сидящих онлайн и следим, что они в зоне. */
     public void tick() {
         for (Map.Entry<UUID, Jail> entry : Map.copyOf(jails).entrySet()) {
             Player player = plugin.getServer().getPlayer(entry.getKey());
             if (player == null) continue;
             Jail jail = entry.getValue();
+
+            // Сторож: из деморгана нельзя выйти ни телепортом, ни полётом, ни
+            // потому что перенос при посадке не сработал.
+            if (!zone.isInside(player.getLocation()) || player.getGameMode() != GameMode.SURVIVAL) {
+                sendToZone(player);
+            }
 
             if (jail.tick(plugin.config().jailRealPerServing)) {
                 release(player, false);
