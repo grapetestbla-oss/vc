@@ -39,8 +39,8 @@ export const EN: Record<string, string> = {
   "Отрабатывают срок": "Serving time",
   "Как здесь устроено": "How it works",
   "Деморган вместо бана": "Hard labour instead of a ban",
-  "За мелкое нарушение вы не теряете прогресс — отрабатываете срок в шахте. Время идёт 1 к 10 и только пока вы онлайн.":
-    "A minor offence costs you no progress — you serve your time in the mine. The clock runs at 1 to 10 and only while you are online.",
+  "За мелкое нарушение вы не теряете прогресс — отрабатываете срок в шахте. Просто ждать долго: минута срока стоит десяти реальных. Быстрее — брать наряды у прораба.":
+    "A minor offence costs you no progress — you serve your time in the mine. Waiting it out is slow: a minute of the sentence takes ten real ones. Taking jobs from the foreman is faster.",
   "Никаких приватов": "No land claims",
   "Мир общий и настоящий. Порядок держат админы, откат гриферства и запись каждого действия, а не таблички «territory claimed».":
     "One real shared world. Order is kept by admins, griefing rollbacks and a log of every action — not by \"territory claimed\" signs.",
@@ -67,8 +67,8 @@ export const EN: Record<string, string> = {
   "Отказ пройти проверку по команде /check приравнивается к признанию.":
     "Refusing a /check screen share counts as an admission.",
   "Наказания": "Punishments",
-  "Деморган: исправительные работы. Время идёт 1 к 10 и только пока вы онлайн.":
-    "Hard labour: corrective work. The clock runs at 1 to 10 and only while you are online.",
+  "Деморган: исправительные работы. Минута срока идёт десять реальных минут и только пока вы онлайн — зато каждый наряд у прораба снимает минуту.":
+    "Hard labour: corrective work. A minute of the sentence takes ten real minutes and only ticks while you are online — but every job from the foreman removes a minute.",
   "Варн: действует 7 дней. Два активных варна — автоматический бан на 5 дней.":
     "Warning: lasts 7 days. Two active warnings mean an automatic 5-day ban.",
   "Бан: закрывает вход по аккаунту и адресу на указанный срок.":

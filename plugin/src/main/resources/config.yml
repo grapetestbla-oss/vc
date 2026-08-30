@@ -28,10 +28,24 @@ jail:
   mine-material: STONE
   regen-seconds: 5
   tool: IRON_PICKAXE
-  # Время идёт 1 к 10: за секунду реального времени списывается 10 секунд срока.
-  time-ratio: 10
+  # Сколько реальных минут идёт за одну минуту срока. 10 — минута заключения
+  # стоит десяти реальных минут, поэтому просто отсидеться дорого: быстрее
+  # выйти работой у прораба.
+  real-minutes-per-minute: 10
   # Сколько секунд срока списывает один добытый блок.
-  seconds-per-block: 20
+  seconds-per-block: 5
+  # Наряды у прораба: он стоит в зоне и выдаёт работу.
+  jobs:
+    enabled: true
+    foreman-name: "Прораб"
+    # Перерыв между нарядами и сколько секунд срока снимает закрытый наряд.
+    cooldown-seconds: 60
+    reward-seconds: 60
+    # Границы задания: сколько блоков наломать или мешков мусора собрать.
+    blocks-min: 8
+    blocks-max: 16
+    litter-min: 4
+    litter-max: 8
   # Как часто состояние отсидки уходит на сайт.
   sync-seconds: 30
   isolate-chat: true
@@ -120,9 +134,16 @@ messages:
   auth.api-down: "<red>Сайт не отвечает. Сообщите администрации."
 
   jail.jailed: "<red>Деморган на <yellow><time><red>. Причина: <white><reason>"
+  jail.jobs.hint: "<gray>Срок идёт медленно. Быстрее выйти работой: возьмите наряд у <gold>прораба<gray> — каждый закрытый наряд снимает минуту."
   jail.released: "<green>Срок отбыт. Вы свободны."
   jail.released-early: "<green>Вас освободили досрочно."
   jail.actionbar: "<gold>Осталось: <yellow><time>  <dark_gray>|  <gold>Блоков: <yellow><blocks>"
+  jail.jobs.free: "<gray>Прораб смотрит сквозь вас: работа только для заключённых."
+  jail.jobs.taken: "<gold>Наряд: <white><title><gold> — нужно <white><goal> <what><gold>. Закроете — минус минута срока."
+  jail.jobs.progress: "<gray>Текущий наряд: <white><title><gray> — <yellow><done><gray>/<white><goal>"
+  jail.jobs.actionbar: "<gold><title>: <white><done><gray>/<white><goal>"
+  jail.jobs.cooldown: "<gray>Перекур. Следующий наряд через <white><seconds> сек."
+  jail.jobs.done: "<green>Наряд закрыт: <white><title><green>. Минус <white><minutes> мин<green>, осталось <white><left>"
   jail.blocked: "<red>В деморгане это делать нельзя."
   jail.command-blocked: "<red>В деморгане эта команда недоступна."
 

@@ -21,6 +21,7 @@ import host.vanilla.core.games.CaseCommands;
 import host.vanilla.core.games.CaseListener;
 import host.vanilla.core.games.CaseShop;
 import host.vanilla.core.games.DiceGame;
+import host.vanilla.core.punish.JailJobs;
 import host.vanilla.core.punish.JailListener;
 import host.vanilla.core.punish.JailManager;
 import host.vanilla.core.punish.JailZone;
@@ -56,6 +57,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
     private AuthManager auth;
     private JailZone jailZone;
     private JailManager jail;
+    private JailJobs jailJobs;
     private EspManager esp;
     private CheckManager checks;
     private ReportManager reports;
@@ -87,6 +89,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
         jailZone = new JailZone(this, config);
         jailZone.prepare();
         jail = new JailManager(this, jailZone, messages);
+        jailJobs = new JailJobs(this, messages);
+        jail.setJobs(jailJobs);
 
         esp = new EspManager(this);
         checks = new CheckManager(this, messages);
@@ -113,6 +117,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         var manager = getServer().getPluginManager();
         manager.registerEvents(new AuthListener(this, auth, messages), this);
         manager.registerEvents(new JailListener(this, jail, messages), this);
+        manager.registerEvents(jailJobs, this);
         manager.registerEvents(new StaffListener(this, checks), this);
         manager.registerEvents(new ReportMenuListener(this, reports), this);
         manager.registerEvents(new CosmeticListener(this, cosmetics), this);
@@ -163,6 +168,13 @@ public final class VanillaCorePlugin extends JavaPlugin {
 
     private void scheduleTasks() {
         getServer().getScheduler().runTaskTimer(this, jail::tick, 20L, 20L);
+        if (config.jailJobsEnabled) {
+            // Прораб мог пропасть после рестарта или чистки мира — проверяем.
+            getServer().getScheduler().runTaskTimer(this, () -> {
+                jailJobs.ensureForeman();
+                jailJobs.cleanupLitter();
+            }, 100L, 600L);
+        }
         getServer().getScheduler().runTaskTimer(this, esp::refresh,
                 config.espRefreshSeconds * 20L, config.espRefreshSeconds * 20L);
         getServer().getScheduler().runTaskTimer(this, this::reportPlaytime, 1200L, 1200L);
@@ -361,6 +373,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
     public MaintenanceWatcher maintenance() { return maintenance; }
     public SparkManager sparks() { return sparks; }
     public GiveawayNotifier giveaways() { return giveaways; }
+    public JailJobs jailJobs() { return jailJobs; }
     public CaseShop cases() { return caseShop; }
     public CaseListener caseOpening() { return caseListener; }
     public DiceGame dice() { return dice; }

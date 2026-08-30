@@ -29,8 +29,19 @@ public final class PluginConfig {
     public final Material jailMineMaterial;
     public final int jailRegenSeconds;
     public final Material jailTool;
-    public final int jailTimeRatio;
+    /// Сколько реальных минут идёт за одну минуту срока.
+    public final int jailRealPerServing;
     public final int jailSecondsPerBlock;
+
+    /// Наряды у прораба в деморгане.
+    public final boolean jailJobsEnabled;
+    public final String jailForemanName;
+    public final int jailJobCooldownSeconds;
+    public final int jailJobRewardSeconds;
+    public final int jailJobBlocksMin;
+    public final int jailJobBlocksMax;
+    public final int jailJobLitterMin;
+    public final int jailJobLitterMax;
     public final int jailSyncSeconds;
     public final boolean jailIsolateChat;
     public final Set<String> jailAllowedCommands;
@@ -86,9 +97,18 @@ public final class PluginConfig {
         jailMineMaterial = material(c.getString("jail.mine-material"), Material.STONE);
         jailRegenSeconds = Math.max(1, c.getInt("jail.regen-seconds", 5));
         jailTool = material(c.getString("jail.tool"), Material.IRON_PICKAXE);
-        jailTimeRatio = Math.max(1, c.getInt("jail.time-ratio", 10));
+        jailRealPerServing = Math.max(1, c.getInt("jail.real-minutes-per-minute", 10));
         jailSecondsPerBlock = Math.max(0, c.getInt("jail.seconds-per-block", 20));
         jailSyncSeconds = Math.max(10, c.getInt("jail.sync-seconds", 30));
+
+        jailJobsEnabled = c.getBoolean("jail.jobs.enabled", true);
+        jailForemanName = c.getString("jail.jobs.foreman-name", "Прораб");
+        jailJobCooldownSeconds = Math.max(5, c.getInt("jail.jobs.cooldown-seconds", 60));
+        jailJobRewardSeconds = Math.max(1, c.getInt("jail.jobs.reward-seconds", 60));
+        jailJobBlocksMin = Math.max(1, c.getInt("jail.jobs.blocks-min", 8));
+        jailJobBlocksMax = Math.max(jailJobBlocksMin, c.getInt("jail.jobs.blocks-max", 16));
+        jailJobLitterMin = Math.max(1, c.getInt("jail.jobs.litter-min", 4));
+        jailJobLitterMax = Math.max(jailJobLitterMin, c.getInt("jail.jobs.litter-max", 8));
         jailIsolateChat = c.getBoolean("jail.isolate-chat", true);
         jailAllowedCommands = c.getStringList("jail.allowed-commands").stream()
                 .map(s -> s.toLowerCase(Locale.ROOT))

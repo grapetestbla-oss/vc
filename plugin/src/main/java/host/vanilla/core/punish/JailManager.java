@@ -28,6 +28,13 @@ public final class JailManager {
     private final Messages messages;
     private final Map<UUID, Jail> jails = new HashMap<>();
 
+    private JailJobs jobs;
+
+    /** Наряды заводятся после менеджера, поэтому связываем их отдельно. */
+    public void setJobs(JailJobs jobs) {
+        this.jobs = jobs;
+    }
+
     public JailManager(VanillaCorePlugin plugin, JailZone zone, Messages messages) {
         this.plugin = plugin;
         this.zone = zone;
@@ -68,6 +75,7 @@ public final class JailManager {
         player.sendMessage(messages.get("jail.jailed", Map.of(
                 "time", Messages.formatTime(jail.remainingSeconds()),
                 "reason", jail.reason())));
+        if (plugin.config().jailJobsEnabled) player.sendMessage(messages.get("jail.jobs.hint"));
     }
 
     /** Новая отсидка, выданная прямо сейчас. */
@@ -78,6 +86,7 @@ public final class JailManager {
         player.sendMessage(messages.get("jail.jailed", Map.of(
                 "time", Messages.formatTime(totalSeconds),
                 "reason", reason)));
+        if (plugin.config().jailJobsEnabled) player.sendMessage(messages.get("jail.jobs.hint"));
     }
 
     private void capture(Player player, Jail jail) {
@@ -113,6 +122,7 @@ public final class JailManager {
     public void release(Player player, boolean early) {
         Jail jail = jails.remove(player.getUniqueId());
         if (jail == null) return;
+        if (jobs != null) jobs.forget(player);
 
         player.getInventory().clear();
         if (jail.inventoryData() != null) {
@@ -138,7 +148,7 @@ public final class JailManager {
             if (player == null) continue;
             Jail jail = entry.getValue();
 
-            if (jail.tick(plugin.config().jailTimeRatio)) {
+            if (jail.tick(plugin.config().jailRealPerServing)) {
                 release(player, false);
                 continue;
             }
@@ -150,6 +160,22 @@ public final class JailManager {
                 sync(player, jail, false);
             }
         }
+    }
+
+    /**
+     * Досрочное списание срока — наряд у прораба. Состояние сразу уходит на
+     * сайт: иначе выход по наряду потерялся бы при рестарте сервера.
+     */
+    public boolean reduceSentence(Player player, int seconds) {
+        Jail jail = jails.get(player.getUniqueId());
+        if (jail == null) return false;
+
+        if (jail.reduce(seconds)) {
+            release(player, true);
+            return true;
+        }
+        sync(player, jail, false);
+        return false;
     }
 
     public void countMinedBlock(Player player) {

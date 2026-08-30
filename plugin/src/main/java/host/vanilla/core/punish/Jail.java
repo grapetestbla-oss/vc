@@ -10,6 +10,8 @@ public final class Jail {
     private final int totalSeconds;
     private int remainingSeconds;
     private int blocksMined;
+    /// Сколько реальных секунд накопилось с прошлого списания секунды срока.
+    private int realSeconds;
     private Location returnLocation;
     private String inventoryData;
     private long lastSyncAt = System.currentTimeMillis();
@@ -35,15 +37,31 @@ public final class Jail {
     public void setInventoryData(String data) { this.inventoryData = data; }
     public void markSynced() { this.lastSyncAt = System.currentTimeMillis(); }
 
-    /** @return true, если срок отбыт. Время идёт с ускорением ratio. */
-    public boolean tick(int ratio) {
-        remainingSeconds = Math.max(0, remainingSeconds - ratio);
+    /**
+     * Секунда реального времени. Срок идёт медленно: минута заключения стоит
+     * realPerServing реальных минут, поэтому просто отсидеться дорого —
+     * быстрее выйти работой.
+     *
+     * @return true, если срок отбыт.
+     */
+    public boolean tick(int realPerServing) {
+        if (remainingSeconds == 0) return true;
+        realSeconds++;
+        if (realSeconds < Math.max(1, realPerServing)) return false;
+
+        realSeconds = 0;
+        remainingSeconds = Math.max(0, remainingSeconds - 1);
+        return remainingSeconds == 0;
+    }
+
+    /** Досрочное списание: наряд у прораба или добытый блок. */
+    public boolean reduce(int seconds) {
+        remainingSeconds = Math.max(0, remainingSeconds - Math.max(0, seconds));
         return remainingSeconds == 0;
     }
 
     public boolean addMinedBlock(int secondsPerBlock) {
         blocksMined++;
-        remainingSeconds = Math.max(0, remainingSeconds - secondsPerBlock);
-        return remainingSeconds == 0;
+        return reduce(secondsPerBlock);
     }
 }

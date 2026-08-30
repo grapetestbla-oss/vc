@@ -6,8 +6,11 @@ export const WARN_DAYS = 7;
 export const WARN_TO_BAN_DAYS = 5;
 export const HELPER_JAIL_LIMIT_MINUTES = 60;
 
-/** Срок деморгана идёт 1 к 10: минута реального времени списывает 10 минут. */
-export const JAIL_TIME_RATIO = 10;
+/**
+ * Ход срока: минута заключения стоит десяти реальных минут. Отсидеться дорого
+ * специально — быстрее выйти работой у прораба, каждый наряд снимает минуту.
+ */
+export const JAIL_REAL_PER_MINUTE = 10;
 
 function daysFromNow(days: number): Date {
   return new Date(Date.now() + days * 86_400_000);

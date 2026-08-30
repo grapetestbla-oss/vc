@@ -58,6 +58,7 @@ public final class JailListener implements Listener {
         event.setDropItems(false);
         event.setExpToDrop(0);
         jail.countMinedBlock(player);
+        plugin.jailJobs().onBlockMined(player);
 
         Material material = plugin.config().jailMineMaterial;
         plugin.getServer().getScheduler().runTaskLater(plugin,
