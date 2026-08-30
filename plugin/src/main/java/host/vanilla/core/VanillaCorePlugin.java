@@ -7,6 +7,7 @@ import host.vanilla.core.admin.MaintenanceWatcher;
 import host.vanilla.core.admin.EspManager;
 import host.vanilla.core.admin.StaffCommands;
 import host.vanilla.core.admin.StaffListener;
+import host.vanilla.core.admin.VanishManager;
 import host.vanilla.core.api.ApiClient;
 import host.vanilla.core.auth.AuthCommands;
 import host.vanilla.core.auth.AuthListener;
@@ -59,6 +60,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
     private JailManager jail;
     private JailJobs jailJobs;
     private EspManager esp;
+    private VanishManager vanish;
     private CheckManager checks;
     private ReportManager reports;
     private NewsBroadcaster news;
@@ -93,6 +95,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         jail.setJobs(jailJobs);
 
         esp = new EspManager(this);
+        vanish = new VanishManager(this, messages);
         checks = new CheckManager(this, messages);
         reports = new ReportManager(this, messages);
         news = new NewsBroadcaster(this, messages);
@@ -119,6 +122,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         manager.registerEvents(new JailListener(this, jail, messages), this);
         manager.registerEvents(jailJobs, this);
         manager.registerEvents(new StaffListener(this, checks), this);
+        manager.registerEvents(vanish, this);
         manager.registerEvents(new ReportMenuListener(this, reports), this);
         manager.registerEvents(new CosmeticListener(this, cosmetics), this);
         manager.registerEvents(new ShopListener(this, shopCommands, messages), this);
@@ -133,7 +137,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
 
         StaffCommands staff = new StaffCommands(this, messages);
         for (String name : List.of("spec", "esp", "ajail", "unjail", "warn", "ban", "check", "asms",
-                "news", "reports", "tp", "tphere", "spark")) {
+                "news", "reports", "tp", "tphere", "spark", "a", "chide")) {
             bind(name, staff);
         }
 
@@ -177,6 +181,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         }
         getServer().getScheduler().runTaskTimer(this, esp::refresh,
                 config.espRefreshSeconds * 20L, config.espRefreshSeconds * 20L);
+        getServer().getScheduler().runTaskTimer(this, vanish::tick, 40L, 40L);
         getServer().getScheduler().runTaskTimer(this, this::reportPlaytime, 1200L, 1200L);
         getServer().getScheduler().runTaskTimer(this, news::poll,
                 config.newsPollSeconds * 20L, config.newsPollSeconds * 20L);
@@ -364,6 +369,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
     public AuthManager auth() { return auth; }
     public JailManager jail() { return jail; }
     public EspManager esp() { return esp; }
+    public VanishManager vanish() { return vanish; }
     public CheckManager checks() { return checks; }
     public ReportManager reports() { return reports; }
     public NewsBroadcaster news() { return news; }

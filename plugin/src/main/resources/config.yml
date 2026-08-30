@@ -151,6 +151,13 @@ messages:
   punish.auto-ban: "<red>Второй активный варн — бан на 5 дней. Причина: <white><reason>"
   punish.banned: "<red>Бан на <days> дн. Причина: <white><reason>"
 
+  staff.chat: "<dark_gray>[<red>A<dark_gray>]<reset> <red><player><dark_gray>: <white><text>"
+  staff.chat-alone: "<gray>Кроме вас, в админ-чате сейчас никого нет."
+  staff.usage-a: "<yellow>Использование: /a <текст>"
+  staff.hide-on: "<green>Вы невидимы. Ни в игре, ни в табе, ни в чате вас нет."
+  staff.hide-off: "<yellow>Вы снова видимы."
+  staff.hide-bar: "<red>невидимость <dark_gray>· <gray>/chide — выключить"
+  staff.hide-chat: "<gray>В общий чат нельзя, пока вы невидимы. Пишите в <white>/a<gray>."
   staff.no-access: "<red>Недостаточно прав."
   staff.no-player: "<red>Игрок не в сети."
   staff.error: "<red>Не удалось: <white><error>"

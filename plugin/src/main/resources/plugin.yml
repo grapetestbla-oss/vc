@@ -30,6 +30,12 @@ commands:
     description: Режим наблюдателя (администрация)
   esp:
     description: Подсветка игроков ниже своего уровня
+  a:
+    description: Закрытый чат администрации
+    usage: /a <текст>
+  chide:
+    description: Полная невидимость для администрации
+    usage: /chide
   ajail:
     description: Отправить в деморган
     usage: /ajail <ник> <причина> <минуты>

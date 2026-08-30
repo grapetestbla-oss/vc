@@ -58,6 +58,8 @@ public final class StaffCommands implements CommandExecutor, TabCompleter {
             case "spark" -> spark(admin, level);
             case "tp" -> teleport(admin, level, args, false);
             case "tphere" -> teleport(admin, level, args, true);
+            case "a" -> staffChat(admin, level, args);
+            case "chide" -> hide(admin, level);
             default -> false;
         };
     }
@@ -301,6 +303,42 @@ public final class StaffCommands implements CommandExecutor, TabCompleter {
         }
         plugin.logAdminAction(admin, bringHere ? "tphere" : "tp", Accounts.name(target), Map.of());
         return true;
+    }
+
+    /** Закрытый чат администрации: видят только те, у кого хватает уровня. */
+    private boolean staffChat(Player admin, int level, String[] args) {
+        if (denied(admin, level, StaffChat.LEVEL)) return true;
+        if (args.length == 0) {
+            admin.sendMessage(messages.get("staff.usage-a"));
+            return true;
+        }
+        String text = String.join(" ", args);
+        Component line = messages.plain("staff.chat", Map.of(
+                "player", admin.getName(), "text", text));
+
+        int seen = 0;
+        for (Player viewer : Bukkit.getOnlinePlayers()) {
+            if (plugin.auth().adminLevel(viewer) < StaffChat.LEVEL) continue;
+            viewer.sendMessage(line);
+            seen++;
+        }
+        plugin.getServer().getConsoleSender().sendMessage(line);
+        if (seen <= 1) admin.sendMessage(messages.get("staff.chat-alone"));
+        return true;
+    }
+
+    /** Полная невидимость — /chide. */
+    private boolean hide(Player admin, int level) {
+        if (denied(admin, level, VanishManager.LEVEL)) return true;
+        boolean vanished = plugin.vanish().toggle(admin);
+        admin.sendMessage(messages.get(vanished ? "staff.hide-on" : "staff.hide-off"));
+        plugin.logAdminAction(admin, "vanish.toggle", null, Map.of("hidden", vanished));
+        return true;
+    }
+
+    /** Уровень доступа к /a. Держим рядом с командой, чтобы не искать по конфигу. */
+    private static final class StaffChat {
+        static final int LEVEL = 2;
     }
 
     /** Коды сайта — служебные. В чат идёт понятный текст, а не «already_jailed». */
