@@ -110,6 +110,11 @@ season:
     shards-min: 25
     shards-max: 500
 
+panel:
+  # Как часто слать сайту слепок инвентаря игроков — его показывает панель.
+  # Кнопка «обновить» в панели запрашивает слепок вне очереди.
+  inventory-report-seconds: 60
+
 staff:
   # Администрация со 2 уровня всегда в режиме наблюдателя.
   always-spectator: true
@@ -130,6 +135,9 @@ messages:
   auth.need2fa: "<yellow>Вход с нового адреса. Возьмите код в личном кабинете и введите <white>/2fa <код>"
   auth.no2fa: "<red>Сейчас код не требуется."
   auth.no-account: "<red>Аккаунта нет. Зарегистрируйтесь на сайте — ник должен совпадать."
+  auth.register: "<red>Аккаунта с таким ником нет.<newline><yellow>Зарегистрируйтесь на <white><site><yellow> — ник на сайте должен совпадать с игровым, а пароль оттуда вводится командой <white>/login <пароль><yellow>."
+  auth.register-title: "<gold>Нужна регистрация"
+  auth.register-subtitle: "<white><site>"
   auth.banned: "<red>Вы забанены. Причина: <white><reason>"
   auth.bad: "<red>Неверный пароль. Осталось попыток: <left>"
   auth.too-many: "<red>Слишком много неверных попыток."
@@ -162,7 +170,7 @@ messages:
   staff.hide-on: "<green>Вы невидимы. Ни в игре, ни в табе, ни в чате вас нет."
   staff.hide-off: "<yellow>Вы снова видимы."
   staff.hide-bar: "<red>невидимость <dark_gray>· <gray>/chide — выключить"
-  staff.hide-chat: "<gray>В общий чат нельзя, пока вы невидимы. Пишите в <white>/a<gray>."
+  staff.hide-chat: "<gray>Вы невидимы, но в общем чате вас видно. Только для своих — <white>/a<gray>."
   staff.no-access: "<red>Недостаточно прав."
   staff.no-player: "<red>Игрок не в сети."
   staff.error: "<red>Не удалось: <white><error>"

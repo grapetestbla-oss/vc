@@ -5,9 +5,10 @@ import { audit } from "@/lib/audit";
 import { levelFromPlaytime } from "@/lib/levels";
 import { accountsSharingIp } from "@/lib/antifraud";
 import { canLift } from "@/lib/punishments";
-import { listRanks } from "@/lib/ranks";
+import { levelHas, listRanks } from "@/lib/ranks";
 import UserActions from "@/components/UserActions";
 import PunishmentRow from "@/components/PunishmentRow";
+import InventoryView from "@/components/InventoryView";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,7 @@ export default async function UserCard({ params }: { params: Promise<{ id: strin
 
   const neighbours = user.lastIp ? await accountsSharingIp(user.lastIp, user.id) : [];
   const ranks = await listRanks();
+  const seesInventory = await levelHas(admin.adminLevel, "users.inventory");
   // Почта и полный список IP видны с 4 уровня — рядовому админу они не нужны.
   const seesPrivateData = admin.adminLevel >= 4;
 
@@ -64,6 +66,15 @@ export default async function UserCard({ params }: { params: Promise<{ id: strin
           ranks={ranks.map((rank) => ({ level: rank.level, title: rank.title }))}
         />
       </section>
+
+      {seesInventory && (
+        <section className="panel p-6">
+          <h2 className="font-semibold">Инвентарь в игре</h2>
+          <div className="mt-3">
+            <InventoryView userId={user.id} />
+          </div>
+        </section>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2">
         <section className="panel p-6">

@@ -5,6 +5,7 @@ import host.vanilla.core.admin.ActionRunner;
 import host.vanilla.core.admin.CheckManager;
 import host.vanilla.core.admin.MaintenanceWatcher;
 import host.vanilla.core.admin.EspManager;
+import host.vanilla.core.admin.InventoryReporter;
 import host.vanilla.core.admin.StaffCommands;
 import host.vanilla.core.admin.StaffListener;
 import host.vanilla.core.admin.VanishManager;
@@ -61,6 +62,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
     private JailJobs jailJobs;
     private EspManager esp;
     private VanishManager vanish;
+    private InventoryReporter inventories;
     private CheckManager checks;
     private ReportManager reports;
     private NewsBroadcaster news;
@@ -96,6 +98,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
 
         esp = new EspManager(this);
         vanish = new VanishManager(this, messages);
+        inventories = new InventoryReporter(this);
         checks = new CheckManager(this, messages);
         reports = new ReportManager(this, messages);
         news = new NewsBroadcaster(this, messages);
@@ -182,6 +185,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
         getServer().getScheduler().runTaskTimer(this, esp::refresh,
                 config.espRefreshSeconds * 20L, config.espRefreshSeconds * 20L);
         getServer().getScheduler().runTaskTimer(this, vanish::tick, 40L, 40L);
+        getServer().getScheduler().runTaskTimer(this, inventories::reportAll,
+                600L, Math.max(15, config.inventoryReportSeconds) * 20L);
         getServer().getScheduler().runTaskTimer(this, this::reportPlaytime, 1200L, 1200L);
         getServer().getScheduler().runTaskTimer(this, news::poll,
                 config.newsPollSeconds * 20L, config.newsPollSeconds * 20L);
@@ -347,6 +352,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
     }
 
     public void onPlayerQuit(Player player) {
+        if (auth.authenticated(player)) inventories.report(player);
         jail.syncOnQuit(player);
         cosmetics.forget(player);
         shop.forget(player);
@@ -378,6 +384,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
     public JailManager jail() { return jail; }
     public EspManager esp() { return esp; }
     public VanishManager vanish() { return vanish; }
+    public InventoryReporter inventories() { return inventories; }
     public CheckManager checks() { return checks; }
     public ReportManager reports() { return reports; }
     public NewsBroadcaster news() { return news; }

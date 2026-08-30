@@ -5,12 +5,15 @@ import host.vanilla.core.VanillaCorePlugin;
 import host.vanilla.core.util.Accounts;
 import host.vanilla.core.util.Messages;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.title.Title;
 import org.bukkit.GameMode;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
+import java.time.Duration;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -23,6 +26,8 @@ public final class AuthManager {
     private final VanillaCorePlugin plugin;
     private final Messages messages;
     private final Map<UUID, Profile> profiles = new ConcurrentHashMap<>();
+    /** Кто зашёл впервые: аккаунта на сайте нет, поэтому и пароля быть не может. */
+    private final Set<UUID> unregistered = ConcurrentHashMap.newKeySet();
     /** Сессии тех, кто только что вышел: по ним можно вернуться без пароля. */
     private final Map<UUID, Session> resumable = new ConcurrentHashMap<>();
 
@@ -59,6 +64,7 @@ public final class AuthManager {
     public void forget(Player player) {
         profiles.remove(player.getUniqueId());
         resumable.remove(player.getUniqueId());
+        unregistered.remove(player.getUniqueId());
     }
 
     /**
@@ -66,6 +72,7 @@ public final class AuthManager {
      * течение grace-периода с того же адреса — пароль спрашивать не будем.
      */
     public void onQuit(Player player) {
+        unregistered.remove(player.getUniqueId());
         Profile profile = profiles.remove(player.getUniqueId());
         int grace = plugin.config().authGraceSeconds;
         if (grace <= 0 || profile == null || !profile.authenticated()) return;
@@ -90,15 +97,55 @@ public final class AuthManager {
         }
         Profile profile = profile(player);
         profile.setState(Profile.State.AWAITING_LOGIN);
+        unregistered.remove(player.getUniqueId());
         restrain(player);
         player.sendMessage(messages.get("auth.prompt"));
+        checkRegistered(player);
 
         int timeout = plugin.config().authTimeoutSeconds;
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-            if (player.isOnline() && !authenticated(player)) {
-                player.kick(messages.get("auth.timeout"));
-            }
+            if (!player.isOnline() || authenticated(player)) return;
+            // Новичку объясняем причину кика, а не «время истекло»: он и не мог
+            // войти — аккаунта на сайте ещё нет.
+            player.kick(unregistered.contains(player.getUniqueId())
+                    ? register()
+                    : messages.get("auth.timeout"));
         }, timeout * 20L);
+    }
+
+    /**
+     * Первый заход: спрашиваем сайт, есть ли такой аккаунт. Если нет — сразу
+     * говорим, что нужна регистрация, а не ждём, пока человек будет наугад
+     * подбирать пароль до кика по таймауту.
+     */
+    private void checkRegistered(Player player) {
+        plugin.api().onMain(
+                plugin.api().get("/api/mc/exists?login=" + Accounts.name(player)),
+                response -> {
+                    if (!player.isOnline() || authenticated(player)) return;
+                    // Сайт не ответил — молчим: лучше обычный запрос пароля,
+                    // чем ложное «вы не зарегистрированы».
+                    if (response.get("_status").getAsInt() != 200) return;
+                    if (!response.has("registered") || response.get("registered").getAsBoolean()) return;
+
+                    unregistered.add(player.getUniqueId());
+                    player.sendMessage(register());
+                    player.showTitle(Title.title(
+                            messages.plain("auth.register-title", Map.of()),
+                            messages.plain("auth.register-subtitle",
+                                    Map.of("site", site())),
+                            Title.Times.times(Duration.ofMillis(300),
+                                    Duration.ofSeconds(8), Duration.ofSeconds(1))));
+                });
+    }
+
+    private Component register() {
+        return messages.get("auth.register", Map.of("site", site()));
+    }
+
+    /** Адрес сайта без схемы — в чате и на титрах он читается лучше. */
+    private String site() {
+        return plugin.config().siteUrl.replaceFirst("^https?://", "").replaceAll("/$", "");
     }
 
     /**
@@ -182,7 +229,7 @@ public final class AuthManager {
                 profile.setState(Profile.State.AWAITING_2FA);
                 player.sendMessage(messages.get("auth.need2fa"));
             }
-            case "no_account" -> player.kick(messages.get("auth.no-account"));
+            case "no_account" -> player.kick(register());
             case "banned" -> {
                 String reason = response.has("reason") ? response.get("reason").getAsString() : "—";
                 player.kick(messages.plain("auth.banned", Map.of("reason", reason)));

@@ -13,7 +13,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Поручения с сайта: сейчас это очистка инвентаря после обнуления аккаунта.
+ * Поручения с сайта: очистка инвентаря после обнуления аккаунта и слепок
+ * инвентаря для панели.
  * Выполняем только для игроков в сети, остальные поручения остаются в очереди
  * и подтверждаются, лишь когда действительно исполнены.
  */
@@ -53,6 +54,12 @@ public final class ActionRunner {
                 if (player == null || !plugin.auth().authenticated(player)) continue;
 
                 if ("WIPE_INVENTORY".equals(kind) && wipe(player)) {
+                    done.add(item.get("id").getAsString());
+                }
+
+                // Панель открыла инвентарь и просит свежий слепок вне очереди.
+                if ("SNAPSHOT_INVENTORY".equals(kind)) {
+                    plugin.inventories().report(player);
                     done.add(item.get("id").getAsString());
                 }
             }

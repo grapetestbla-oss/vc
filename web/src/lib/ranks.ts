@@ -20,6 +20,7 @@ export type Permission = {
 export const PERMISSIONS: Permission[] = [
   { key: "panel.view", title: "Вход в панель", group: "Панель", defaultLevel: 3 },
   { key: "users.view", title: "Карточки игроков", group: "Игроки", defaultLevel: 3 },
+  { key: "users.inventory", title: "Инвентарь в игре", group: "Игроки", defaultLevel: 3 },
   { key: "users.balance", title: "Правка баланса", group: "Игроки", defaultLevel: 5 },
   { key: "users.wipe", title: "Обнуление аккаунта", group: "Игроки", defaultLevel: 5 },
   { key: "users.staff", title: "Выдача админки", group: "Игроки", defaultLevel: 5 },

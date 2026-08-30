@@ -2427,10 +2427,105 @@ const run = async () => {
   });
   check("на сколько хватило VC — столько и открылось", partial.json?.opened === 2, partial.json?.opened);
   check("недостача объясняется словами", Boolean(partial.json?.stopped), partial.json?.stopped);
+  // Кейс может вернуть VC, поэтому ровного нуля тут не бывает: считаем выигрыш.
+  const brokeWon = partial.json.results
+    .filter((item) => item.kind === "VC")
+    .reduce((sum, item) => sum + item.amount, 0);
+  const brokeLeft = (await api("/api/me", { cookie: brokePlayer.session })).json.balanceVc;
+  check("потрачено ровно на два кейса, выигрыш зачислен", brokeLeft === brokeWon, {
+    brokeLeft,
+    brokeWon,
+  });
+  check("баланс не ушёл в минус", brokeLeft >= 0, brokeLeft);
+
+  console.log("— Регистрация и инвентарь —");
+  const knownPlayer = await api("/api/mc/exists?login=Steve", { serverToken: TOKEN });
+  check("сайт подтверждает известный ник", knownPlayer.json?.registered === true, knownPlayer.json);
+
+  const newcomer = await api("/api/mc/exists?login=Ktoto", { serverToken: TOKEN });
+  check("новичок опознаётся как незарегистрированный", newcomer.json?.registered === false, newcomer.json);
+
+  const existsNoToken = await api("/api/mc/exists?login=Steve");
+  check("проверка ника закрыта без токена", existsNoToken.status === 401);
+
+  const snapshot = await api("/api/mc/inventory", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: {
+      login: "Steve",
+      world: "world",
+      x: 10,
+      y: 64,
+      z: -5,
+      health: 18,
+      food: 20,
+      xpLevel: 30,
+      gameMode: "SURVIVAL",
+      items: [
+        { area: "main", slot: 0, type: "diamond_sword", amount: 1, enchants: ["sharpness 5"] },
+        { area: "main", slot: 9, type: "cobblestone", amount: 64 },
+        { area: "armor", slot: 3, label: "helmet", type: "diamond_helmet", amount: 1, damage: 10, maxDamage: 363 },
+        { area: "ender", slot: 0, type: "golden_apple", amount: 3 },
+        { area: "main", slot: 1, type: "air", amount: 0 },
+        { area: "hack", slot: 0, type: "bedrock", amount: 1 },
+      ],
+    },
+  });
+  check("слепок инвентаря принят", snapshot.json?.ok === true, snapshot.json);
+
+  const snapshotNoToken = await api("/api/mc/inventory", {
+    method: "POST",
+    body: { login: "Steve", items: [] },
+  });
+  check("слепок без токена не принимается", snapshotNoToken.status === 401);
+
+  const steveMe = await api("/api/me", { cookie: steve.session });
+  const inventory = await api(`/api/panel/inventory?userId=${steveMe.json.id}`, {
+    cookie: steve.session,
+  });
+  check("панель показывает инвентарь", inventory.json?.snapshot?.xpLevel === 30, inventory.json);
   check(
-    "баланс не ушёл в минус",
-    (await api("/api/me", { cookie: brokePlayer.session })).json.balanceVc === 0,
-    partial.json,
+    "мусорные предметы отброшены при разборе",
+    inventory.json?.snapshot?.items?.length === 4,
+    inventory.json?.snapshot?.items,
+  );
+  check(
+    "зачарование доехало до панели",
+    inventory.json?.snapshot?.items?.find((item) => item.slot === 0 && item.area === "main")
+      ?.enchants?.[0] === "sharpness 5",
+    inventory.json?.snapshot?.items,
+  );
+
+  const inventoryByPlayer = await api(`/api/panel/inventory?userId=${steveMe.json.id}`, {
+    cookie: alex.session,
+  });
+  check("без права инвентарь не показывают", inventoryByPlayer.status === 403);
+
+  const refresh = await api("/api/panel/inventory", {
+    method: "POST",
+    cookie: steve.session,
+    body: { userId: steveMe.json.id },
+  });
+  check("панель заказывает свежий слепок", refresh.json?.ok === true, refresh.json);
+
+  const queued = await api("/api/mc/actions", { serverToken: TOKEN });
+  check(
+    "поручение о слепке ушло плагину",
+    queued.json?.actions?.some((action) => action.kind === "SNAPSHOT_INVENTORY"),
+    queued.json?.actions?.map((action) => action.kind),
+  );
+
+  const refreshAgain = await api("/api/panel/inventory", {
+    method: "POST",
+    cookie: steve.session,
+    body: { userId: steveMe.json.id },
+  });
+  check("повторный запрос не плодит поручения", refreshAgain.json?.ok === true);
+  const queuedAgain = await api("/api/mc/actions", { serverToken: TOKEN });
+  check(
+    "поручение о слепке остаётся одним",
+    queuedAgain.json.actions.filter((action) => action.kind === "SNAPSHOT_INVENTORY").length === 1,
+    queuedAgain.json.actions.map((action) => action.kind),
   );
 
   console.log("— Ранги и права —");

@@ -36,6 +36,8 @@ public final class VanishManager implements Listener {
     private final VanillaCorePlugin plugin;
     private final Messages messages;
     private final Set<UUID> hidden = ConcurrentHashMap.newKeySet();
+    /** Кому уже напомнили, что в чате его видно. Сбрасывается при выключении. */
+    private final Set<UUID> warned = ConcurrentHashMap.newKeySet();
 
     public VanishManager(VanillaCorePlugin plugin, Messages messages) {
         this.plugin = plugin;
@@ -72,6 +74,7 @@ public final class VanishManager implements Listener {
 
     private void show(Player player) {
         hidden.remove(player.getUniqueId());
+        warned.remove(player.getUniqueId());
         for (Player viewer : plugin.getServer().getOnlinePlayers()) {
             viewer.showPlayer(plugin, player);
         }
@@ -93,6 +96,7 @@ public final class VanishManager implements Listener {
 
     public void forget(Player player) {
         hidden.remove(player.getUniqueId());
+        warned.remove(player.getUniqueId());
     }
 
     /** Заходящий не должен увидеть тех, кто уже скрыт. */
@@ -120,12 +124,16 @@ public final class VanishManager implements Listener {
         if (vanished(event.getPlayer())) event.message(null);
     }
 
-    /** Обычный чат выдал бы невидимку — пусть пишет в админский. */
-    @EventHandler(ignoreCancelled = true)
+    /**
+     * Писать в общий чат невидимке никто не запрещает: захотел сказать — значит
+     * сказал. Запрет тут только путал — админ не понимал, почему чат «сломался».
+     * Ограничиваемся напоминанием, и то один раз за сессию невидимости.
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
     public void onChat(AsyncChatEvent event) {
-        if (!vanished(event.getPlayer())) return;
-        event.setCancelled(true);
-        event.getPlayer().sendMessage(messages.get("staff.hide-chat"));
+        Player player = event.getPlayer();
+        if (!vanished(player) || !warned.add(player.getUniqueId())) return;
+        player.sendMessage(messages.get("staff.hide-chat"));
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

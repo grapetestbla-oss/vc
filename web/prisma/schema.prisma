@@ -39,6 +39,7 @@ model User {
   totpSecret    String?
   totpEnabledAt DateTime?
 
+  inventory            InventorySnapshot?
   knownIps             KnownIp[]
   sessions             Session[]
   loginAttempts        LoginAttempt[]
@@ -485,9 +486,28 @@ model Appeal {
 
 /// Действие, которое должен выполнить плагин: например, очистить инвентарь
 /// после обнуления аккаунта. Ждёт в очереди, пока игрок не зайдёт в игру.
+/// Слепок инвентаря игрока для панели. Плагин присылает его раз в минуту, при
+/// выходе игрока и по запросу из карточки — храним только последний.
+model InventorySnapshot {
+  id       String   @id @default(cuid())
+  userId   String   @unique
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Разобранный список предметов, а не Base64 из Bukkit: сайт умеет его читать.
+  items    Json
+  world    String?
+  x        Int?
+  y        Int?
+  z        Int?
+  health   Int?
+  food     Int?
+  xpLevel  Int?
+  gameMode String?
+  takenAt  DateTime @default(now())
+}
+
 model ServerAction {
   id          String    @id @default(cuid())
-  /// WIPE_INVENTORY
+  /// WIPE_INVENTORY, SNAPSHOT_INVENTORY, BROADCAST_DROP
   kind        String
   login       String
   userId      String?

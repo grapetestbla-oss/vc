@@ -21,6 +21,7 @@ public final class PluginConfig {
     public final int authTimeoutSeconds;
     public final int maxLoginAttempts;
     public final int authGraceSeconds;
+    public final int inventoryReportSeconds;
 
     public final String jailWorld;
     public final boolean jailAutoCreate;
@@ -91,6 +92,7 @@ public final class PluginConfig {
         maxLoginAttempts = Math.max(1, c.getInt("auth.max-attempts", 3));
         // 0 — выключить: тогда пароль спрашивают при каждом заходе.
         authGraceSeconds = Math.max(0, c.getInt("auth.rejoin-grace-seconds", 300));
+        inventoryReportSeconds = Math.max(15, c.getInt("panel.inventory-report-seconds", 60));
 
         jailWorld = c.getString("jail.world", "demorgan");
         jailAutoCreate = c.getBoolean("jail.auto-create", true);
