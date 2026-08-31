@@ -42,6 +42,7 @@ model User {
   inventory            InventorySnapshot?
   telegram             TelegramAccount?
   telegramCodes        TelegramLinkCode[]
+  passwordResets       PasswordReset[]
   voteRewards          VoteReward[]
   skin                 PlayerSkin?
   knownIps             KnownIp[]
@@ -490,6 +491,26 @@ model Appeal {
 
 /// Действие, которое должен выполнить плагин: например, очистить инвентарь
 /// после обнуления аккаунта. Ждёт в очереди, пока игрок не зайдёт в игру.
+/// Восстановление пароля. Код уходит в Telegram — почту сайт не отправляет.
+model PasswordReset {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Хранится хеш кода: утёкшая база не должна давать вход в чужие аккаунты.
+  codeHash String
+  /// Сколько раз код вводили неверно — после нескольких попыток он сгорает.
+  attempts Int    @default(0)
+
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
 /// Привязка Telegram к аккаунту сайта. Через неё бот понимает, кто ему пишет.
 model TelegramAccount {
   id String @id @default(cuid())

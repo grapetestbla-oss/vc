@@ -2528,6 +2528,63 @@ const run = async () => {
   const tgHookNoSecret = await api("/api/tg/webhook", { method: "POST", body: { message: {} } });
   check("вебхук не принимает чужих", [403, 503].includes(tgHookNoSecret.status), tgHookNoSecret.status);
 
+  console.log("— Восстановление пароля —");
+  const recoverUnknown = await api("/api/auth/recover", {
+    method: "POST",
+    ip: "198.51.100.61",
+    body: { login: "НетТакого" },
+  });
+  check("кривой логин отклоняется", recoverUnknown.status === 400, recoverUnknown.json);
+
+  // Ответ одинаковый и для существующего, и для несуществующего аккаунта:
+  // иначе по нему можно было бы перебрать, какие логины заняты.
+  const recoverGhost = await api("/api/auth/recover", {
+    method: "POST",
+    ip: "198.51.100.62",
+    body: { login: "Prizrak" },
+  });
+  const recoverReal = await api("/api/auth/recover", {
+    method: "POST",
+    ip: "198.51.100.63",
+    body: { login: "Steve" },
+  });
+  check(
+    "по ответу нельзя узнать, есть ли аккаунт",
+    JSON.stringify(recoverGhost.json) === JSON.stringify(recoverReal.json),
+    { ghost: recoverGhost.json, real: recoverReal.json },
+  );
+
+  const wrongCode = await api("/api/auth/recover", {
+    method: "POST",
+    ip: "198.51.100.64",
+    body: { login: "Steve", code: "000000", password: "newpass123" },
+  });
+  check("без привязки Telegram код не подходит", wrongCode.status === 400, wrongCode.json);
+
+  const stillIn = await api("/api/me", { cookie: steve.session });
+  check("пароль не сменился от неверного кода", stillIn.status === 200, stillIn.status);
+
+  const weakPassword = await api("/api/auth/recover", {
+    method: "POST",
+    ip: "198.51.100.65",
+    body: { login: "Steve", code: "000000", password: "123" },
+  });
+  check("слабый пароль отклоняется", weakPassword.status === 400, weakPassword.json);
+
+  for (let i = 0; i < 6; i++) {
+    await api("/api/auth/recover", {
+      method: "POST",
+      ip: "198.51.100.66",
+      body: { login: "Steve" },
+    });
+  }
+  const flood = await api("/api/auth/recover", {
+    method: "POST",
+    ip: "198.51.100.66",
+    body: { login: "Steve" },
+  });
+  check("заявки на восстановление ограничены", flood.status === 429, flood.status);
+
   console.log("— Голоса в мониторинге —");
   // Заглушка мониторинга: отдаёт тот же формат, что public-api.top-minecrafter.
   const now = new Date();

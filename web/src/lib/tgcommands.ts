@@ -1,5 +1,6 @@
 import { db } from "./db";
 import { accountOf, linkByCode, mayManageGiveaways } from "./telegram";
+import { requestReset } from "./recovery";
 import {
   cancelGiveaway,
   createGiveaway,
@@ -21,6 +22,7 @@ const HELP_PLAYER = [
   "/link <code>КОД</code> — привязать аккаунт (код берётся в игре командой /tg или в личном кабинете)",
   "/me — что бот знает о вас",
   "/unlink — отвязать аккаунт",
+  "/reset — прислать код для смены пароля на сайте",
 ].join("\n");
 
 const HELP_ADMIN = [
@@ -74,6 +76,14 @@ export async function handleCommand(sender: Sender, text: string): Promise<strin
         `Аккаунт: <b>${user.login}</b>`,
         `Часов наиграно: <b>${hoursOf(user.playtimeSec)}</b>`,
         `Баланс: <b>${user.balanceVc} VC</b>`,
+      ].join("\n");
+
+    case "/reset":
+      if (!user) return "Аккаунт не привязан — восстанавливать нечего.";
+      await requestReset(user.login);
+      return [
+        "Код отправлен следующим сообщением.",
+        `Введите его на сайте: <b>/recover</b> для аккаунта <b>${user.login}</b>.`,
       ].join("\n");
 
     case "/unlink":

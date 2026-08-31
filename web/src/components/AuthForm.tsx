@@ -175,6 +175,10 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
             <Link href={next("/register")} className="underline hover:text-white">
               {t("Зарегистрироваться")}
             </Link>
+            <br />
+            <Link href="/recover" className="underline hover:text-white">
+              {t("Забыли пароль?")}
+            </Link>
           </>
         ) : (
           <>
