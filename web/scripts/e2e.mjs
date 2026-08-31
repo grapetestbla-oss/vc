@@ -2528,6 +2528,56 @@ const run = async () => {
   const tgHookNoSecret = await api("/api/tg/webhook", { method: "POST", body: { message: {} } });
   check("вебхук не принимает чужих", [403, 503].includes(tgHookNoSecret.status), tgHookNoSecret.status);
 
+  console.log("— Выдача нового пароля —");
+  const pwTarget = await register("Zabyvchivyy");
+  const pwTargetMe = await api("/api/me", { cookie: pwTarget.session });
+
+  const pwByPlayer = await api("/api/panel/password", {
+    method: "POST",
+    cookie: alex.session,
+    body: { userId: pwTargetMe.json.id, confirm: "Zabyvchivyy" },
+  });
+  check("пароль выдаёт только пятый уровень", pwByPlayer.status === 403, pwByPlayer.json);
+
+  const pwNoConfirm = await api("/api/panel/password", {
+    method: "POST",
+    cookie: steve.session,
+    body: { userId: pwTargetMe.json.id },
+  });
+  check("без подтверждения ником не выдаётся", pwNoConfirm.status === 400, pwNoConfirm.json);
+
+  const pwIssued = await api("/api/panel/password", {
+    method: "POST",
+    cookie: steve.session,
+    body: { userId: pwTargetMe.json.id, confirm: "Zabyvchivyy" },
+  });
+  check("новый пароль выдан", typeof pwIssued.json?.password === "string", pwIssued.json?.ok);
+  check("пароль достаточной длины", (pwIssued.json?.password ?? "").length >= 12, pwIssued.json?.password?.length);
+
+  const oldSession = await api("/api/me", { cookie: pwTarget.session });
+  check("старая сессия игрока закрыта", oldSession.status === 401, oldSession.status);
+
+  const withOldPassword = await api("/api/auth/login", {
+    method: "POST",
+    ip: "198.51.100.71",
+    body: { login: "Zabyvchivyy", password: "password123" },
+  });
+  check("старый пароль больше не подходит", withOldPassword.status !== 200, withOldPassword.status);
+
+  const withNewPassword = await api("/api/auth/login", {
+    method: "POST",
+    ip: "198.51.100.72",
+    body: { login: "Zabyvchivyy", password: pwIssued.json.password },
+  });
+  check("новый пароль работает", withNewPassword.status === 200, withNewPassword.json);
+
+  const pwUnknown = await api("/api/panel/password", {
+    method: "POST",
+    cookie: steve.session,
+    body: { userId: "нет-такого", confirm: "Zabyvchivyy" },
+  });
+  check("несуществующий игрок отклоняется", pwUnknown.status === 404, pwUnknown.json);
+
   console.log("— Восстановление пароля —");
   const recoverUnknown = await api("/api/auth/recover", {
     method: "POST",

@@ -22,6 +22,7 @@ export const PERMISSIONS: Permission[] = [
   { key: "users.view", title: "Карточки игроков", group: "Игроки", defaultLevel: 3 },
   { key: "users.inventory", title: "Инвентарь в игре", group: "Игроки", defaultLevel: 3 },
   { key: "users.balance", title: "Правка баланса", group: "Игроки", defaultLevel: 5 },
+  { key: "users.password", title: "Выдача нового пароля", group: "Игроки", defaultLevel: 5 },
   { key: "users.wipe", title: "Обнуление аккаунта", group: "Игроки", defaultLevel: 5 },
   { key: "users.staff", title: "Выдача админки", group: "Игроки", defaultLevel: 5 },
   { key: "punish.issue", title: "Выдача наказаний", group: "Наказания", defaultLevel: 3 },

@@ -97,12 +97,99 @@ export default function UserActions({
             <button className="btn-ghost" disabled={busy}>Назначить</button>
           </form>
 
+          <PasswordForm userId={userId} login={login} />
           <WipeForm userId={userId} login={login} />
         </>
       )}
 
       {message && <p className="muted text-sm">{message}</p>}
     </div>
+  );
+}
+
+/**
+ * Выдача нового пароля.
+ *
+ * Действующий пароль не показать ни при каких правах: в базе argon2-хеш, а не
+ * пароль. Поэтому помогаем иначе — выдаём новый и показываем его один раз тому,
+ * кто выдал. Игрока это выкидывает из аккаунта, так что ник вводится руками.
+ */
+function PasswordForm({ userId, login }: { userId: string; login: string }) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [issued, setIssued] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  if (!open) {
+    return (
+      <button className="btn-ghost text-sm" onClick={() => setOpen(true)}>
+        Выдать новый пароль
+      </button>
+    );
+  }
+
+  if (issued) {
+    return (
+      <div className="space-y-2 rounded-lg border p-3" style={{ borderColor: "var(--border)" }}>
+        <p className="text-sm">
+          Новый пароль для <b>{login}</b>:
+        </p>
+        <p className="select-all font-mono text-lg tracking-wide" style={{ color: "var(--gold)" }}>
+          {issued}
+        </p>
+        <p className="muted text-xs">
+          Показывается один раз — сохраните сейчас. Он же вводится в игре командой /login.
+          Все прежние сессии игрока закрыты, а если у него привязан Telegram, бот уже
+          сообщил о смене.
+        </p>
+        <button
+          className="btn-ghost text-sm"
+          onClick={() => {
+            setIssued(null);
+            setOpen(false);
+          }}
+        >
+          Скрыть
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form
+      className="space-y-2 rounded-lg border p-3"
+      style={{ borderColor: "var(--border)" }}
+      onSubmit={async (event) => {
+        event.preventDefault();
+        const form = new FormData(event.currentTarget);
+        setBusy(true);
+        setMessage(null);
+        const response = await fetch("/api/panel/password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, confirm: form.get("confirm") }),
+        });
+        const data = await response.json();
+        setBusy(false);
+        if (response.ok) setIssued(data.password);
+        else setMessage(data.error ?? "Ошибка");
+      }}
+    >
+      <p className="muted text-sm">
+        Игрок выйдет из аккаунта на сайте и не войдёт в игру старым паролем. Действие
+        записывается в журнал.
+      </p>
+      <input name="confirm" className="input w-full" placeholder={`Впишите ник ${login}`} required />
+      <div className="flex gap-2">
+        <button className="btn" disabled={busy}>
+          {busy ? "…" : "Выдать пароль"}
+        </button>
+        <button type="button" className="btn-ghost" onClick={() => setOpen(false)}>
+          Отмена
+        </button>
+      </div>
+      {message && <p className="text-sm" style={{ color: "var(--danger)" }}>{message}</p>}
+    </form>
   );
 }
 
