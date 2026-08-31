@@ -187,6 +187,12 @@ public final class VanillaCorePlugin extends JavaPlugin {
         getServer().getScheduler().runTaskTimer(this, esp::refresh,
                 config.espRefreshSeconds * 20L, config.espRefreshSeconds * 20L);
         getServer().getScheduler().runTaskTimer(this, vanish::tick, 40L, 40L);
+        // Мониторинг опрашиваем мы: обратного вызова у него нет, а таймер на
+        // сервере уже есть — заводить ради этого cron на VPS незачем.
+        if (config.votePollSeconds > 0) {
+            getServer().getScheduler().runTaskTimer(this, this::pollVotes,
+                    300L, config.votePollSeconds * 20L);
+        }
         getServer().getScheduler().runTaskTimer(this, this::refreshShops,
                 400L, config.shopRefreshSeconds * 20L);
         getServer().getScheduler().runTaskTimer(this, inventories::reportAll,
@@ -336,6 +342,14 @@ public final class VanillaCorePlugin extends JavaPlugin {
             case 5 -> "#a01414";
             default -> "#9aa3b2";
         };
+    }
+
+    /** Просит сайт забрать свежие голоса. Начисляет их сайт, мы только будим. */
+    private void pollVotes() {
+        api.onMain(api.post("/api/mc/votes", Map.of()), response -> {
+            if (response.get("_status").getAsInt() == 200) return;
+            getLogger().warning("Опрос голосов не прошёл: " + response);
+        });
     }
 
     /**

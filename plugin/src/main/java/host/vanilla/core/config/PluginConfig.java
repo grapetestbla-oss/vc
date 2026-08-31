@@ -23,6 +23,7 @@ public final class PluginConfig {
     public final int authGraceSeconds;
     public final int inventoryReportSeconds;
     public final int shopRefreshSeconds;
+    public final int votePollSeconds;
     public final int chatLocalRadius;
     public final String chatGlobalPrefix;
 
@@ -97,6 +98,8 @@ public final class PluginConfig {
         authGraceSeconds = Math.max(0, c.getInt("auth.rejoin-grace-seconds", 300));
         inventoryReportSeconds = Math.max(15, c.getInt("panel.inventory-report-seconds", 60));
         shopRefreshSeconds = Math.max(30, c.getInt("shop.refresh-seconds", 120));
+        // 0 — не опрашивать мониторинг вовсе.
+        votePollSeconds = Math.max(0, c.getInt("votes.poll-seconds", 300));
         // 0 — общий чат для всех, как было раньше.
         chatLocalRadius = Math.max(0, c.getInt("chat.local-radius", 200));
         chatGlobalPrefix = c.getString("chat.global-prefix", "!");

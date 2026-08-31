@@ -14,7 +14,8 @@ import java.util.Map;
 
 /**
  * Поручения с сайта: очистка инвентаря после обнуления аккаунта, слепок
- * инвентаря для панели, подхват свежей покупки в магазине и скин из кабинета.
+ * инвентаря для панели, покупка в магазине, скин из кабинета и спасибо за
+ * голос в мониторинге.
  * Выполняем только для игроков в сети, остальные поручения остаются в очереди
  * и подтверждаются, лишь когда действительно исполнены.
  */
@@ -63,6 +64,12 @@ public final class ActionRunner {
                     done.add(item.get("id").getAsString());
                 }
 
+                // Голос в мониторинге: VC уже начислены сайтом, в игре — спасибо.
+                if ("VOTE_REWARD".equals(kind)) {
+                    thanksForVote(player, item);
+                    done.add(item.get("id").getAsString());
+                }
+
                 if ("APPLY_SKIN".equals(kind) && applySkin(player, item)) {
                     done.add(item.get("id").getAsString());
                 }
@@ -80,6 +87,18 @@ public final class ActionRunner {
                 plugin.api().post("/api/mc/actions", Map.of("ids", done));
             }
         });
+    }
+
+    private void thanksForVote(Player player, JsonObject item) {
+        JsonObject payload = item.has("payload") && item.get("payload").isJsonObject()
+                ? item.getAsJsonObject("payload")
+                : new JsonObject();
+        int amount = payload.has("amountVc") ? payload.get("amountVc").getAsInt() : 0;
+        int streak = payload.has("streak") ? payload.get("streak").getAsInt() : 0;
+
+        player.sendMessage(messages.get(streak > 1 ? "vote.thanks-streak" : "vote.thanks", Map.of(
+                "amount", String.valueOf(amount),
+                "streak", String.valueOf(streak))));
     }
 
     /**

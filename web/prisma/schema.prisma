@@ -528,10 +528,11 @@ model VoteReward {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   provider   String
-  /// Идентификатор голоса у мониторинга, если он его прислал.
+  /// Ник и время голоса: своего идентификатора мониторинг не даёт.
   externalId String?
   amountVc   Int
-  ip         String?
+  /// Серия дней подряд на момент голоса — за неё идёт прибавка.
+  streak     Int     @default(0)
 
   createdAt DateTime @default(now())
 

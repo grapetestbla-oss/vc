@@ -60,9 +60,15 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-VanillaCraftx_bot}
       TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
-      # Награда за голос в мониторинге. Без ключа приём голосов выключен.
-      VOTE_SECRET: ${VOTE_SECRET:-}
+      # Голоса в мониторинге top-minecrafter. Без ключа опрос выключен;
+      # ключ и суммы можно править и в панели, здесь — значения по умолчанию.
+      TOPMC_API_URL: ${TOPMC_API_URL:-https://public-api.top-minecrafter.com}
+      TOPMC_SERVER_ID: ${TOPMC_SERVER_ID:-}
+      TOPMC_KEY: ${TOPMC_KEY:-}
       VOTE_REWARD_VC: ${VOTE_REWARD_VC:-200}
+      VOTE_STREAK_BONUS_VC: ${VOTE_STREAK_BONUS_VC:-10}
+      VOTE_STREAK_CAP: ${VOTE_STREAK_CAP:-30}
+      VOTE_MAX_AGE_HOURS: ${VOTE_MAX_AGE_HOURS:-48}
       NODE_ENV: production
     depends_on:
       postgres:

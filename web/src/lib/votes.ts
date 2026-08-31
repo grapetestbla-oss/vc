@@ -2,117 +2,213 @@ import { db } from "./db";
 import { applyTransaction } from "./economy";
 
 /**
- * Награда за голос в мониторинге.
+ * Голоса за сервер в мониторинге top-minecrafter.
  *
- * Мониторинги зовут наш адрес по-разному: кто-то GET со строкой запроса, кто-то
- * POST с JSON или формой, и поля называются кто во что горазд. Поэтому разбор
- * намеренно терпимый — ник ищем среди привычных имён полей, ключ принимаем и в
- * запросе, и в заголовке. Что нельзя ослаблять, так это проверку ключа: без неё
- * начислять VC мог бы кто угодно.
+ * У мониторинга нет обратного вызова — только выдача последних голосов по
+ * ключу, поэтому мы их опрашиваем. Расписание берём от плагина: он и так ходит
+ * на сайт по таймеру, и заводить ради этого cron на VPS незачем.
+ *
+ * Ключ и суммы лежат в настройках (как у касс), а не только в окружении: менять
+ * их через передеплой сайта — лишняя работа.
  */
 
-export const VOTE_PROVIDERS = ["topminecrafter"] as const;
-export type VoteProvider = (typeof VOTE_PROVIDERS)[number];
+const KEY = "votes";
+const PROVIDER = "topminecrafter";
 
-export function isVoteProvider(value: string): value is VoteProvider {
-  return (VOTE_PROVIDERS as readonly string[]).includes(value);
+export type VoteConfig = {
+  enabled: boolean;
+  apiUrl: string;
+  serverId: string;
+  key: string;
+  /** Сколько VC за сам факт голоса. */
+  rewardVc: number;
+  /** Прибавка за каждый день серии сверх первого. */
+  streakBonusVc: number;
+  /**
+   * Потолок дней серии, которые оплачиваются. Без него голосующий год подряд
+   * получал бы тысячи VC за голос — а серия растёт сама, без усилий.
+   */
+  streakCap: number;
+  /** Голоса старше этого возраста не оплачиваем: иначе первый же опрос после
+   * подключения выдал бы награды задним числом за всё, что видно в выдаче. */
+  maxAgeHours: number;
+};
+
+function number(value: unknown, fallback: number, max: number): number {
+  const parsed = typeof value === "number" ? value : Number.parseInt(String(value ?? ""), 10);
+  if (!Number.isFinite(parsed) || parsed < 0) return fallback;
+  return Math.min(max, Math.round(parsed));
 }
 
-export function voteSecret(provider: VoteProvider): string | null {
-  const key = `VOTE_SECRET_${provider.toUpperCase()}`;
-  return process.env[key]?.trim() || process.env.VOTE_SECRET?.trim() || null;
+function text(value: unknown, fallback: string): string {
+  return typeof value === "string" && value.trim() ? value.trim() : fallback;
 }
 
-export function voteReward(): number {
-  const raw = Number.parseInt(process.env.VOTE_REWARD_VC ?? "", 10);
-  return Number.isFinite(raw) && raw > 0 ? raw : 200;
-}
-
-/** Сколько часов между наградами за голоса одного игрока. */
-export const VOTE_COOLDOWN_HOURS = 12;
-
-const NICK_FIELDS = ["nickname", "nick", "username", "player", "login", "name"];
-const KEY_FIELDS = ["key", "secret", "token", "hash", "sign", "signature"];
-const ID_FIELDS = ["id", "vote_id", "voteId", "transaction", "transaction_id"];
-
-function pick(source: Record<string, unknown>, fields: string[]): string | null {
-  for (const field of fields) {
-    const value = source[field];
-    if (typeof value === "string" && value.trim()) return value.trim();
-    if (typeof value === "number") return String(value);
-  }
-  return null;
-}
-
-export type VoteRequest = { nickname: string | null; key: string | null; externalId: string | null };
-
-export async function readVoteRequest(request: Request): Promise<VoteRequest> {
-  const url = new URL(request.url);
-  const source: Record<string, unknown> = Object.fromEntries(url.searchParams.entries());
-
-  if (request.method === "POST") {
-    const type = request.headers.get("content-type") ?? "";
-    if (type.includes("application/json")) {
-      const body = await request.json().catch(() => null);
-      if (body && typeof body === "object") Object.assign(source, body);
-    } else {
-      const form = await request.formData().catch(() => null);
-      if (form) for (const [field, value] of form.entries()) source[field] = String(value);
-    }
-  }
-
+export function voteDefaults(): VoteConfig {
   return {
-    nickname: pick(source, NICK_FIELDS),
-    key: pick(source, KEY_FIELDS) ?? request.headers.get("x-api-key"),
-    externalId: pick(source, ID_FIELDS),
+    enabled: true,
+    apiUrl: text(process.env.TOPMC_API_URL, "https://public-api.top-minecrafter.com"),
+    serverId: text(process.env.TOPMC_SERVER_ID, ""),
+    key: text(process.env.TOPMC_KEY, ""),
+    rewardVc: number(process.env.VOTE_REWARD_VC, 200, 100000),
+    streakBonusVc: number(process.env.VOTE_STREAK_BONUS_VC, 10, 10000),
+    streakCap: number(process.env.VOTE_STREAK_CAP, 30, 3650),
+    maxAgeHours: number(process.env.VOTE_MAX_AGE_HOURS, 48, 24 * 365),
   };
 }
 
-export type VoteOutcome =
-  | { ok: true; login: string; amountVc: number; balance: number }
-  | { ok: false; status: number; error: string };
+export async function getVoteConfig(): Promise<VoteConfig> {
+  const base = voteDefaults();
+  let stored: Partial<VoteConfig> | null = null;
+  try {
+    const setting = await db.setting.findUnique({ where: { key: KEY } });
+    stored = (setting?.value ?? null) as Partial<VoteConfig> | null;
+  } catch {
+    return base;
+  }
+  if (!stored) return base;
 
-export async function rewardVote(
-  provider: VoteProvider,
-  vote: VoteRequest,
-  ip: string | null,
-): Promise<VoteOutcome> {
-  const secret = voteSecret(provider);
-  if (!secret) return { ok: false, status: 503, error: "Приём голосов не настроен" };
-  if (!vote.key || vote.key !== secret) return { ok: false, status: 403, error: "Неверный ключ" };
-  if (!vote.nickname) return { ok: false, status: 400, error: "Не передан ник" };
+  return {
+    enabled: stored.enabled !== false,
+    apiUrl: text(stored.apiUrl, base.apiUrl),
+    serverId: text(stored.serverId, base.serverId),
+    key: text(stored.key, base.key),
+    rewardVc: number(stored.rewardVc, base.rewardVc, 100000),
+    streakBonusVc: number(stored.streakBonusVc, base.streakBonusVc, 10000),
+    streakCap: number(stored.streakCap, base.streakCap, 3650),
+    maxAgeHours: number(stored.maxAgeHours, base.maxAgeHours, 24 * 365),
+  };
+}
 
-  const user = await db.user.findUnique({
-    where: { login: vote.nickname },
+export async function saveVoteConfig(patch: Partial<VoteConfig>): Promise<VoteConfig> {
+  const current = await getVoteConfig();
+  const merged: VoteConfig = {
+    enabled: patch.enabled !== undefined ? patch.enabled !== false : current.enabled,
+    apiUrl: text(patch.apiUrl, current.apiUrl),
+    serverId: text(patch.serverId, current.serverId),
+    key: text(patch.key, current.key),
+    rewardVc: number(patch.rewardVc, current.rewardVc, 100000),
+    streakBonusVc: number(patch.streakBonusVc, current.streakBonusVc, 10000),
+    streakCap: number(patch.streakCap, current.streakCap, 3650),
+    maxAgeHours: number(patch.maxAgeHours, current.maxAgeHours, 24 * 365),
+  };
+  await db.setting.upsert({
+    where: { key: KEY },
+    create: { key: KEY, value: merged as never },
+    update: { value: merged as never },
+  });
+  return merged;
+}
+
+/** Награда за голос: база плюс за каждый день серии сверх первого. */
+export function voteAmount(config: VoteConfig, streak: number): number {
+  const days = Math.min(Math.max(Math.floor(streak) - 1, 0), config.streakCap);
+  return config.rewardVc + days * config.streakBonusVc;
+}
+
+export type Vote = { nickname: string; votedAt: Date; streak: number };
+
+/** Разбор ответа мониторинга. Чужой формат — значит пустой список, а не падение. */
+export function parseVotes(body: unknown): Vote[] {
+  const result = (body as { result?: { votes?: unknown } } | null)?.result;
+  if (!result || !Array.isArray(result.votes)) return [];
+
+  const votes: Vote[] = [];
+  for (const raw of result.votes) {
+    if (!raw || typeof raw !== "object") continue;
+    const item = raw as Record<string, unknown>;
+    const nickname = text(item.nickname, "");
+    const votedAt = new Date(String(item.voted_at ?? ""));
+    if (!nickname || Number.isNaN(votedAt.getTime())) continue;
+    votes.push({ nickname, votedAt, streak: number(item.streak, 1, 3650) });
+  }
+  return votes;
+}
+
+async function fetchVotes(config: VoteConfig): Promise<Vote[]> {
+  const url = new URL(`/v1/servers/${config.serverId}/votes`, config.apiUrl);
+  url.searchParams.set("page", "1");
+  url.searchParams.set("limit", "50");
+  url.searchParams.set("key", config.key);
+
+  const response = await fetch(url, { headers: { Accept: "application/json" } });
+  if (!response.ok) throw new Error(`мониторинг ответил ${response.status}`);
+  return parseVotes(await response.json());
+}
+
+/** Игрока ищем и без учёта регистра: на сайте мониторинга ник пишут как придётся. */
+async function findPlayer(nickname: string) {
+  const exact = await db.user.findUnique({
+    where: { login: nickname },
     select: { id: true, login: true },
   });
-  if (!user) return { ok: false, status: 404, error: "Игрок не найден" };
+  if (exact) return exact;
+  return db.user.findFirst({
+    where: { login: { equals: nickname, mode: "insensitive" } },
+    select: { id: true, login: true },
+  });
+}
 
-  // Мониторинг может повторить запрос при сбое — по id голоса это видно точно.
-  if (vote.externalId) {
-    const seen = await db.voteReward.findUnique({
-      where: { provider_externalId: { provider, externalId: vote.externalId } },
-    });
-    if (seen) return { ok: false, status: 409, error: "Этот голос уже засчитан" };
+export type SyncResult = {
+  ok: boolean;
+  reason?: string;
+  checked: number;
+  rewarded: { login: string; amountVc: number; streak: number }[];
+};
+
+/** Забирает свежие голоса и начисляет за них VC. Повторы отсекает база. */
+export async function syncVotes(): Promise<SyncResult> {
+  const config = await getVoteConfig();
+  if (!config.enabled) return { ok: false, reason: "выключено", checked: 0, rewarded: [] };
+  if (!config.key || !config.serverId) {
+    return { ok: false, reason: "не настроено", checked: 0, rewarded: [] };
   }
 
-  const since = new Date(Date.now() - VOTE_COOLDOWN_HOURS * 3600_000);
-  const recent = await db.voteReward.findFirst({
-    where: { userId: user.id, provider, createdAt: { gt: since } },
-    select: { id: true },
-  });
-  if (recent) return { ok: false, status: 429, error: "Награда за голос уже получена" };
+  const votes = await fetchVotes(config);
+  const oldest = Date.now() - config.maxAgeHours * 3600_000;
+  const rewarded: SyncResult["rewarded"] = [];
 
-  const amountVc = voteReward();
-  await db.voteReward.create({
-    data: { userId: user.id, provider, externalId: vote.externalId, amountVc, ip },
-  });
-  const balance = await applyTransaction({
-    userId: user.id,
-    type: "BONUS",
-    amount: amountVc,
-    meta: { reason: "vote", provider },
-  });
+  for (const vote of votes) {
+    if (vote.votedAt.getTime() < oldest) continue;
 
-  return { ok: true, login: user.login, amountVc, balance };
+    // Своего идентификатора у голоса нет, но ник и время вместе уникальны:
+    // проголосовать дважды в одну секунду нельзя.
+    const externalId = `${vote.nickname}:${vote.votedAt.toISOString()}`;
+    const player = await findPlayer(vote.nickname);
+    if (!player) continue;
+
+    const amountVc = voteAmount(config, vote.streak);
+    try {
+      await db.voteReward.create({
+        data: {
+          userId: player.id,
+          provider: PROVIDER,
+          externalId,
+          amountVc,
+          streak: vote.streak,
+        },
+      });
+    } catch {
+      // Уникальный индекс сказал, что этот голос уже оплачен.
+      continue;
+    }
+
+    await applyTransaction({
+      userId: player.id,
+      type: "BONUS",
+      amount: amountVc,
+      meta: { reason: "vote", provider: PROVIDER, streak: vote.streak },
+    });
+    await db.serverAction.create({
+      data: {
+        kind: "VOTE_REWARD",
+        login: player.login,
+        userId: player.id,
+        payload: { amountVc, streak: vote.streak } as never,
+      },
+    });
+    rewarded.push({ login: player.login, amountVc, streak: vote.streak });
+  }
+
+  return { ok: true, checked: votes.length, rewarded };
 }

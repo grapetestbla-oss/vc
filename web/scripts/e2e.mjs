@@ -2528,11 +2528,107 @@ const run = async () => {
   const tgHookNoSecret = await api("/api/tg/webhook", { method: "POST", body: { message: {} } });
   check("вебхук не принимает чужих", [403, 503].includes(tgHookNoSecret.status), tgHookNoSecret.status);
 
-  const voteNoKey = await api("/api/vote/topminecrafter?nickname=Steve");
-  check("голос без ключа не проходит", [403, 503].includes(voteNoKey.status), voteNoKey.status);
+  console.log("— Голоса в мониторинге —");
+  // Заглушка мониторинга: отдаёт тот же формат, что public-api.top-minecrafter.
+  const now = new Date();
+  const voteStub = createServer((request, response) => {
+    const url = new URL(request.url, "http://127.0.0.1");
+    if (url.searchParams.get("key") !== "stub-key") {
+      response.writeHead(401, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({ ok: false }));
+      return;
+    }
+    response.writeHead(200, { "Content-Type": "application/json" });
+    response.end(
+      JSON.stringify({
+        ok: true,
+        result: {
+          votes: [
+            { nickname: "Steve", voted_at: now.toISOString(), streak: 3 },
+            { nickname: "aLeX", voted_at: new Date(now.getTime() - 60000).toISOString(), streak: 1 },
+            { nickname: "Призрак", voted_at: now.toISOString(), streak: 5 },
+            {
+              nickname: "Steve",
+              voted_at: new Date(now.getTime() - 1000 * 3600 * 24 * 10).toISOString(),
+              streak: 9,
+            },
+          ],
+          pagination: { page: 1, per_page: 50, total_pages: 1, has_more: false },
+        },
+      }),
+    );
+  });
+  await new Promise((resolve) => voteStub.listen(0, "127.0.0.1", resolve));
+  const voteStubUrl = `http://127.0.0.1:${voteStub.address().port}`;
 
-  const voteUnknownProvider = await api("/api/vote/somewhere?nickname=Steve&key=x");
-  check("чужой мониторинг не принимается", voteUnknownProvider.status === 404);
+  const votesByPlayer = await api("/api/panel/votes", { cookie: alex.session });
+  check("настройки голосов закрыты от игрока", votesByPlayer.status === 403);
+
+  const votesSaved = await api("/api/panel/votes", {
+    method: "POST",
+    cookie: steve.session,
+    body: {
+      apiUrl: voteStubUrl,
+      serverId: "27567",
+      key: "stub-key",
+      rewardVc: 200,
+      streakBonusVc: 10,
+      streakCap: 30,
+      maxAgeHours: 48,
+    },
+  });
+  check("настройки мониторинга сохраняются", votesSaved.json?.config?.serverId === "27567", votesSaved.json);
+  check("ключ мониторинга не отдаётся целиком", !String(votesSaved.json?.config?.key).includes("stub-key"), votesSaved.json?.config?.key);
+
+  const steveBeforeVote = (await api("/api/me", { cookie: steve.session })).json.balanceVc;
+  const alexBeforeVote = (await api("/api/me", { cookie: alex.session })).json.balanceVc;
+
+  const syncNoToken = await api("/api/mc/votes", { method: "POST" });
+  check("опрос голосов закрыт без токена", syncNoToken.status === 401);
+
+  const synced = await api("/api/mc/votes", { method: "POST", serverToken: TOKEN });
+  check("опрос голосов проходит", synced.json?.ok === true, synced.json);
+  check("оплачены только свежие голоса известных игроков", synced.json?.rewarded?.length === 2, synced.json?.rewarded);
+
+  const steveAfterVote = (await api("/api/me", { cookie: steve.session })).json.balanceVc;
+  check(
+    "серия из трёх дней даёт 200 + 2×10",
+    steveAfterVote - steveBeforeVote === 220,
+    { before: steveBeforeVote, after: steveAfterVote },
+  );
+
+  const alexAfterVote = (await api("/api/me", { cookie: alex.session })).json.balanceVc;
+  check("первый голос даёт ровно 200", alexAfterVote - alexBeforeVote === 200, {
+    before: alexBeforeVote,
+    after: alexAfterVote,
+  });
+
+  const syncedAgain = await api("/api/mc/votes", { method: "POST", serverToken: TOKEN });
+  check("повторный опрос не платит дважды", syncedAgain.json?.rewarded?.length === 0, syncedAgain.json);
+  const steveStill = (await api("/api/me", { cookie: steve.session })).json.balanceVc;
+  check("баланс после повторного опроса не изменился", steveStill === steveAfterVote, steveStill);
+
+  const voteActions = await api("/api/mc/actions", { serverToken: TOKEN });
+  const thanks = voteActions.json?.actions?.find(
+    (action) => action.kind === "VOTE_REWARD" && action.login === "Steve",
+  );
+  check("игроку уйдёт спасибо в игре", thanks?.payload?.amountVc === 220, thanks?.payload);
+
+  const wrongVoteKey = await api("/api/panel/votes", {
+    method: "POST",
+    cookie: steve.session,
+    body: { key: "wrong-key" },
+  });
+  check("ключ можно поменять", wrongVoteKey.json?.config?.hasKey === true, wrongVoteKey.json);
+  const syncBadKey = await api("/api/mc/votes", { method: "POST", serverToken: TOKEN });
+  check("с чужим ключом мониторинг не платит", syncBadKey.json?.ok === false, syncBadKey.json);
+
+  voteStub.close();
+  await api("/api/panel/votes", {
+    method: "POST",
+    cookie: steve.session,
+    body: { key: "stub-key", enabled: false },
+  });
 
   console.log("— Рулетка: ставка на сектор —");
   const roulettePlayer = await register("Spinner");
