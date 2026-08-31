@@ -80,25 +80,63 @@ public final class JailJobs implements Listener {
 
     // ────────────────────────────── прораб ───────────────────────────────
 
-    /** Создаёт прораба, если его нет: он мог исчезнуть после рестарта. */
+    /** Метка прораба. Опознаём его по ней, а не по UUID в памяти. */
+    private org.bukkit.NamespacedKey foremanKey() {
+        return new org.bukkit.NamespacedKey(plugin, "jail_foreman");
+    }
+
+    private boolean isForeman(Entity entity) {
+        if (!(entity instanceof Villager villager)) return false;
+        if (villager.getPersistentDataContainer().has(foremanKey(), PersistentDataType.BYTE)) return true;
+        // Прорабы, поставленные прошлой версией плагина, метки не имеют —
+        // узнаём их по имени, иначе они остались бы навсегда немыми клонами.
+        return villager.isCustomNameVisible() && villager.getCustomName() != null
+                && villager.getCustomName().contains(plugin.config().jailForemanName);
+    }
+
+    /**
+     * Держит в зоне ровно одного прораба.
+     *
+     * Раньше метод помнил прораба только по UUID в памяти: после рестарта поле
+     * обнулялось, а найти старого не получалось — getNearbyEntities видит лишь
+     * загруженные чанки, а в пустом деморгане чанк выгружен. Каждый рестарт
+     * добавлял ещё одного, и все прежние переставали отвечать на ПКМ, потому
+     * что «настоящим» считался только последний. Теперь чанк грузим явно,
+     * прораба ищем по метке и лишних убираем.
+     */
     public void ensureForeman() {
         if (!plugin.config().jailJobsEnabled) return;
 
         var world = plugin.jail().zone().world();
         if (world == null) return;
 
-        if (foremanId != null) {
-            Entity existing = plugin.getServer().getEntity(foremanId);
-            if (existing != null && existing.isValid()) return;
+        Location spot = plugin.jail().zone().spawn().clone().add(2.5, 0, 2.5);
+        world.getChunkAt(spot).load();
+
+        Villager keep = null;
+        for (Entity entity : world.getNearbyEntities(spot, 24, 16, 24)) {
+            if (!isForeman(entity)) continue;
+            if (keep == null) {
+                keep = (Villager) entity;
+            } else {
+                entity.remove();
+            }
         }
 
-        Location spot = plugin.jail().zone().spawn().clone().add(2.5, 0, 2.5);
-        // Чужие деревенские рядом с зоной не должны считаться прорабом.
-        for (Entity entity : world.getNearbyEntities(spot, 3, 3, 3)) {
-            if (entity.getType() == EntityType.VILLAGER && entity.isCustomNameVisible()) entity.remove();
+        if (keep != null) {
+            // Старый прораб мог быть без метки — проставим, заодно освежим вид.
+            dress(keep);
+            foremanId = keep.getUniqueId();
+            return;
         }
 
         Villager foreman = (Villager) world.spawnEntity(spot, EntityType.VILLAGER);
+        dress(foreman);
+        foremanId = foreman.getUniqueId();
+    }
+
+    private void dress(Villager foreman) {
+        foreman.getPersistentDataContainer().set(foremanKey(), PersistentDataType.BYTE, (byte) 1);
         foreman.customName(Component.text(plugin.config().jailForemanName, NamedTextColor.GOLD));
         foreman.setCustomNameVisible(true);
         foreman.setProfession(Villager.Profession.MASON);
@@ -108,15 +146,16 @@ public final class JailJobs implements Listener {
         foreman.setCollidable(false);
         foreman.setRemoveWhenFarAway(false);
         foreman.setPersistent(true);
-        foremanId = foreman.getUniqueId();
     }
 
     @EventHandler(ignoreCancelled = true)
     public void onInteract(PlayerInteractEntityEvent event) {
-        if (foremanId == null || !event.getRightClicked().getUniqueId().equals(foremanId)) return;
+        if (!isForeman(event.getRightClicked())) return;
 
         // Торговать с прорабом нельзя — он выдаёт наряды, а не изумруды.
         event.setCancelled(true);
+        // Событие приходит на обе руки: без этого наряд выдавался бы дважды.
+        if (event.getHand() != org.bukkit.inventory.EquipmentSlot.HAND) return;
         talk(event.getPlayer());
     }
 

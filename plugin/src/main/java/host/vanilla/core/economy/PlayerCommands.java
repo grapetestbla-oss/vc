@@ -14,7 +14,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Locale;
 import java.util.Map;
 
-/** Команды игрока: /balance, /promo, /bonus, /report. */
+/** Команды игрока: /balance, /promo, /bonus, /report, /tg. */
 public final class PlayerCommands implements CommandExecutor {
 
     private final VanillaCorePlugin plugin;
@@ -39,6 +39,7 @@ public final class PlayerCommands implements CommandExecutor {
             case "bonus" -> code(player, args, "/api/mc/bonus", "bonus");
             case "report" -> report(player, args);
             case "giveaway" -> giveaway(player);
+            case "tg" -> telegram(player);
             default -> false;
         };
     }
@@ -96,6 +97,38 @@ public final class PlayerCommands implements CommandExecutor {
     }
 
     /** Плашка о розыгрышах по требованию: что разыгрывают и сколько наиграно. */
+    /**
+     * Код привязки Telegram. Кликабельную ссылку даём сразу: переписывать код
+     * руками с экрана — лишний повод ошибиться.
+     */
+    private boolean telegram(Player player) {
+        plugin.api().onMain(
+                plugin.api().post("/api/mc/tglink", Map.of("login", Accounts.name(player))),
+                response -> {
+                    if (!player.isOnline()) return;
+                    if (response.get("_status").getAsInt() != 200) {
+                        player.sendMessage(messages.get("tg.error"));
+                        return;
+                    }
+                    String status = response.has("status") ? response.get("status").getAsString() : "";
+                    if ("linked".equals(status)) {
+                        player.sendMessage(messages.get("tg.already"));
+                        return;
+                    }
+                    String code = response.get("code").getAsString();
+                    String url = response.get("url").getAsString();
+                    player.sendMessage(messages.get("tg.code", Map.of(
+                            "code", code,
+                            "minutes", response.get("minutes").getAsString())));
+                    player.sendMessage(Messages.mm(
+                            "<gray>  <click:open_url:'" + url + "'><hover:show_text:'"
+                                    + "<gray>Откроет бота с готовым кодом'>"
+                                    + "<gold><underlined>открыть бота</underlined></gold>"
+                                    + "</hover></click></gray>"));
+                });
+        return true;
+    }
+
     private boolean giveaway(Player player) {
         plugin.giveaways().show(player, true);
         return true;

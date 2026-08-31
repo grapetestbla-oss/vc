@@ -417,9 +417,13 @@ const run = async () => {
     body: { userId: me.json.id, amount: 20000, reason: "проверка гаранта" },
   });
   let sawLegendary = false;
+  // Осколки дают только дубли, поэтому крутим, пока не увидим и легендарку, и
+  // повтор: раньше цикл мог остановиться на первой же легендарке, и проверка
+  // осколков падала через раз не из-за бага, а из-за везения.
+  let sawDuplicate = false;
   let opens = 0;
   let lastSpin = null;
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 30; i++) {
     const spin = await api("/api/cases/open", {
       method: "POST",
       cookie: steve.session,
@@ -428,16 +432,19 @@ const run = async () => {
     lastSpin = spin;
     if (spin.status !== 200) break;
     opens++;
-    if (spin.json.cosmetic?.rarity === "legendary") {
-      sawLegendary = true;
-      break;
-    }
+    if (spin.json.cosmetic?.rarity === "legendary") sawLegendary = true;
+    if (spin.json.duplicate === true) sawDuplicate = true;
+    if (sawLegendary && sawDuplicate) break;
   }
-  check("двадцать открытий проходят", opens > 0, { opens, lastSpin: lastSpin?.json });
-  check("за двадцать открытий выпала легендарка", sawLegendary, { opens });
+  check("открытия проходят", opens > 0, { opens, lastSpin: lastSpin?.json });
+  check("выпала легендарка", sawLegendary, { opens });
 
   const afterOpens = await api("/api/me", { cookie: steve.session });
-  check("осколки начисляются", afterOpens.json.shards > 0, { shards: afterOpens.json.shards });
+  check(
+    "осколки начисляются за дубли",
+    sawDuplicate ? afterOpens.json.shards > 0 : afterOpens.json.shards === 0,
+    { shards: afterOpens.json.shards, sawDuplicate, opens },
+  );
 
   const buyMissing = await api("/api/cosmetics/buy", {
     method: "POST",
@@ -1288,8 +1295,8 @@ const run = async () => {
     return acc;
   }, {});
   check(
-    "раскладка колеса — 20/15/5/1",
-    sectorCounts[2] === 20 && sectorCounts[3] === 15 && sectorCounts[5] === 5 && sectorCounts[10] === 1,
+    "раскладка колеса — 18/12/7/4",
+    sectorCounts[2] === 18 && sectorCounts[3] === 12 && sectorCounts[5] === 7 && sectorCounts[10] === 4,
     sectorCounts,
   );
   check(
@@ -1312,11 +1319,20 @@ const run = async () => {
     table.json?.zones?.at(-1),
   );
   check(
-    "средняя выплата колеса совпадает с раскладкой",
+    "сумма колеса совпадает с раскладкой",
     Math.abs(
-      table.json.zones.reduce((sum, zone) => sum + zone.multiplier * zone.chance, 0) - 120 / 41,
+      table.json.zones.reduce((sum, zone) => sum + zone.multiplier * zone.chance, 0) - 147 / 41,
     ) < 1e-9,
     table.json?.zones,
+  );
+  // Ставка идёт на сектор, поэтому важна выгодность каждого по отдельности:
+  // сектор со средней выплатой выше ставки медленно опустошал бы казну.
+  check(
+    "ни один сектор не выгоднее сайта",
+    [2, 3, 5, 10].every(
+      (multiplier) => (sectorCounts[multiplier] / 41) * multiplier < 1,
+    ),
+    [2, 3, 5, 10].map((m) => [m, ((sectorCounts[m] / 41) * m).toFixed(3)]),
   );
   check("результат текущего раунда скрыт до розыгрыша",
     table.json?.round?.phase !== "betting" || table.json?.round?.result === null, table.json?.round);
@@ -1337,21 +1353,25 @@ const run = async () => {
   const bettingRound = await waitForBetting("ROULETTE");
   check("окно ставок открывается", bettingRound !== null, bettingRound);
 
+  const beforeSpin = (await api("/api/me", { cookie: steve.session })).json.balanceVc;
   const liveBet = await api("/api/games/live/bet", {
     method: "POST",
     cookie: steve.session,
-    body: { game: "ROULETTE", bet: 100 },
+    body: { game: "ROULETTE", bet: 100, target: 2 },
   });
   check("ставка принимается", liveBet.json?.ok === true, liveBet.json);
 
   const twice = await api("/api/games/live/bet", {
     method: "POST",
     cookie: steve.session,
-    body: { game: "ROULETTE", bet: 50 },
+    body: { game: "ROULETTE", bet: 50, target: 3 },
   });
   check("вторая ставка в тот же раунд отклоняется", twice.status === 400, twice.json);
 
   const seen = await api("/api/games/live?game=ROULETTE", { cookie: alex.session });
+  // Раунд мог смениться между ожиданием окна и ставкой, поэтому номер берём
+  // оттуда, где ставка реально видна, а не из окна, которое дождались.
+  const betRound = seen.json?.round?.number ?? bettingRound.round.number;
   const foreignBet = seen.json?.bets?.find((item) => item.login === "Steve");
   check("чужие ставки видны всем", foreignBet?.betVc === 100, seen.json?.bets);
   check("своя ставка помечена только у автора", foreignBet?.mine === false, foreignBet);
@@ -1359,7 +1379,7 @@ const run = async () => {
   const smallBet = await api("/api/games/live/bet", {
     method: "POST",
     cookie: alex.session,
-    body: { game: "ROULETTE", bet: 1 },
+    body: { game: "ROULETTE", bet: 1, target: 2 },
   });
   check("минимальная ставка проверяется и на общем столе", smallBet.status === 400, smallBet.json);
 
@@ -1368,7 +1388,7 @@ const run = async () => {
   let resolved = null;
   for (let i = 0; i < 140; i++) {
     const state = await api("/api/games/live?game=ROULETTE", { cookie: steve.session });
-    const done = state.json?.history?.find((item) => item.number === bettingRound.round.number);
+    const done = state.json?.history?.find((item) => item.number === betRound);
     if (done) {
       resolved = done;
       break;
@@ -1378,10 +1398,17 @@ const run = async () => {
   check("раунд разыгрывается сам", resolved !== null, resolved);
   check("в истории раскрыт сид раунда", typeof resolved?.serverSeed === "string" && resolved.serverSeed.length === 64, resolved);
   check("бросок записан", typeof resolved?.roll === "number" && resolved.roll >= 0 && resolved.roll < 1, resolved);
-  check("раунд всегда заканчивается множителем не ниже x2", (resolved?.result ?? 0) >= 2, resolved);
+  check("выпавший сектор есть на колесе", [2, 3, 5, 10].includes(resolved?.result), resolved);
 
+  // Платят только за угаданный сектор: ставка была на x2.
   const paid = await api("/api/me", { cookie: steve.session });
-  check("выплата по колесу пришла на баланс", typeof paid.json?.balanceVc === "number", paid.json);
+  const expectedSpin = beforeSpin - 100 + (resolved?.result === 2 ? 200 : 0);
+  check("платят ровно за угаданный сектор", paid.json?.balanceVc === expectedSpin, {
+    result: resolved?.result,
+    beforeSpin,
+    after: paid.json?.balanceVc,
+    expectedSpin,
+  });
 
   const lateBet = await api("/api/games/live/bet", {
     method: "POST",
@@ -2485,6 +2512,58 @@ const run = async () => {
     brokeWon,
   });
   check("баланс не ушёл в минус", brokeLeft >= 0, brokeLeft);
+
+  console.log("— Telegram, голоса и сектора рулетки —");
+  const tgCode = await api("/api/mc/tglink", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Steve" },
+  });
+  check("игра выдаёт код привязки", typeof tgCode.json?.code === "string", tgCode.json);
+  check("ссылка ведёт на бота", String(tgCode.json?.url).includes("t.me/"), tgCode.json?.url);
+
+  const tgNoToken = await api("/api/mc/tglink", { method: "POST", body: { login: "Steve" } });
+  check("код привязки закрыт без токена", tgNoToken.status === 401);
+
+  const tgHookNoSecret = await api("/api/tg/webhook", { method: "POST", body: { message: {} } });
+  check("вебхук не принимает чужих", [403, 503].includes(tgHookNoSecret.status), tgHookNoSecret.status);
+
+  const voteNoKey = await api("/api/vote/topminecrafter?nickname=Steve");
+  check("голос без ключа не проходит", [403, 503].includes(voteNoKey.status), voteNoKey.status);
+
+  const voteUnknownProvider = await api("/api/vote/somewhere?nickname=Steve&key=x");
+  check("чужой мониторинг не принимается", voteUnknownProvider.status === 404);
+
+  console.log("— Рулетка: ставка на сектор —");
+  const roulettePlayer = await register("Spinner");
+  const spinnerMe = await api("/api/me", { cookie: roulettePlayer.session });
+  await api("/api/panel/balance", {
+    method: "POST",
+    cookie: steve.session,
+    body: { userId: spinnerMe.json.id, amount: 500, reason: "на рулетку" },
+  });
+
+  const noSector = await api("/api/games/live/bet", {
+    method: "POST",
+    cookie: roulettePlayer.session,
+    body: { game: "ROULETTE", bet: 50 },
+  });
+  check("без сектора ставку не принимают", noSector.status === 400, noSector.json);
+
+  const badSector = await api("/api/games/live/bet", {
+    method: "POST",
+    cookie: roulettePlayer.session,
+    body: { game: "ROULETTE", bet: 50, target: 7 },
+  });
+  check("сектора x7 на колесе нет", badSector.status === 400, badSector.json);
+
+  await waitForBetting("ROULETTE");
+  const goodSector = await api("/api/games/live/bet", {
+    method: "POST",
+    cookie: roulettePlayer.session,
+    body: { game: "ROULETTE", bet: 50, target: 10 },
+  });
+  check("ставка на сектор принимается", goodSector.json?.ok === true, goodSector.json);
 
   console.log("— Скин из кабинета —");
   const skinAnon = await api("/api/skin");

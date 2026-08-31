@@ -158,7 +158,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         bind("cubes", caseCommands);
 
         PlayerCommands player = new PlayerCommands(this, messages);
-        for (String name : List.of("balance", "promo", "bonus", "report", "giveaway")) {
+        for (String name : List.of("balance", "promo", "bonus", "report", "giveaway", "tg")) {
             bind(name, player);
         }
     }

@@ -40,6 +40,9 @@ model User {
   totpEnabledAt DateTime?
 
   inventory            InventorySnapshot?
+  telegram             TelegramAccount?
+  telegramCodes        TelegramLinkCode[]
+  voteRewards          VoteReward[]
   skin                 PlayerSkin?
   knownIps             KnownIp[]
   sessions             Session[]
@@ -487,6 +490,55 @@ model Appeal {
 
 /// Действие, которое должен выполнить плагин: например, очистить инвентарь
 /// после обнуления аккаунта. Ждёт в очереди, пока игрок не зайдёт в игру.
+/// Привязка Telegram к аккаунту сайта. Через неё бот понимает, кто ему пишет.
+model TelegramAccount {
+  id String @id @default(cuid())
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Telegram id хранится строкой: он не влезает в Int, а BigInt неудобен в JSON.
+  telegramId String  @unique
+  username   String?
+  firstName  String?
+
+  linkedAt DateTime @default(now())
+}
+
+/// Одноразовый код привязки. Выдаётся в игре командой /tg или в кабинете.
+model TelegramLinkCode {
+  code String @id
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+/// Начисление за голос в мониторинге. Дубли отсекаются по id голоса и по суткам.
+model VoteReward {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  provider   String
+  /// Идентификатор голоса у мониторинга, если он его прислал.
+  externalId String?
+  amountVc   Int
+  ip         String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([provider, externalId])
+  @@index([userId, createdAt])
+}
+
 /// Скин из личного кабинета. Сервер в offline-mode, скины раздаёт
 /// SkinsRestorer — он умеет брать текстуру по ссылке, поэтому картинку храним
 /// у себя и отдаём публично, а игре передаём адрес.

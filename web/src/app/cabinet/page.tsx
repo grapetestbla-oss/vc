@@ -6,6 +6,7 @@ import { levelFromPlaytime, nextLevelAt } from "@/lib/levels";
 import { ADMIN_LEVELS } from "@/lib/config";
 import TwoFactorCode from "@/components/TwoFactorCode";
 import SkinForm from "@/components/SkinForm";
+import TelegramLink from "@/components/TelegramLink";
 import { promoStatus } from "@/lib/promo";
 import { partnerEarnings } from "@/lib/partnershare";
 import { CONFIG } from "@/lib/config";
@@ -140,6 +141,16 @@ export default async function CabinetPage() {
             {t("Свой скин работает и с лицензии, и с пиратки. Загрузите картинку или возьмите скин чужого ника — сервер наденет его сам.")}
           </p>
           <SkinForm login={user.login} />
+        </section>
+      </Reveal>
+
+      <Reveal delay={68}>
+        <section className="panel space-y-3 p-6">
+          <h2 className="font-semibold">Telegram</h2>
+          <p className="muted text-sm">
+            {t("Привяжите Telegram — бот покажет ваши часы и баланс, а розыгрыши в канале будут учитывать вашу игру. Код можно взять и в игре командой /tg.")}
+          </p>
+          <TelegramLink />
         </section>
       </Reveal>
 

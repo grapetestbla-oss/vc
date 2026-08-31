@@ -17,17 +17,23 @@ function colorFor(multiplier: number): string {
   return "#3a3f4b";
 }
 
+export type SectorOdds = { multiplier: number; chance: number };
+
 /**
- * Колесо без «мимо»: каждый сектор что-то платит, просто чаще меньше ставки.
+ * Игрок выбирает множитель и ставит на него: выпал — ставка умножается, не
+ * выпал — сгорает. Шансы приходят со страницы, потому что считает их сервер по
+ * той же раскладке, что и розыгрыш, — расходиться им нельзя.
+ *
  * Бросок [0,1) — это угол, куда встанет стрелка, поэтому анимация показывает
  * ровно то, что посчитал сервер.
  */
-export default function RouletteGame() {
+export default function RouletteGame({ sectors }: { sectors: SectorOdds[] }) {
   const t = useT();
   const lang = useLang();
   const router = useRouter();
   const { state, reload, serverNow } = useTable("ROULETTE");
   const [bet, setBet] = useState(50);
+  const [sector, setSector] = useState<number>(2);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -57,7 +63,7 @@ export default function RouletteGame() {
     const response = await fetch("/api/games/live/bet", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ game: "ROULETTE", bet }),
+      body: JSON.stringify({ game: "ROULETTE", bet, target: sector }),
     });
     const data = await response.json();
     setBusy(false);
@@ -177,6 +183,24 @@ export default function RouletteGame() {
 
       {state.enabled ? (
       <div className="panel p-5 sm:p-6">
+        <div className="mb-4">
+          <span className="eyebrow">{t("Сектор")}</span>
+          <div className="mt-1 flex flex-wrap gap-2">
+            {sectors.map((odds) => (
+              <button
+                key={odds.multiplier}
+                className={sector === odds.multiplier ? "btn px-4" : "btn-ghost px-4"}
+                onClick={() => setSector(odds.multiplier)}
+                disabled={Boolean(mine)}
+                title={t("Шанс {chance}%", { chance: odds.chance })}
+              >
+                x{odds.multiplier}
+                <span className="ml-2 text-xs opacity-70">{odds.chance}%</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="flex flex-wrap items-end gap-3">
           <label className="block w-36">
             <span className="eyebrow">{t("Ставка, VC")}</span>
@@ -204,7 +228,7 @@ export default function RouletteGame() {
 
           <button className="btn" onClick={place} disabled={busy || !betting || Boolean(mine)}>
             {mine
-              ? t("Ставка принята: {n} VC", { n: mine.betVc })
+              ? t("Ставка принята: {n} VC на x{m}", { n: mine.betVc, m: mine.target })
               : betting
                 ? t("Поставить")
                 : t("Ставки закрыты")}

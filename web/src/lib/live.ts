@@ -15,23 +15,37 @@ export const BETTING_MS = Math.min(CONFIG.liveBettingMs, ROUND_MS - 1000);
 const EPOCH = Date.UTC(2026, 0, 1);
 
 /**
- * Раскладка колеса: 41 равный сектор — 20 по x2, 15 по x3, 5 по x5 и один x10,
- * перемешанные вручную, чтобы одинаковые не стояли блоками. Порядок жёстко
- * зафиксирован: колесо должно выглядеть одинаково у всех и не меняться между
- * перезапусками сайта.
+ * Раскладка колеса: 41 равный сектор — 18 по x2, 12 по x3, 7 по x5 и 4 по x10.
+ * Порядок жёстко зафиксирован: колесо должно выглядеть одинаково у всех и не
+ * меняться между перезапусками сайта. Одинаковые множители разведены по кругу,
+ * чтобы не стояли блоками, — с учётом стыка через ноль: колесо круглое, и
+ * последний сектор соседствует с первым.
  *
- * Внимание: средняя выплата такой раскладки — 2.93 ставки, то есть колесо
- * всегда отдаёт больше, чем принимает. Это осознанное решение владельца
- * сервера, а не ошибка расчёта: RTP из настроек здесь не действует.
+ * Раскладка подобрана под ставку на сектор: доля каждого множителя такая, что
+ * средняя выплата по нему меньше ставки — 0.88 у x2 и x3, 0.85 у x5, 0.98 у
+ * x10. Ни один сектор не выгоднее сайта, но и явно проигрышных нет, так что
+ * выбор остаётся выбором, а не единственно верным вариантом.
  */
 export const ROULETTE_LAYOUT = [
-  2, 3, 2, 5, 2, 5, 3, 2, 2, 3, 2, 5, 2, 2, 10, 3, 2, 2, 3, 2, 3,
-  5, 2, 3, 2, 3, 2, 3, 5, 2, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 3,
+  2, 2, 3, 5, 2, 10, 3, 2, 2, 5, 3, 2, 3, 2, 3, 10, 5, 2, 2, 3, 5,
+  2, 3, 2, 2, 3, 10, 5, 2, 3, 2, 2, 5, 3, 2, 2, 10, 3, 5, 2, 3,
 ] as const;
 
-/** Средняя выплата колеса на единицу ставки. */
-export function rouletteRtp(): number {
-  return ROULETTE_LAYOUT.reduce((sum, multiplier) => sum + multiplier, 0) / ROULETTE_LAYOUT.length;
+/** Множители, на которые можно поставить. */
+export const ROULETTE_SECTORS = [2, 3, 5, 10] as const;
+export type RouletteSector = (typeof ROULETTE_SECTORS)[number];
+
+export function isRouletteSector(value: number): value is RouletteSector {
+  return (ROULETTE_SECTORS as readonly number[]).includes(value);
+}
+
+/** Шанс и средняя выплата по каждому сектору — их же показываем игроку. */
+export function rouletteOdds() {
+  return ROULETTE_SECTORS.map((multiplier) => {
+    const sectors = ROULETTE_LAYOUT.filter((value) => value === multiplier).length;
+    const chance = sectors / ROULETTE_LAYOUT.length;
+    return { multiplier, sectors, chance, rtp: chance * multiplier };
+  });
 }
 
 export type Phase = "betting" | "resolving";
@@ -86,7 +100,7 @@ async function createRound(game: LiveGame, number: number) {
  * что при одновременных запросах выплата пройдёт ровно один раз.
  */
 async function resolveRound(roundId: string) {
-  const round = await db.liveRound.findUnique({ where: { id: roundId }, include: { bets: true } });
+  const round = await db.liveRound.findUnique({ where: { id: roundId } });
   if (!round || round.resolvedAt) return;
   if (round.lockAt > new Date()) return;
 
@@ -99,14 +113,20 @@ async function resolveRound(roundId: string) {
   });
   if (claimed.count === 0) return;
 
-  for (const bet of round.bets) {
-    // В рулетке множитель один на всех: игрок ставит, а не угадывает число.
+  // Ставки перечитываем после захвата раунда: ставка могла закоммититься между
+  // первым чтением и захватом — тогда игрок остался бы списанным без выплаты.
+  const bets = await db.liveBet.findMany({ where: { roundId } });
+
+  for (const bet of bets) {
+    // В рулетке игрок выбирает сектор: совпал множитель — платим по нему.
     const payout =
       round.game === "CRASH"
         ? bet.target <= result
           ? Math.floor(bet.betVc * bet.target)
           : 0
-        : Math.floor(bet.betVc * result);
+        : bet.target === result
+          ? Math.floor(bet.betVc * result)
+          : 0;
     const won = payout >= bet.betVc;
 
     await db.liveBet.update({
@@ -236,7 +256,9 @@ export async function placeBet(params: {
   }
 
   if (params.game === "ROULETTE") {
-    // Множитель определяет колесо, поэтому в ставке он не нужен.
+    if (!isRouletteSector(params.target)) {
+      throw new LiveError("Выберите сектор: x2, x3, x5 или x10");
+    }
   } else {
     if (!Number.isFinite(params.target) || params.target < 1.01 || params.target > 100) {
       throw new LiveError("Точка вывода от 1.01 до 100");
@@ -269,7 +291,9 @@ export async function placeBet(params: {
     throw error;
   }
 
-  const target = params.game === "ROULETTE" ? 1 : Math.round(params.target * 100) / 100;
+  // В рулетке target — выбранный сектор, в краше — точка вывода.
+  const target =
+    params.game === "ROULETTE" ? params.target : Math.round(params.target * 100) / 100;
   const data: Prisma.LiveBetUncheckedCreateInput = {
     roundId: round.id,
     userId: params.userId,

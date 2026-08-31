@@ -55,6 +55,14 @@ services:
       GAME_PANEL_KEY: ${GAME_PANEL_KEY:-}
       GAME_PANEL_SERVER_ID: ${GAME_PANEL_SERVER_ID:-}
       BOOTSTRAP_ADMIN_LOGIN: ${BOOTSTRAP_ADMIN_LOGIN:-}
+      # Telegram-бот. Без токена и секрета вебхука бот просто не работает —
+      # ключи держим здесь, в репозитории их быть не должно.
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-VanillaCraftx_bot}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+      # Награда за голос в мониторинге. Без ключа приём голосов выключен.
+      VOTE_SECRET: ${VOTE_SECRET:-}
+      VOTE_REWARD_VC: ${VOTE_REWARD_VC:-200}
       NODE_ENV: production
     depends_on:
       postgres:

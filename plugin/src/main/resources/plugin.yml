@@ -88,6 +88,9 @@ commands:
     description: Зажечь искру сезона рядом с собой (проверка)
   giveaway:
     description: Розыгрыши сервера и ваш прогресс по часам
+  tg:
+    description: Привязать аккаунт к Telegram-боту
+    aliases: [telegram]
   cases:
     description: Магазин кейсов в игре
     usage: /cases [ключ] · /cases открыть [ключ]
