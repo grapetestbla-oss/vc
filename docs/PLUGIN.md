@@ -361,6 +361,24 @@ Base64 из `InventorySerializer` читает только сам Bukkit, по�
 незнакомые области отбрасываются. В панели раздел виден по праву
 `users.inventory` (с 3 уровня).
 
+## Как заливать jar на сервер
+
+Только при остановленном сервере. Java читает классы из jar лениво: пока
+процесс жив, файл открыт, и подменённый на ходу jar ломает загрузку всего, что
+ещё не понадобилось. Симптом — `NoClassDefFoundError` на классе, который просто
+не успели загрузить до подмены, и в игре красное «An unexpected error occurred
+while trying to execute that command» на первой же команде, которая его трогает.
+
+Порядок один: `power` со `stop`, запись файла, `power` со `start`. Заливка на
+живой сервер «чтобы подхватилось при следующем рестарте» этого не даёт — она
+ломает уже работающий процесс:
+
+```
+POST /api/client/servers/<id>/power   {"signal":"stop"}
+POST /api/client/servers/<id>/files/write?file=/plugins/VanillaCore-1.0.0.jar
+POST /api/client/servers/<id>/power   {"signal":"start"}
+```
+
 ## Прораб в деморгане
 
 Прораба держим по метке в `PersistentDataContainer`, а не по UUID в памяти.
