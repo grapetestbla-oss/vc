@@ -73,19 +73,26 @@ docker compose --env-file /opt/vanillacoins/deploy/.env -f /opt/vanillacoins/dep
 
 ## 4. Вебхук Telegram
 
-Один раз после того, как задан `TELEGRAM_WEBHOOK_SECRET` и сайт задеплоен:
+Один раз после того, как задан `TELEGRAM_WEBHOOK_SECRET` и сайт задеплоен.
+
+Значения достаём из файла, а не через `source`: `source` выполняет файл как
+скрипт, и ключ со знаком `&` внутри (такие есть у касс) рвёт строку — часть
+значения уходит в фоновую задачу, остаток выполняется как команда, а переменная
+остаётся пустой. Docker Compose читает тот же файл своим разборщиком, поэтому
+ему такие значения не мешают — ломается только `source`.
 
 ```
-source /opt/vanillacoins/deploy/.env && curl -sS -F "url=https://vanillacraft.click/api/tg/webhook" -F "secret_token=$TELEGRAM_WEBHOOK_SECRET" "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook"
+cd /opt/vanillacoins/deploy && TGTOKEN=$(grep -m1 '^TELEGRAM_BOT_TOKEN=' .env | cut -d= -f2-) && TGSECRET=$(grep -m1 '^TELEGRAM_WEBHOOK_SECRET=' .env | cut -d= -f2-) && curl -sS -F "url=https://vanillacraft.click/api/tg/webhook" -F "secret_token=$TGSECRET" "https://api.telegram.org/bot$TGTOKEN/setWebhook"
 ```
 
 Проверить, что Telegram доволен:
 
 ```
-source /opt/vanillacoins/deploy/.env && curl -sS "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getWebhookInfo"
+cd /opt/vanillacoins/deploy && TGTOKEN=$(grep -m1 '^TELEGRAM_BOT_TOKEN=' .env | cut -d= -f2-) && curl -sS "https://api.telegram.org/bot$TGTOKEN/getWebhookInfo"
 ```
 
-В ответе не должно быть `last_error_message`.
+В ответе не должно быть `last_error_message`. Главная проверка — написать боту
+`/start`: если он ответил, секрет совпал.
 
 ## 5. Игровой сервер
 
