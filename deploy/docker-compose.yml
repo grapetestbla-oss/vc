@@ -48,6 +48,7 @@ services:
       PLATEGA_SECRET: ${PLATEGA_SECRET:-}
       PLATEGA_METHOD: ${PLATEGA_METHOD:-}
       PLATEGA_API_URL: ${PLATEGA_API_URL:-}
+      PLATEGA_PATH: ${PLATEGA_PATH:-}
       PLATEGA_CURRENCY: ${PLATEGA_CURRENCY:-}
       # Управление игровым сервером из панели: без этих переменных вкладка
       # «Сервер» просто скажет, что она не настроена.

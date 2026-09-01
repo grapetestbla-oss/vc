@@ -37,7 +37,13 @@ export async function POST(request: Request) {
       actorId: null,
       action: "payment.platega.unknown-order",
       ip,
-      meta: { transactionId: callback.transactionId, orderId: callback.orderId },
+      meta: {
+        transactionId: callback.transactionId,
+        orderId: callback.orderId,
+        // Тело кладём целиком (обрезанным): без него не видно, какими полями
+        // касса вообще прислала уведомление.
+        body: JSON.stringify(body).slice(0, 500),
+      },
     });
     return new Response("unknown order", { status: 404 });
   }

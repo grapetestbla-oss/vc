@@ -2119,6 +2119,7 @@ const run = async () => {
   // Заглушка Платеги: настоящую кассу в прогоне дёргать нечем.
   const { createServer } = await import("node:http");
   let plategaRequest = null;
+  let plategaBroken = false;
   const plategaStub = createServer((request, response) => {
     let raw = "";
     request.on("data", (chunk) => (raw += chunk));
@@ -2131,11 +2132,19 @@ const run = async () => {
       };
       response.writeHead(200, { "Content-Type": "application/json" });
       response.end(
-        JSON.stringify({
-          transactionId: "tx-" + plategaRequest.body.payload,
-          redirect: "https://pay.platega.io/тест",
-          status: "PENDING",
-        }),
+        JSON.stringify(
+          plategaBroken
+            ? // v1 отвечал так, когда способ оплаты не задан: транзакция у кассы
+              // заводится, а ссылки в ответе нет.
+              { transactionId: "tx-" + plategaRequest.body.payload, status: "PENDING" }
+            : {
+                // v2 отдаёт ссылку в url, а не в redirect.
+                transactionId: "tx-" + plategaRequest.body.payload,
+                url: "https://pay.platega.io/тест",
+                status: "PENDING",
+                expiresIn: "00:30:00",
+              },
+        ),
       );
     });
   });
@@ -2179,6 +2188,11 @@ const run = async () => {
     plInvoice.json,
   );
   check("касса вернула ссылку на оплату", plInvoice.json?.payUrl?.includes("pay.platega.io"), plInvoice.json);
+  check(
+    "счёт создаётся через v2: в v1 без способа оплаты касса отказывает",
+    plategaRequest?.url === "/v2/transaction/process",
+    plategaRequest?.url,
+  );
   check(
     "в кассу ушли ключи и номер счёта",
     plategaRequest?.merchantId === PL_MERCHANT &&
@@ -2236,11 +2250,62 @@ const run = async () => {
     afterPlRepeat.json,
   );
 
+  // Сумма может прийти в paymentDetails: без запаса ноль сравнивался бы с
+  // суммой счёта и оплаченный счёт отбивался бы как недоплата.
+  const plDetailsInvoice = await api("/api/payments/create", {
+    method: "POST",
+    cookie: buyer.session,
+    body: { amountRub: 300, provider: "platega" },
+  });
+  const beforeDetails = (await api("/api/me", { cookie: buyer.session })).json.balanceVc;
+  const plDetailsPaid = await plategaCallback({
+    transactionId: "tx-" + plDetailsInvoice.json.paymentId,
+    paymentDetails: { amount: 300, currency: "RUB" },
+    status: "CONFIRMED",
+    payload: plDetailsInvoice.json.paymentId,
+  });
+  const afterDetails = await api("/api/me", { cookie: buyer.session });
+  check(
+    "сумма из paymentDetails понимается",
+    plDetailsPaid.status === 200 &&
+      afterDetails.json.balanceVc === beforeDetails + plDetailsInvoice.json.vcAmount,
+    { status: plDetailsPaid.status, before: beforeDetails, after: afterDetails.json.balanceVc },
+  );
+
+  // Касса завела транзакцию, а ссылку не прислала: счёт обязан остаться
+  // ожидающим, иначе пришедшие деньги уже некуда зачислить.
+  plategaBroken = true;
+  const plNoUrl = await api("/api/payments/create", {
+    method: "POST",
+    cookie: buyer.session,
+    body: { amountRub: 700, provider: "platega" },
+  });
+  check("без ссылки игрок получает отказ", plNoUrl.status === 502, plNoUrl.json);
+  plategaBroken = false;
+
+  const strandedId = plategaRequest.body.payload;
+  const beforeStranded = (await api("/api/me", { cookie: buyer.session })).json.balanceVc;
+  const plLatePaid = await plategaCallback({
+    transactionId: "tx-" + strandedId,
+    amount: 700,
+    status: "CONFIRMED",
+    payload: strandedId,
+  });
+  const afterStranded = await api("/api/me", { cookie: buyer.session });
+  check(
+    "деньги по такому счёту всё равно зачисляются",
+    plLatePaid.status === 200 && afterStranded.json.balanceVc > beforeStranded,
+    { status: plLatePaid.status, before: beforeStranded, after: afterStranded.json.balanceVc },
+  );
+
   const plCancelInvoice = await api("/api/payments/create", {
     method: "POST",
     cookie: buyer.session,
     body: { amountRub: 500, provider: "platega" },
   });
+  // Сравниваем с балансом прямо перед отменой, а не с давней константой:
+  // между ними успели пройти другие оплаты этого же игрока.
+  const beforeCancel = (await api("/api/me", { cookie: buyer.session })).json.balanceVc;
   const plCanceled = await plategaCallback({
     id: "tx-" + plCancelInvoice.json.paymentId,
     amount: 500,
@@ -2249,8 +2314,8 @@ const run = async () => {
   const afterCancel = await api("/api/me", { cookie: buyer.session });
   check(
     "отменённый платёж не начисляет VC",
-    plCanceled.status === 200 && afterCancel.json.balanceVc === balanceBeforePlatega + 2280,
-    afterCancel.json,
+    plCanceled.status === 200 && afterCancel.json.balanceVc === beforeCancel,
+    { before: beforeCancel, after: afterCancel.json.balanceVc },
   );
 
   const topupWithBonus = await fetch(BASE + "/topup", { headers: { Cookie: buyer.session } });

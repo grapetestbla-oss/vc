@@ -31,6 +31,8 @@ export type PlategaConfig = {
   /** Метод оплаты Платеги: 0 — игрок выбирает сам на их странице. */
   paymentMethod: number;
   apiUrl: string;
+  /** Путь создания счёта. Меняется без пересборки, если касса переедет. */
+  path: string;
   currency: string;
 };
 
@@ -70,6 +72,7 @@ function defaults(): PaymentConfig {
       secret: str("PLATEGA_SECRET"),
       paymentMethod: Number(str("PLATEGA_METHOD", "0")) || 0,
       apiUrl: str("PLATEGA_API_URL", "https://app.platega.io"),
+      path: str("PLATEGA_PATH", "/v2/transaction/process"),
       currency: str("PLATEGA_CURRENCY", "RUB"),
     },
     manual: { enabled: null, bonusPercent: 0 },
@@ -123,6 +126,7 @@ export async function getPaymentConfig(): Promise<PaymentConfig> {
         ? Number(pl.paymentMethod)
         : base.platega.paymentMethod,
       apiUrl: text(pl.apiUrl, base.platega.apiUrl),
+      path: text(pl.path, base.platega.path),
       currency: text(pl.currency, base.platega.currency),
     },
     manual: {

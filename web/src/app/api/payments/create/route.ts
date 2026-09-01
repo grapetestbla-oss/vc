@@ -107,10 +107,12 @@ export async function POST(request: Request) {
         });
       }
     } catch (error) {
-      // Счёт без ссылки игроку не нужен: закрываем его, чтобы не висел.
+      // Счёт оставляем в ожидании, а не отклоняем. Отказ мог случиться уже
+      // после того, как касса завела транзакцию у себя: тогда деньги придут, а
+      // зачислить их на отклонённый счёт уведомление уже не сможет.
       await db.payment.update({
         where: { id: payment.id },
-        data: { status: "rejected", reviewNote: "Касса не ответила" },
+        data: { reviewNote: "Ссылка на оплату не получена" },
       });
       await audit({
         actorId: user.id,
