@@ -67,6 +67,31 @@ export async function send(chatId: string, text: string): Promise<number | null>
   return data?.ok && typeof data.result?.message_id === "number" ? data.result.message_id : null;
 }
 
+/**
+ * Решение по заявке на вступление в группу.
+ *
+ * Телеграм даёт вместе с заявкой отдельный чат для личного ответа, поэтому
+ * сначала объясняем человеку решение, а потом принимаем или отклоняем: после
+ * обработки заявки писать ему уже нельзя.
+ */
+export async function answerJoinRequest(
+  chatId: string,
+  userId: string,
+  approve: boolean,
+): Promise<boolean> {
+  const token = botToken();
+  if (!token) return false;
+
+  const method = approve ? "approveChatJoinRequest" : "declineChatJoinRequest";
+  const response = await fetch(`${api()}/bot${token}/${method}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, user_id: userId }),
+  }).catch(() => null);
+
+  return response?.ok === true;
+}
+
 /** Ссылка, по которой игрок открывает бота с уже вписанным кодом. */
 export function linkUrl(code: string): string {
   return `https://t.me/${botUsername()}?start=${code}`;

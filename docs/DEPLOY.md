@@ -83,8 +83,11 @@ docker compose --env-file /opt/vanillacoins/deploy/.env -f /opt/vanillacoins/dep
 ему такие значения не мешают — ломается только `source`.
 
 ```
-cd /opt/vanillacoins/deploy && TGTOKEN=$(grep -m1 '^TELEGRAM_BOT_TOKEN=' .env | cut -d= -f2-) && TGSECRET=$(grep -m1 '^TELEGRAM_WEBHOOK_SECRET=' .env | cut -d= -f2-) && curl -sS -F "url=https://vanillacraft.click/api/tg/webhook" -F "secret_token=$TGSECRET" "https://api.telegram.org/bot$TGTOKEN/setWebhook"
+cd /opt/vanillacoins/deploy && TGTOKEN=$(grep -m1 '^TELEGRAM_BOT_TOKEN=' .env | cut -d= -f2-) && TGSECRET=$(grep -m1 '^TELEGRAM_WEBHOOK_SECRET=' .env | cut -d= -f2-) && curl -sS -F "url=https://vanillacraft.click/api/tg/webhook" -F "secret_token=$TGSECRET" -F 'allowed_updates=["message","chat_join_request"]' "https://api.telegram.org/bot$TGTOKEN/setWebhook"
 ```
+
+`allowed_updates` перечислен явно: без `chat_join_request` бот не увидит заявок
+на вступление в группу. Ему также нужно право «Добавлять участников».
 
 Проверить, что Telegram доволен:
 

@@ -3,6 +3,10 @@
  * кейсы и мини-игры. Запускать против поднятого сайта с чистой базой:
  *
  *   BASE=http://127.0.0.1:3000 MC_SERVER_TOKEN=... node scripts/e2e.mjs
+ *
+ * Проверки Telegram включаются, только если сайт поднят с TELEGRAM_WEBHOOK_SECRET
+ * и TELEGRAM_API_URL, указывающим на заглушку: те же значения передаются сюда в
+ * TELEGRAM_WEBHOOK_SECRET и TELEGRAM_STUB_PORT.
  */
 const BASE = process.env.BASE ?? "http://127.0.0.1:3000";
 const TOKEN = process.env.MC_SERVER_TOKEN ?? "testtoken";
@@ -2768,7 +2772,9 @@ const run = async () => {
     },
   });
   check("пачка чата принимается", chatBatch.json?.ok === true, chatBatch.json);
-  check("без настроенного бота наружу ничего не уходит", chatBatch.json?.sent === 0, chatBatch.json);
+  // Заглушка Telegram поднимается ниже, так что отправка сейчас не проходит:
+  // мост обязан это пережить, а не свалиться.
+  check("недоступный Telegram не ломает мост", chatBatch.json?.sent === 0, chatBatch.json);
   check("ответов из Telegram пока нет", chatBatch.json?.incoming?.length === 0, chatBatch.json);
 
   // Обычное сообщение в группе — не ответ игре и в игру попадать не должно.
@@ -2784,6 +2790,146 @@ const run = async () => {
     body: { lines: [] },
   });
   check("в игру ничего не просочилось", afterPlain.json?.incoming?.length === 0, afterPlain.json);
+
+  console.log("— Заявки в группу Telegram —");
+  const TG_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
+  const TG_STUB_PORT = Number(process.env.TELEGRAM_STUB_PORT || 0);
+  const TG_CHAT = process.env.TELEGRAM_CHAT_ID ?? "-100999";
+
+  if (!TG_SECRET || !TG_STUB_PORT) {
+    console.log("  ..  пропущено: сайт поднят без заглушки Telegram");
+  } else {
+    // Заглушка вместо api.telegram.org: записываем, какие методы дёрнул сайт.
+    const tgCalls = [];
+    const tgStub = createServer((request, response) => {
+      let raw = "";
+      request.on("data", (chunk) => (raw += chunk));
+      request.on("end", () => {
+        tgCalls.push({
+          method: request.url.split("/").pop(),
+          body: JSON.parse(raw || "{}"),
+        });
+        response.writeHead(200, { "Content-Type": "application/json" });
+        response.end(JSON.stringify({ ok: true, result: { message_id: tgCalls.length } }));
+      });
+    });
+    await new Promise((resolve) => tgStub.listen(TG_STUB_PORT, "127.0.0.1", resolve));
+
+    async function hook(update, secret = TG_SECRET) {
+      const response = await fetch(BASE + "/api/tg/webhook", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Telegram-Bot-Api-Secret-Token": secret,
+        },
+        body: JSON.stringify(update),
+      });
+      return response.status;
+    }
+
+    // Заголовки допускают только ASCII, поэтому чужой секрет тоже латиницей.
+    const badSecret = await hook({ message: {} }, "wrong-secret");
+    check("вебхук отвергает чужой секрет", badSecret === 403, badSecret);
+
+    // Привязываем Telegram к аккаунту через тот же путь, что и живой игрок.
+    const linkCode = await api("/api/mc/tglink", {
+      method: "POST",
+      serverToken: TOKEN,
+      body: { login: "Alex" },
+    });
+    await hook({
+      message: {
+        chat: { id: 555001 },
+        from: { id: 555001, username: "alex_tg" },
+        text: `/link ${linkCode.json.code}`,
+      },
+    });
+    const linked = await hook({
+      message: { chat: { id: 555001 }, from: { id: 555001 }, text: "/me" },
+    });
+    check("привязка через бота проходит", linked === 200, linked);
+    check(
+      "бот ответил на /me привязанному игроку",
+      tgCalls.some((call) => call.method === "sendMessage" && String(call.body.text).includes("Alex")),
+      tgCalls.map((call) => call.method),
+    );
+
+    tgCalls.length = 0;
+    await hook({
+      chat_join_request: {
+        chat: { id: Number(TG_CHAT) },
+        from: { id: 555001, username: "alex_tg" },
+        user_chat_id: 555001,
+      },
+    });
+    check(
+      "заявку привязанного принимают",
+      tgCalls.some((call) => call.method === "approveChatJoinRequest"),
+      tgCalls.map((call) => call.method),
+    );
+
+    tgCalls.length = 0;
+    await hook({
+      chat_join_request: {
+        chat: { id: Number(TG_CHAT) },
+        from: { id: 555002, username: "chuzhak" },
+        user_chat_id: 555002,
+      },
+    });
+    check(
+      "заявку без привязки отклоняют",
+      tgCalls.some((call) => call.method === "declineChatJoinRequest"),
+      tgCalls.map((call) => call.method),
+    );
+    check(
+      "человеку объясняют, что делать",
+      tgCalls.some(
+        (call) => call.method === "sendMessage" && String(call.body.text).includes("/tg"),
+      ),
+      tgCalls.map((call) => call.body?.text).filter(Boolean),
+    );
+
+    tgCalls.length = 0;
+    await hook({
+      chat_join_request: {
+        chat: { id: 777777 },
+        from: { id: 555001 },
+        user_chat_id: 555001,
+      },
+    });
+    check("заявки в чужие чаты игнорируются", tgCalls.length === 0, tgCalls.map((c) => c.method));
+
+    // Ответ в группе на сообщение бота уходит в игру, обычная реплика — нет.
+    tgCalls.length = 0;
+    await hook({
+      message: {
+        chat: { id: Number(TG_CHAT) },
+        from: { id: 555001, username: "alex_tg" },
+        text: "иду",
+        reply_to_message: { from: { is_bot: true } },
+      },
+    });
+    await hook({
+      message: { chat: { id: Number(TG_CHAT) }, from: { id: 555001 }, text: "просто болтаю" },
+    });
+    const bridged = await api("/api/mc/chat", {
+      method: "POST",
+      serverToken: TOKEN,
+      body: { lines: [] },
+    });
+    check(
+      "в игру уходит только ответ на сообщение бота",
+      bridged.json?.incoming?.length === 1 && bridged.json.incoming[0].text === "иду",
+      bridged.json?.incoming,
+    );
+    check(
+      "видно, кто ответил",
+      bridged.json?.incoming?.[0]?.author === "alex_tg",
+      bridged.json?.incoming?.[0],
+    );
+
+    tgStub.close();
+  }
 
   console.log("— Восстановление пароля —");
   const recoverUnknown = await api("/api/auth/recover", {
