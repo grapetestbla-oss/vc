@@ -18,6 +18,7 @@ nano /opt/vanillacoins/deploy/.env
 TELEGRAM_BOT_TOKEN=токен от @BotFather
 TELEGRAM_BOT_USERNAME=VanillaCraftx_bot
 TELEGRAM_WEBHOOK_SECRET=любая длинная строка, придумайте сами
+TELEGRAM_CHAT_ID=-1003907771050
 TOPMC_SERVER_ID=27567
 TOPMC_KEY=ключ из кабинета мониторинга
 ```

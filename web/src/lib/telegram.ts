@@ -10,7 +10,19 @@ import { levelHas } from "./ranks";
  * Telegram присылает заголовком, иначе на наш адрес мог бы писать любой.
  */
 
-const API = "https://api.telegram.org";
+function api(): string {
+  return process.env.TELEGRAM_API_URL?.trim() || "https://api.telegram.org";
+}
+
+/** Чат, куда пересылается игровой чат. Пусто — пересылка выключена. */
+export function relayChatId(): string | null {
+  return process.env.TELEGRAM_CHAT_ID?.trim() || null;
+}
+
+/** Экранирование под parse_mode=HTML: игрок может написать что угодно. */
+export function escapeHtml(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
 
 export function botToken(): string | null {
   return process.env.TELEGRAM_BOT_TOKEN?.trim() || null;
@@ -26,10 +38,18 @@ export function webhookSecret(): string | null {
 }
 
 export async function sendMessage(chatId: string, text: string): Promise<boolean> {
-  const token = botToken();
-  if (!token) return false;
+  return (await send(chatId, text)) !== null;
+}
 
-  const response = await fetch(`${API}/bot${token}/sendMessage`, {
+/**
+ * Отправка с возвратом id сообщения. Он нужен пересылке чата: ответом на это
+ * сообщение в Telegram пишут обратно в игру.
+ */
+export async function send(chatId: string, text: string): Promise<number | null> {
+  const token = botToken();
+  if (!token) return null;
+
+  const response = await fetch(`${api()}/bot${token}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -39,8 +59,12 @@ export async function sendMessage(chatId: string, text: string): Promise<boolean
       link_preview_options: { is_disabled: true },
     }),
   }).catch(() => null);
+  if (!response?.ok) return null;
 
-  return response?.ok === true;
+  const data = (await response.json().catch(() => null)) as
+    | { ok?: boolean; result?: { message_id?: number } }
+    | null;
+  return data?.ok && typeof data.result?.message_id === "number" ? data.result.message_id : null;
 }
 
 /** Ссылка, по которой игрок открывает бота с уже вписанным кодом. */

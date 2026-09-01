@@ -27,6 +27,12 @@ public final class ChatListener implements Listener {
 
     private final VanillaCorePlugin plugin;
     private final Messages messages;
+    /**
+     * Куда ушло сообщение, которое сейчас разбираем. Оба обработчика идут по
+     * одному событию в одном потоке, а к MONITOR символ «!» из текста уже
+     * убран — определить область там заново нельзя.
+     */
+    private final ThreadLocal<String> scope = new ThreadLocal<>();
 
     public ChatListener(VanillaCorePlugin plugin, Messages messages) {
         this.plugin = plugin;
@@ -38,7 +44,11 @@ public final class ChatListener implements Listener {
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onChat(AsyncChatEvent event) {
         int radius = plugin.config().chatLocalRadius;
-        if (radius <= 0) return;
+        if (radius <= 0) {
+            // Деления на местный и общий нет — в Telegram пойдёт без метки.
+            scope.remove();
+            return;
+        }
 
         Player sender = event.getPlayer();
         String prefix = plugin.config().chatGlobalPrefix;
@@ -48,6 +58,7 @@ public final class ChatListener implements Listener {
         if (global) {
             // Один «!» без текста — не сообщение, а промах по клавише.
             if (plain.substring(prefix.length()).isBlank()) {
+                scope.remove();
                 event.setCancelled(true);
                 sender.sendMessage(messages.get("chat.global-empty", Map.of("prefix", prefix)));
                 return;
@@ -62,6 +73,7 @@ public final class ChatListener implements Listener {
                     audience instanceof Player viewer && !hears(sender, viewer, radius));
         }
 
+        scope.set(global ? "всем" : "рядом");
         Component tag = messages.plain(global ? "chat.global-tag" : "chat.local-tag", Map.of());
         event.renderer((source, displayName, message, viewer) ->
                 tag.append(displayName).append(Component.text(": ")).append(message));
@@ -71,6 +83,23 @@ public final class ChatListener implements Listener {
         if (!global && !hasNeighbour(sender, radius)) {
             sender.sendMessage(messages.get("chat.alone", Map.of("prefix", prefix)));
         }
+    }
+
+    /**
+     * Копия сообщения для Telegram. Берём на MONITOR: к этому моменту текст
+     * окончательный — искажение речи пьяного уже применено, — и видно, отменил
+     * ли сообщение кто-то другой.
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void relay(AsyncChatEvent event) {
+        String where = scope.get();
+        scope.remove();
+        // Пересылаем только общий чат: местные разговоры на то и местные, да и
+        // в Telegram от них был бы поток без контекста.
+        boolean global = where == null || "всем".equals(where);
+        if (!global) return;
+
+        plugin.chatRelay().add(event.getPlayer().getName(), PLAIN.serialize(event.message()));
     }
 
     private boolean hears(Player sender, Player viewer, int radius) {

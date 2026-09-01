@@ -1,5 +1,6 @@
 import { handleCommand } from "@/lib/tgcommands";
-import { sendMessage, webhookSecret } from "@/lib/telegram";
+import { db } from "@/lib/db";
+import { relayChatId, sendMessage, webhookSecret } from "@/lib/telegram";
 
 /**
  * Приём обновлений Telegram.
@@ -25,9 +26,26 @@ export async function POST(request: Request) {
     | { id?: number | string; username?: string; first_name?: string; is_bot?: boolean }
     | undefined;
   const text = typeof message.text === "string" ? message.text : "";
-  if (!chat?.id || !from?.id || from.is_bot || !text.startsWith("/")) {
+  if (!chat?.id || !from?.id || from.is_bot || !text.trim()) {
     return Response.json({ ok: true });
   }
+
+  // Ответ на пересланный игровой чат — это реплика в игру. Считаем ответом
+  // только на сообщения самого бота: обычная переписка в группе игроков не
+  // касается.
+  const repliedTo = message.reply_to_message as { from?: { is_bot?: boolean } } | undefined;
+  const relay = relayChatId();
+  if (relay && String(chat.id) === relay && repliedTo?.from?.is_bot && !text.startsWith("/")) {
+    await db.gameChatMessage.create({
+      data: {
+        author: (from.username ?? from.first_name ?? "гость").slice(0, 32),
+        text: text.slice(0, 256),
+      },
+    });
+    return Response.json({ ok: true });
+  }
+
+  if (!text.startsWith("/")) return Response.json({ ok: true });
 
   const reply = await handleCommand(
     { id: String(from.id), username: from.username, firstName: from.first_name },

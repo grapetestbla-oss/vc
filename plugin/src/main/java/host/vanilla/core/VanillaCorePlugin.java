@@ -15,6 +15,7 @@ import host.vanilla.core.auth.AuthListener;
 import host.vanilla.core.auth.AuthManager;
 import host.vanilla.core.auth.Profile;
 import host.vanilla.core.chat.ChatListener;
+import host.vanilla.core.chat.ChatRelay;
 import host.vanilla.core.config.PluginConfig;
 import host.vanilla.core.cosmetics.CosmeticCommand;
 import host.vanilla.core.cosmetics.CosmeticEngine;
@@ -64,6 +65,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
     private EspManager esp;
     private VanishManager vanish;
     private InventoryReporter inventories;
+    private ChatRelay chatRelay;
     private CheckManager checks;
     private ReportManager reports;
     private NewsBroadcaster news;
@@ -100,6 +102,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         esp = new EspManager(this);
         vanish = new VanishManager(this, messages);
         inventories = new InventoryReporter(this);
+        chatRelay = new ChatRelay(this);
         checks = new CheckManager(this, messages);
         reports = new ReportManager(this, messages);
         news = new NewsBroadcaster(this, messages);
@@ -187,6 +190,10 @@ public final class VanillaCorePlugin extends JavaPlugin {
         getServer().getScheduler().runTaskTimer(this, esp::refresh,
                 config.espRefreshSeconds * 20L, config.espRefreshSeconds * 20L);
         getServer().getScheduler().runTaskTimer(this, vanish::tick, 40L, 40L);
+        if (config.chatRelayEnabled) {
+            getServer().getScheduler().runTaskTimer(this, chatRelay::flush,
+                    100L, config.chatRelaySeconds * 20L);
+        }
         // Мониторинг опрашиваем мы: обратного вызова у него нет, а таймер на
         // сервере уже есть — заводить ради этого cron на VPS незачем.
         if (config.votePollSeconds > 0) {
@@ -421,6 +428,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
     public EspManager esp() { return esp; }
     public VanishManager vanish() { return vanish; }
     public InventoryReporter inventories() { return inventories; }
+    public ChatRelay chatRelay() { return chatRelay; }
     public CheckManager checks() { return checks; }
     public ReportManager reports() { return reports; }
     public NewsBroadcaster news() { return news; }

@@ -511,6 +511,21 @@ model PasswordReset {
   @@index([expiresAt])
 }
 
+/// Ответ из Telegram, который надо показать в игровом чате. Плагин забирает
+/// такие сообщения тем же запросом, которым отдаёт игровой чат.
+model GameChatMessage {
+  id String @id @default(cuid())
+
+  /// Имя ответившего в Telegram — его и показываем в игре.
+  author String
+  text   String
+
+  createdAt   DateTime  @default(now())
+  deliveredAt DateTime?
+
+  @@index([deliveredAt, createdAt])
+}
+
 /// Привязка Telegram к аккаунту сайта. Через неё бот понимает, кто ему пишет.
 model TelegramAccount {
   id String @id @default(cuid())

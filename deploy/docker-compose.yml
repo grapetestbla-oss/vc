@@ -61,6 +61,8 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-VanillaCraftx_bot}
       TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+      # Группа, куда уходит общий игровой чат и откуда принимаются ответы.
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:--1003907771050}
       # Голоса в мониторинге top-minecrafter. Без ключа опрос выключен;
       # ключ и суммы можно править и в панели, здесь — значения по умолчанию.
       TOPMC_API_URL: ${TOPMC_API_URL:-https://public-api.top-minecrafter.com}

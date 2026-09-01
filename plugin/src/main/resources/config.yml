@@ -116,6 +116,12 @@ chat:
   local-radius: 200
   # С этого символа начинается сообщение всему серверу.
   global-prefix: "!"
+  # Пересылать общий чат в Telegram. Куда именно — задаётся на сайте.
+  # Местные сообщения не пересылаются.
+  relay-to-telegram: true
+  # Как часто отправлять накопленное. Пачкой, потому что Telegram ограничивает
+  # частоту сообщений в группу.
+  relay-seconds: 5
 
 votes:
   # Как часто просить сайт забрать свежие голоса из мониторинга. Обратного
@@ -287,6 +293,7 @@ messages:
 
   shop.link: "<gold>Магазин: <yellow><url><gold>. Куплённое работает сразу в игре."
   shop.owned-line: "<gray>• <white><title> <gray>— осталось: <yellow><left>"
+  chat.from-telegram: "<dark_gray>[<blue>TG<dark_gray>]<reset> <blue><author><dark_gray>: <white><text>"
   chat.local-tag: "<dark_gray>[<gray>рядом<dark_gray>]<reset> "
   chat.global-tag: "<dark_gray>[<gold>всем<dark_gray>]<reset> "
   chat.alone: "<gray>Рядом никого. Начните сообщение с <white><prefix><gray>, чтобы услышал весь сервер."

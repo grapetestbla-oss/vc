@@ -26,6 +26,8 @@ public final class PluginConfig {
     public final int votePollSeconds;
     public final int chatLocalRadius;
     public final String chatGlobalPrefix;
+    public final boolean chatRelayEnabled;
+    public final int chatRelaySeconds;
 
     public final String jailWorld;
     public final boolean jailAutoCreate;
@@ -103,6 +105,9 @@ public final class PluginConfig {
         // 0 — общий чат для всех, как было раньше.
         chatLocalRadius = Math.max(0, c.getInt("chat.local-radius", 200));
         chatGlobalPrefix = c.getString("chat.global-prefix", "!");
+        chatRelayEnabled = c.getBoolean("chat.relay-to-telegram", true);
+        // Реже — чат в Telegram отстаёт, чаще — упираемся в лимит группы.
+        chatRelaySeconds = Math.max(3, c.getInt("chat.relay-seconds", 5));
 
         jailWorld = c.getString("jail.world", "demorgan");
         jailAutoCreate = c.getBoolean("jail.auto-create", true);

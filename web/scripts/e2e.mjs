@@ -2750,6 +2750,41 @@ const run = async () => {
   });
   check("несуществующий игрок отклоняется", pwUnknown.status === 404, pwUnknown.json);
 
+  console.log("— Мост чата с Telegram —");
+  const chatNoToken = await api("/api/mc/chat", { method: "POST", body: { lines: [] } });
+  check("мост чата закрыт без токена", chatNoToken.status === 401);
+
+  // Токена бота в прогоне нет: наружу ничего не уходит, но обратная сторона
+  // моста обязана работать — плагин забирает ответы тем же запросом.
+  const chatBatch = await api("/api/mc/chat", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: {
+      lines: [
+        { player: "Steve", text: "<b>не тег</b> & прочее" },
+        { player: "", text: "без ника" },
+        { player: "Ghost", text: "   " },
+      ],
+    },
+  });
+  check("пачка чата принимается", chatBatch.json?.ok === true, chatBatch.json);
+  check("без настроенного бота наружу ничего не уходит", chatBatch.json?.sent === 0, chatBatch.json);
+  check("ответов из Telegram пока нет", chatBatch.json?.incoming?.length === 0, chatBatch.json);
+
+  // Обычное сообщение в группе — не ответ игре и в игру попадать не должно.
+  const tgPlain = await api("/api/tg/webhook", {
+    method: "POST",
+    body: { message: { chat: { id: -1 }, from: { id: 1 }, text: "просто болтаем" } },
+  });
+  check("вебхук по-прежнему требует секрет", [403, 503].includes(tgPlain.status), tgPlain.status);
+
+  const afterPlain = await api("/api/mc/chat", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { lines: [] },
+  });
+  check("в игру ничего не просочилось", afterPlain.json?.incoming?.length === 0, afterPlain.json);
+
   console.log("— Восстановление пароля —");
   const recoverUnknown = await api("/api/auth/recover", {
     method: "POST",
