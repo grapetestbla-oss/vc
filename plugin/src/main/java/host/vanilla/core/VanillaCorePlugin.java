@@ -344,11 +344,19 @@ public final class VanillaCorePlugin extends JavaPlugin {
         };
     }
 
-    /** Просит сайт забрать свежие голоса. Начисляет их сайт, мы только будим. */
+    /**
+     * Будит сайт по таймеру: забрать голоса из мониторинга и досверить счета
+     * касс. Ни у мониторинга, ни у кассы нельзя полагаться только на их
+     * уведомления, а расписание на сервере уже есть.
+     */
     private void pollVotes() {
         api.onMain(api.post("/api/mc/votes", Map.of()), response -> {
             if (response.get("_status").getAsInt() == 200) return;
             getLogger().warning("Опрос голосов не прошёл: " + response);
+        });
+        api.onMain(api.post("/api/mc/payments", Map.of()), response -> {
+            if (response.get("_status").getAsInt() == 200) return;
+            getLogger().warning("Досверка платежей не прошла: " + response);
         });
     }
 

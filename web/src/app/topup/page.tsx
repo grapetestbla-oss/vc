@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import PaymentCheck from "@/components/PaymentCheck";
 import { db } from "@/lib/db";
 import { currentUser } from "@/lib/session";
 import { CONFIG } from "@/lib/config";
@@ -28,6 +29,10 @@ export default async function TopUpPage() {
   });
   const hasPending = payments.some(
     (payment) => payment.status === "pending" && payment.provider === "manual",
+  );
+  // Счёт кассы, который ещё не подтверждён: по нему и предлагаем досверку.
+  const hasAutoPending = payments.some(
+    (payment) => payment.status === "pending" && payment.provider !== "manual",
   );
   const providers = activeProviders(await getPaymentConfig());
   const auto = providers.some((provider) => provider.key !== "manual");
@@ -71,6 +76,9 @@ export default async function TopUpPage() {
         <Reveal>
           <section className="panel p-5 sm:p-6">
             <h2 className="text-lg font-semibold">{t("Мои заявки")}</h2>
+            <div className="mt-3">
+              <PaymentCheck hasPending={hasAutoPending} />
+            </div>
             <div className="mt-4 space-y-3">
               {payments.map((payment) => (
                 <div

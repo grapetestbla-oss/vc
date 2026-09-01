@@ -25,6 +25,15 @@ export async function POST(request: Request) {
   if (payment.status !== "pending") {
     return Response.json({ error: "Заявка уже разобрана" }, { status: 409 });
   }
+  // Счета касс разбирает сама касса. Одобрение руками означало бы, что VC
+  // выдаются до подтверждения оплаты — и выдаются ещё раз, когда придёт
+  // уведомление или досверка.
+  if (payment.provider !== "manual") {
+    return Response.json(
+      { error: "Пополнение через кассу подтверждается автоматически" },
+      { status: 400 },
+    );
+  }
 
   const reviewNote = (note ?? "").trim().slice(0, 500) || null;
 

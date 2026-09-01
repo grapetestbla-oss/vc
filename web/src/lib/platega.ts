@@ -78,6 +78,44 @@ export async function createTransaction(
   return { transactionId: transactionId ?? "", redirect };
 }
 
+export type PlategaStatus = { status: string; amount: number };
+
+/**
+ * Состояние счёта у кассы: GET /transaction/{id}.
+ *
+ * Нужен, чтобы не зависеть от уведомления. Оно может не дойти или прийти
+ * позже, а игрок стоит на сайте и не понимает, где его VC.
+ */
+export async function transactionStatus(
+  config: PlategaConfig,
+  transactionId: string,
+): Promise<PlategaStatus> {
+  const response = await fetch(new URL(`/transaction/${transactionId}`, config.apiUrl), {
+    headers: {
+      Accept: "application/json",
+      "X-MerchantId": config.merchantId,
+      "X-Secret": config.secret,
+    },
+    signal: AbortSignal.timeout(10_000),
+  });
+
+  const text = await response.text();
+  if (!response.ok) throw new Error(`Платега ответила ${response.status}: ${text.slice(0, 200)}`);
+
+  let data: Record<string, unknown>;
+  try {
+    data = JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    throw new Error("Платега прислала не JSON");
+  }
+
+  const details = (data.paymentDetails ?? {}) as Record<string, unknown>;
+  return {
+    status: String(data.status ?? "").toUpperCase(),
+    amount: Number(data.amount ?? details.amount ?? 0),
+  };
+}
+
 function sameSecret(left: string, right: string): boolean {
   if (!left || !right || left.length !== right.length) return false;
   return timingSafeEqual(Buffer.from(left), Buffer.from(right));

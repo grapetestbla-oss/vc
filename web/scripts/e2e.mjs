@@ -840,10 +840,20 @@ const run = async () => {
   check("витрина открывается", shopHtml.includes("Телепорт к игроку"));
 
   console.log("— Пополнение —");
+  // Прогон идёт с настроенной FreeKassa, а она гасит ручной приём. Дальше
+  // проверяется именно ручной разбор, поэтому включаем его явно: счета кассы
+  // руками не одобряются вовсе — это отдельная проверка ниже.
+  const manualOn = await api("/api/panel/payment/providers", {
+    method: "POST",
+    cookie: steve.session,
+    body: { provider: "manual", patch: { enabled: true } },
+  });
+  check("ручной приём включается отдельно", manualOn.json?.ok === true, manualOn.json);
+
   const tooSmall = await api("/api/payments/create", {
     method: "POST",
     cookie: shopBuyer.session,
-    body: { amountRub: 10, method: "СБП", contact: "@shopper" },
+    body: { amountRub: 10, provider: "manual", method: "СБП", contact: "@shopper" },
   });
   check("слишком маленькая сумма отклоняется", tooSmall.status === 400, tooSmall.json);
 
@@ -860,7 +870,7 @@ const run = async () => {
   const request = await api("/api/payments/create", {
     method: "POST",
     cookie: shopBuyer.session,
-    body: { amountRub: 500, method: "СБП", contact: "@shopper", comment: "перевод в 19:40" },
+    body: { amountRub: 500, provider: "manual", method: "СБП", contact: "@shopper", comment: "перевод в 19:40" },
   });
   check("заявка создана", request.json?.ok === true, request.json);
   check("курс 1 ₽ = 2 VC", request.json?.vcAmount === 1000, request.json);
@@ -899,7 +909,7 @@ const run = async () => {
   const payRejected = await api("/api/payments/create", {
     method: "POST",
     cookie: shopBuyer.session,
-    body: { amountRub: 300, method: "Карта", contact: "@shopper" },
+    body: { amountRub: 300, provider: "manual", method: "Карта", contact: "@shopper" },
   });
   const payReject = await api("/api/panel/payment", {
     method: "POST",
@@ -945,7 +955,7 @@ const run = async () => {
   const fanPayment = await api("/api/payments/create", {
     method: "POST",
     cookie: fan.session,
-    body: { amountRub: 1000, method: "СБП", contact: "@fan" },
+    body: { amountRub: 1000, provider: "manual", method: "СБП", contact: "@fan" },
   });
   check("заявка реферала создана", fanPayment.json?.vcAmount === 2000, fanPayment.json);
 
@@ -968,7 +978,7 @@ const run = async () => {
   const ownPayment = await api("/api/payments/create", {
     method: "POST",
     cookie: streamer.session,
-    body: { amountRub: 100, method: "СБП", contact: "@streamer" },
+    body: { amountRub: 100, provider: "manual", method: "СБП", contact: "@streamer" },
   });
   const ownApprove = await api("/api/panel/payment", {
     method: "POST",
@@ -981,7 +991,7 @@ const run = async () => {
   const rejectedShare = await api("/api/payments/create", {
     method: "POST",
     cookie: fan.session,
-    body: { amountRub: 200, method: "Карта", contact: "@fan" },
+    body: { amountRub: 200, provider: "manual", method: "Карта", contact: "@fan" },
   });
   await api("/api/panel/payment", {
     method: "POST",
@@ -2120,7 +2130,21 @@ const run = async () => {
   const { createServer } = await import("node:http");
   let plategaRequest = null;
   let plategaBroken = false;
+  // Статусы счетов у «кассы»: по ним идёт досверка.
+  const plategaStatuses = new Map();
   const plategaStub = createServer((request, response) => {
+    if (request.method === "GET") {
+      const id = decodeURIComponent(request.url.replace("/transaction/", ""));
+      const status = plategaStatuses.get(id);
+      if (!status) {
+        response.writeHead(404, { "Content-Type": "application/json" });
+        response.end(JSON.stringify({ message: "not found" }));
+        return;
+      }
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({ id, status: status.status, paymentDetails: { amount: status.amount } }));
+      return;
+    }
     let raw = "";
     request.on("data", (chunk) => (raw += chunk));
     request.on("end", () => {
@@ -2297,6 +2321,89 @@ const run = async () => {
     plLatePaid.status === 200 && afterStranded.json.balanceVc > beforeStranded,
     { status: plLatePaid.status, before: beforeStranded, after: afterStranded.json.balanceVc },
   );
+
+  console.log("— Досверка счетов Платеги —");
+  // Уведомление не пришло вовсе: игрок вернулся с кассы, а счёт висит.
+  const plSilent = await api("/api/payments/create", {
+    method: "POST",
+    cookie: buyer.session,
+    body: { amountRub: 400, provider: "platega" },
+  });
+  const silentTx = "tx-" + plSilent.json.paymentId;
+  plategaStatuses.set(silentTx, { status: "PENDING", amount: 400 });
+
+  const beforeSilent = (await api("/api/me", { cookie: buyer.session })).json.balanceVc;
+  const notYet = await api("/api/payments/check", { method: "POST", cookie: buyer.session });
+  const afterNotYet = await api("/api/me", { cookie: buyer.session });
+  check(
+    "пока касса не подтвердила, ничего не начисляется",
+    notYet.json?.credited === 0 && afterNotYet.json.balanceVc === beforeSilent,
+    notYet.json,
+  );
+
+  plategaStatuses.set(silentTx, { status: "CONFIRMED", amount: 400 });
+  const confirmed = await api("/api/payments/check", { method: "POST", cookie: buyer.session });
+  const afterConfirmed = await api("/api/me", { cookie: buyer.session });
+  check(
+    "досверка подтверждает оплату без уведомления",
+    confirmed.json?.credited === 1 &&
+      afterConfirmed.json.balanceVc === beforeSilent + plSilent.json.vcAmount,
+    { credited: confirmed.json?.credited, before: beforeSilent, after: afterConfirmed.json.balanceVc },
+  );
+
+  const twiceChecked = await api("/api/payments/check", { method: "POST", cookie: buyer.session });
+  const afterTwice = await api("/api/me", { cookie: buyer.session });
+  check(
+    "повторная досверка не начисляет второй раз",
+    afterTwice.json.balanceVc === afterConfirmed.json.balanceVc,
+    { credited: twiceChecked.json?.credited },
+  );
+
+  const checkAnon = await fetch(BASE + "/api/payments/check", { method: "POST" });
+  check("досверка закрыта для гостя", checkAnon.status === 401, checkAnon.status);
+
+  const mcCheckNoToken = await api("/api/mc/payments", { method: "POST" });
+  check("досверка по таймеру закрыта без токена", mcCheckNoToken.status === 401);
+
+  // Счёт, отменённый у кассы, должен закрыться сам, а не висеть до истечения.
+  const plDead = await api("/api/payments/create", {
+    method: "POST",
+    cookie: buyer.session,
+    body: { amountRub: 250, provider: "platega" },
+  });
+  plategaStatuses.set("tx-" + plDead.json.paymentId, { status: "CANCELED", amount: 0 });
+  await api("/api/mc/payments", { method: "POST", serverToken: TOKEN });
+  // Разбор в панели сначала смотрит статус: «уже разобрана» — значит счёт
+  // действительно закрыт досверкой, а не висит в ожидании.
+  const deadVerdict = await api("/api/panel/payment", {
+    method: "POST",
+    cookie: steve.session,
+    body: { paymentId: plDead.json.paymentId, action: "approve" },
+  });
+  check("отменённый у кассы счёт закрывается досверкой", deadVerdict.status === 409, deadVerdict.json);
+
+  console.log("— Разбор пополнений в панели —");
+  const autoInvoice = await api("/api/payments/create", {
+    method: "POST",
+    cookie: buyer.session,
+    body: { amountRub: 150, provider: "platega" },
+  });
+  const approveAuto = await api("/api/panel/payment", {
+    method: "POST",
+    cookie: steve.session,
+    body: { paymentId: autoInvoice.json.paymentId, action: "approve" },
+  });
+  check(
+    "счёт кассы нельзя одобрить руками",
+    approveAuto.status === 400,
+    approveAuto.json,
+  );
+  const rejectAuto = await api("/api/panel/payment", {
+    method: "POST",
+    cookie: steve.session,
+    body: { paymentId: autoInvoice.json.paymentId, action: "reject" },
+  });
+  check("и отклонить руками тоже нельзя", rejectAuto.status === 400, rejectAuto.json);
 
   const plCancelInvoice = await api("/api/payments/create", {
     method: "POST",

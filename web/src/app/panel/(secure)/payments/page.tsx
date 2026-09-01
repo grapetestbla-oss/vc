@@ -37,6 +37,11 @@ export default async function PanelPaymentsPage() {
     }),
   ]);
 
+  // Счета касс подтверждаются автоматически: показываем их отдельно и без
+  // кнопок, чтобы никто не выдал VC до того, как деньги дошли.
+  const manualPending = pending.filter((payment) => payment.provider === "manual");
+  const autoPending = pending.filter((payment) => payment.provider !== "manual");
+
   return (
     <div className="space-y-6">
       <div>
@@ -54,10 +59,10 @@ export default async function PanelPaymentsPage() {
       </div>
 
       <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Новые ({pending.length})</h2>
-        {pending.length === 0 && <p className="muted text-sm">Разобрано всё.</p>}
+        <h2 className="text-lg font-semibold">Новые ({manualPending.length})</h2>
+        {manualPending.length === 0 && <p className="muted text-sm">Разобрано всё.</p>}
 
-        {pending.map((payment) => (
+        {manualPending.map((payment) => (
           <div key={payment.id} className="panel p-5 sm:p-6">
             <div className="flex flex-wrap items-baseline gap-3">
               <h3 className="text-lg font-semibold">{payment.user.login}</h3>
@@ -91,6 +96,34 @@ export default async function PanelPaymentsPage() {
           </div>
         ))}
       </section>
+
+      {autoPending.length > 0 && (
+        <section className="panel p-5 sm:p-6">
+          <h2 className="text-lg font-semibold">Ждут кассу ({autoPending.length})</h2>
+          <p className="muted mt-1 text-sm">
+            Эти счета подтверждает сама касса — руками их не одобряют. Неоплаченные закрываются
+            сами, когда истекает срок счёта у кассы.
+          </p>
+          <div className="mt-4 space-y-3">
+            {autoPending.map((payment) => (
+              <div
+                key={payment.id}
+                className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b pb-3 text-sm last:border-0 last:pb-0"
+                style={{ borderColor: "var(--border)" }}
+              >
+                <span className="font-medium">{payment.user.login}</span>
+                <span className="tabular-nums">
+                  {payment.amountRub} ₽ → {payment.vcAmount.toLocaleString("ru")} VC
+                </span>
+                <span className="muted">{payment.provider}</span>
+                <span className="muted ml-auto text-xs">
+                  {payment.createdAt.toLocaleString("ru")}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="panel p-5 sm:p-6">
         <h2 className="text-lg font-semibold">История решений</h2>
