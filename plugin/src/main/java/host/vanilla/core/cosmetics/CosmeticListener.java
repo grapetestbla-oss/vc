@@ -9,6 +9,9 @@ import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerBedEnterEvent;
+import org.bukkit.entity.Monster;
+import org.bukkit.entity.Entity;
 import org.bukkit.inventory.ItemStack;
 
 /** Косметическая шляпа не должна попадать в мир: её нельзя снять, выбросить и уронить. */
@@ -80,5 +83,24 @@ public final class CosmeticListener implements Listener {
         if (helmet == null && engine.setOf(player).has(CosmeticSet.Kind.HAT)) {
             plugin.reloadCosmetics(player);
         }
+    }
+
+    /**
+     * Спутник не должен мешать спать. Игра считает монстром любого вредного
+     * моба рядом, а спутник-призрак именно такой: кровать отказывала, хотя
+     * опасности нет.
+     *
+     * Разрешаем сон, только если все «монстры» поблизости — это спутники.
+     * Настоящий монстр рядом по-прежнему не даст лечь.
+     */
+    @EventHandler(ignoreCancelled = true)
+    public void onBed(PlayerBedEnterEvent event) {
+        if (event.getBedEnterResult() != PlayerBedEnterEvent.BedEnterResult.NOT_SAFE) return;
+
+        // Радиус тот же, в котором игра ищет монстров у кровати.
+        for (Entity nearby : event.getBed().getLocation().getNearbyEntities(8, 5, 8)) {
+            if (nearby instanceof Monster && !engine.isPet(nearby)) return;
+        }
+        event.setUseBed(org.bukkit.event.Event.Result.ALLOW);
     }
 }

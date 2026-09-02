@@ -42,6 +42,8 @@ public final class CosmeticEngine {
     private final VanillaCorePlugin plugin;
     private final Map<UUID, CosmeticSet> sets = new HashMap<>();
     private final Map<UUID, UUID> pets = new HashMap<>();
+    /** Команда табло, в которой у спутников выключены столкновения. */
+    private static final String PET_TEAM = "vc_pets";
     private final Map<UUID, UUID> titles = new HashMap<>();
     /** Что было надето в прошлый раз: по нему видно, менялось ли что-то. */
     private final Map<UUID, String> signatures = new HashMap<>();
@@ -196,6 +198,10 @@ public final class CosmeticEngine {
                 living.setRemoveWhenFarAway(false);
                 living.setCollidable(false);
                 living.setPersistent(false);
+                // setCollidable снимает только толкание между сущностями, а
+                // спутник ещё и упирался в игрока. Команда с правилом «никогда»
+                // отключает столкновения по-настоящему.
+                noCollision(living);
                 living.customName(Component.text(pet.payload().has("name")
                         ? pet.payload().get("name").getAsString()
                         : "Питомец"));
@@ -215,10 +221,27 @@ public final class CosmeticEngine {
         }
     }
 
+    /** Общая команда для спутников: столкновения в ней выключены полностью. */
+    private void noCollision(LivingEntity pet) {
+        var board = plugin.getServer().getScoreboardManager().getMainScoreboard();
+        var team = board.getTeam(PET_TEAM);
+        if (team == null) {
+            team = board.registerNewTeam(PET_TEAM);
+            team.setOption(org.bukkit.scoreboard.Team.Option.COLLISION_RULE,
+                    org.bukkit.scoreboard.Team.OptionStatus.NEVER);
+            // Имя спутника рисуем сами, командное оформление тут лишнее.
+            team.setOption(org.bukkit.scoreboard.Team.Option.NAME_TAG_VISIBILITY,
+                    org.bukkit.scoreboard.Team.OptionStatus.ALWAYS);
+        }
+        team.addEntry(pet.getUniqueId().toString());
+    }
+
     private void removePet(Player player) {
         UUID petId = pets.remove(player.getUniqueId());
         if (petId == null) return;
         Entity entity = plugin.getServer().getEntity(petId);
+        var team = plugin.getServer().getScoreboardManager().getMainScoreboard().getTeam(PET_TEAM);
+        if (team != null) team.removeEntry(petId.toString());
         if (entity != null) entity.remove();
     }
 
@@ -348,7 +371,12 @@ public final class CosmeticEngine {
             return;
         }
 
-        Location target = player.getLocation().add(player.getLocation().getDirection().multiply(-1.2)).add(0, 0.4, 0);
+        // Держим спутника сзади-сбоку, а не строго за спиной: при ходьбе назад
+        // игрок наезжал на него, и спутник оказывался перед глазами.
+        Location eye = player.getLocation();
+        var back = eye.getDirection().setY(0).normalize().multiply(-1.1);
+        var side = eye.getDirection().setY(0).normalize().crossProduct(new org.bukkit.util.Vector(0, 1, 0)).multiply(0.9);
+        Location target = eye.clone().add(back).add(side).add(0, 0.4, 0);
         if (pet.getWorld() != player.getWorld() || pet.getLocation().distanceSquared(target) > 2.0) {
             pet.teleport(target);
         }
@@ -361,6 +389,11 @@ public final class CosmeticEngine {
             plugin.getLogger().warning("Неизвестная частица: " + name);
             return null;
         }
+    }
+
+    /** Спутник ли это — по нему решаем, мешает ли он спать. */
+    public boolean isPet(Entity entity) {
+        return pets.containsValue(entity.getUniqueId());
     }
 
     public void forget(Player player) {

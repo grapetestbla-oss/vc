@@ -63,6 +63,10 @@ services:
       TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
       # Группа, куда уходит общий игровой чат и откуда принимаются ответы.
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:--1003907771050}
+      TELEGRAM_CHANNEL_URL: ${TELEGRAM_CHANNEL_URL:-https://t.me/vanillacraftx}
+      # Дневная норма игры: сколько активных часов и сколько за них VC.
+      DAILY_ACTIVE_HOURS: ${DAILY_ACTIVE_HOURS:-5}
+      DAILY_REWARD_VC: ${DAILY_REWARD_VC:-200}
       # Голоса в мониторинге top-minecrafter. Без ключа опрос выключен;
       # ключ и суммы можно править и в панели, здесь — значения по умолчанию.
       TOPMC_API_URL: ${TOPMC_API_URL:-https://public-api.top-minecrafter.com}

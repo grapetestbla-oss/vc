@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Link from "next/link";
+import { CONFIG } from "@/lib/config";
 import "./globals.css";
 import { headers } from "next/headers";
 import { currentUser } from "@/lib/session";
@@ -72,7 +73,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <footer className="mt-20 border-t" style={{ borderColor: "var(--border)" }}>
           <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-4 py-8 text-sm">
             <span className="muted">VanillaCraft · vanillacraft.click</span>
-            <div className="ml-auto flex flex-wrap gap-4">
+            <div className="ml-auto flex flex-wrap items-center gap-4">
+              <a
+                href={CONFIG.telegramChannel}
+                target="_blank"
+                rel="noreferrer"
+                className="hover:text-white"
+                style={{ color: "var(--gold)" }}
+              >
+                Telegram
+              </a>
               <Link href="/rules" className="muted hover:text-white">{t("Правила")}</Link>
               <Link href="/news" className="muted hover:text-white">{t("Новости")}</Link>
               <Link href="/topup" className="muted hover:text-white">{t("Пополнение")}</Link>

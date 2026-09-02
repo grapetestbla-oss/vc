@@ -12,18 +12,23 @@ datasource db {
 // ─────────────────────────────── Аккаунты ───────────────────────────────
 
 model User {
-  id           String    @id @default(cuid())
-  login        String    @unique // он же ник в игре
-  email        String    @unique
-  passwordHash String
-  balanceVc    Int       @default(0)
+  id             String    @id @default(cuid())
+  login          String    @unique // он же ник в игре
+  email          String    @unique
+  passwordHash   String
+  balanceVc      Int       @default(0)
   /// Осколки: дубли из кейсов превращаются в них, за них покупают нужный предмет.
-  shards       Int       @default(0)
-  playtimeSec  Int       @default(0)
-  adminLevel   Int       @default(0) // 0 игрок, 1 media … 5 chief
-  createdAt    DateTime  @default(now())
-  lastSeenAt   DateTime?
-  lastIp       String?
+  shards         Int       @default(0)
+  playtimeSec    Int       @default(0)
+  /// Активные (не афк) секунды за сегодня и день, к которому они относятся.
+  activeSecToday Int       @default(0)
+  activeDay      String?
+  /// Когда в последний раз выдана награда за дневную норму.
+  dailyRewardAt  DateTime?
+  adminLevel     Int       @default(0) // 0 игрок, 1 media … 5 chief
+  createdAt      DateTime  @default(now())
+  lastSeenAt     DateTime?
+  lastIp         String?
 
   /// Когда игрок принял соглашение и политику — фиксируем при регистрации.
   acceptedTermsAt DateTime?

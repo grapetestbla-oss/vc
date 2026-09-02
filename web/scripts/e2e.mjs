@@ -2754,6 +2754,75 @@ const run = async () => {
   });
   check("несуществующий игрок отклоняется", pwUnknown.status === 404, pwUnknown.json);
 
+  console.log("— Дневная норма игры —");
+  const grinder = await register("Grinder");
+  const grinderMe = await api("/api/me", { cookie: grinder.session });
+
+  const idleTick = await api("/api/mc/playtime", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { entries: [{ login: "Grinder", seconds: 120, active: false }] },
+  });
+  check(
+    "афк не идёт в дневную норму",
+    idleTick.json?.players?.Grinder?.activeSec === 0,
+    idleTick.json?.players?.Grinder,
+  );
+  check(
+    "но время игры считается как раньше",
+    (await api("/api/me", { cookie: grinder.session })).json.playtimeSec === 120,
+    null,
+  );
+
+  const goalSec = idleTick.json.players.Grinder.goalSec;
+  const beforeDaily = (await api("/api/me", { cookie: grinder.session })).json.balanceVc;
+
+  let ticks = 0;
+  let last = null;
+  // Норму закрываем настоящими тиками по минуте, а не одной большой цифрой:
+  // сервер обрезает присланное, и накрутка так не пройдёт.
+  while (ticks < 10) {
+    last = await api("/api/mc/playtime", {
+      method: "POST",
+      serverToken: TOKEN,
+      body: { entries: [{ login: "Grinder", seconds: 120, active: true }] },
+    });
+    ticks++;
+    if (last.json?.players?.Grinder?.rewarded) break;
+  }
+  check("норма закрывается активной игрой", last?.json?.players?.Grinder?.rewarded === true, {
+    ticks,
+    progress: last?.json?.players?.Grinder,
+  });
+  check(
+    "накрутка одним тиком не проходит: секунды обрезаны",
+    last.json.players.Grinder.activeSec <= goalSec + 120,
+    last.json.players.Grinder,
+  );
+
+  const afterDaily = (await api("/api/me", { cookie: grinder.session })).json.balanceVc;
+  check("за норму начислено 200 VC", afterDaily - beforeDaily === 200, {
+    before: beforeDaily,
+    after: afterDaily,
+  });
+
+  const extraTick = await api("/api/mc/playtime", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { entries: [{ login: "Grinder", seconds: 120, active: true }] },
+  });
+  const afterExtra = (await api("/api/me", { cookie: grinder.session })).json.balanceVc;
+  check("второй раз за сутки награда не выдаётся", afterExtra === afterDaily, {
+    after: afterExtra,
+    justRewarded: extraTick.json?.players?.Grinder?.justRewarded,
+  });
+  check(
+    "панель получает уровень и баланс",
+    typeof extraTick.json?.players?.Grinder?.level === "number" &&
+      extraTick.json.players.Grinder.balanceVc === afterExtra,
+    extraTick.json?.players?.Grinder,
+  );
+
   console.log("— Мост чата с Telegram —");
   const chatNoToken = await api("/api/mc/chat", { method: "POST", body: { lines: [] } });
   check("мост чата закрыт без токена", chatNoToken.status === 401);

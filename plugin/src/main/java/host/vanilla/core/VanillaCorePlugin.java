@@ -32,6 +32,8 @@ import host.vanilla.core.punish.JailZone;
 import host.vanilla.core.news.NewsBroadcaster;
 import host.vanilla.core.report.ReportManager;
 import host.vanilla.core.season.GiveawayNotifier;
+import host.vanilla.core.season.ActivityTracker;
+import host.vanilla.core.season.Sidebar;
 import host.vanilla.core.season.SparkManager;
 import host.vanilla.core.season.TabList;
 import host.vanilla.core.shop.ShopCommands;
@@ -73,6 +75,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
     private ActionRunner actions;
     private MaintenanceWatcher maintenance;
     private TabList tabList;
+    private Sidebar sidebar;
+    private ActivityTracker activity;
     private SparkManager sparks;
     private GiveawayNotifier giveaways;
     private CaseShop caseShop;
@@ -111,6 +115,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
         actions = new ActionRunner(this, messages);
         maintenance = new MaintenanceWatcher(this, messages);
         tabList = new TabList(this);
+        sidebar = new Sidebar(this);
+        activity = new ActivityTracker(this);
         sparks = new SparkManager(this, messages);
         giveaways = new GiveawayNotifier(this, messages);
         caseShop = new CaseShop(this, messages);
@@ -130,6 +136,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         manager.registerEvents(jailJobs, this);
         manager.registerEvents(new StaffListener(this, checks), this);
         manager.registerEvents(vanish, this);
+        manager.registerEvents(activity, this);
         manager.registerEvents(new ReportMenuListener(this, reports), this);
         manager.registerEvents(new CosmeticListener(this, cosmetics), this);
         manager.registerEvents(new ShopListener(this, shopCommands, messages), this);
@@ -223,6 +230,11 @@ public final class VanillaCorePlugin extends JavaPlugin {
                     config.cosmeticRefreshSeconds * 20L);
         }
 
+        if (config.sidebarEnabled) {
+            getServer().getScheduler().runTaskTimer(this, sidebar::refresh, 60L,
+                    config.sidebarRefreshSeconds * 20L);
+        }
+
         if (config.tabEnabled) {
             getServer().getScheduler().runTaskTimer(this, tabList::refresh, 40L,
                     config.tabRefreshSeconds * 20L);
@@ -239,15 +251,46 @@ public final class VanillaCorePlugin extends JavaPlugin {
     }
 
     /** Раз в минуту отправляем наигранное время — из него считается уровень аккаунта. */
+    /**
+     * Раз в минуту отдаём наигранное время и признак активности, а в ответ
+     * получаем всё для боковой панели. Отдельного запроса за уровнем и балансом
+     * не делаем: они и так приходят здесь.
+     */
     private void reportPlaytime() {
         List<Map<String, Object>> entries = new ArrayList<>();
         for (Player player : getServer().getOnlinePlayers()) {
             if (!auth.authenticated(player)) continue;
-            entries.add(Map.of("login", Accounts.name(player), "seconds", 60));
+            entries.add(Map.of(
+                    "login", Accounts.name(player),
+                    "seconds", 60,
+                    "active", activity.active(player)));
         }
-        if (!entries.isEmpty()) {
-            api.post("/api/mc/playtime", Map.of("entries", entries));
-        }
+        if (entries.isEmpty()) return;
+
+        api.onMain(api.post("/api/mc/playtime", Map.of("entries", entries)), response -> {
+            if (response.get("_status").getAsInt() != 200) return;
+            if (!response.has("players") || !response.get("players").isJsonObject()) return;
+            JsonObject players = response.getAsJsonObject("players");
+
+            for (Player player : getServer().getOnlinePlayers()) {
+                String login = Accounts.name(player);
+                if (!players.has(login)) continue;
+                JsonObject data = players.getAsJsonObject(login);
+
+                Profile profile = auth.profile(player);
+                profile.setLevel(data.get("level").getAsInt());
+                profile.setBalanceVc(data.get("balanceVc").getAsInt());
+                sidebar.setDaily(player, new Sidebar.Daily(
+                        data.get("activeSec").getAsInt(),
+                        data.get("goalSec").getAsInt(),
+                        data.get("rewarded").getAsBoolean()));
+
+                if (data.has("justRewarded") && data.get("justRewarded").getAsBoolean()) {
+                    player.sendMessage(messages.get("daily.done", Map.of(
+                            "amount", data.get("rewardVc").getAsString())));
+                }
+            }
+        });
     }
 
     /** Игрок ввёл пароль: подтягиваем профиль и применяем всё, что из него следует. */
@@ -395,6 +438,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
     }
 
     public void onPlayerQuit(Player player) {
+        sidebar.forget(player);
+        activity.forget(player);
         if (auth.authenticated(player)) inventories.report(player);
         jail.syncOnQuit(player);
         cosmetics.forget(player);
@@ -427,6 +472,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
     public JailManager jail() { return jail; }
     public EspManager esp() { return esp; }
     public VanishManager vanish() { return vanish; }
+    public Sidebar sidebar() { return sidebar; }
+    public ActivityTracker activity() { return activity; }
     public InventoryReporter inventories() { return inventories; }
     public ChatRelay chatRelay() { return chatRelay; }
     public CheckManager checks() { return checks; }

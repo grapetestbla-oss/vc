@@ -105,8 +105,8 @@ season:
     announce-radius: 250
     # Доля искр с VC, остальные дают осколки.
     vc-chance: 0.45
-    vc-min: 5
-    vc-max: 250
+    vc-min: 3
+    vc-max: 60
     shards-min: 25
     shards-max: 500
 
@@ -122,6 +122,14 @@ chat:
   # Как часто отправлять накопленное. Пачкой, потому что Telegram ограничивает
   # частоту сообщений в группу.
   relay-seconds: 5
+
+sidebar:
+  # Боковая панель: ник, уровень, баланс и прогресс дневной нормы.
+  enabled: true
+  refresh-seconds: 5
+  # Сколько минут бездействия считается афк. Такие минуты в дневную норму не
+  # идут — иначе её закрывал бы любой, кто оставил клиент на ночь.
+  afk-minutes: 5
 
 votes:
   # Как часто просить сайт забрать свежие голоса из мониторинга. Обратного
@@ -298,6 +306,7 @@ messages:
   chat.global-tag: "<dark_gray>[<gold>всем<dark_gray>]<reset> "
   chat.alone: "<gray>Рядом никого. Начните сообщение с <white><prefix><gray>, чтобы услышал весь сервер."
   chat.global-empty: "<gray>После <white><prefix><gray> нужен текст."
+  daily.done: "<green>Дневная норма выполнена! Начислено <white><amount> VC<green>."
   vote.thanks: "<green>Спасибо за голос! Начислено <white><amount> VC<green>."
   vote.thanks-streak: "<green>Спасибо за голос! Начислено <white><amount> VC<green> — серия <white><streak><green> дней подряд."
   tg.code: "<green>Код привязки: <white><code><green>. Отправьте его боту в течение <minutes> минут."

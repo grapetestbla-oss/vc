@@ -5,7 +5,13 @@ function num(name: string, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function text(name: string, fallback: string): string {
+  return process.env[name]?.trim() || fallback;
+}
+
 export const CONFIG = {
+  /** Канал сообщества: ссылка в шапке и подвале сайта. */
+  telegramChannel: text("TELEGRAM_CHANNEL_URL", "https://t.me/vanillacraftx"),
   /** Возврат игроку в мини-играх. 0.95 = 5% преимущества заведения. */
   rtp: num("GAME_RTP", 0.95),
   minBet: num("GAME_MIN_BET", 10),

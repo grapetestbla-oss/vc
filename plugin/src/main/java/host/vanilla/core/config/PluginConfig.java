@@ -24,6 +24,9 @@ public final class PluginConfig {
     public final int inventoryReportSeconds;
     public final int shopRefreshSeconds;
     public final int votePollSeconds;
+    public final boolean sidebarEnabled;
+    public final int sidebarRefreshSeconds;
+    public final int afkMinutes;
     public final int chatLocalRadius;
     public final String chatGlobalPrefix;
     public final boolean chatRelayEnabled;
@@ -102,6 +105,10 @@ public final class PluginConfig {
         shopRefreshSeconds = Math.max(30, c.getInt("shop.refresh-seconds", 120));
         // 0 — не опрашивать мониторинг вовсе.
         votePollSeconds = Math.max(0, c.getInt("votes.poll-seconds", 300));
+        sidebarEnabled = c.getBoolean("sidebar.enabled", true);
+        sidebarRefreshSeconds = Math.max(1, c.getInt("sidebar.refresh-seconds", 5));
+        // Столько бездействия — и минута не идёт в дневную норму.
+        afkMinutes = Math.max(1, c.getInt("sidebar.afk-minutes", 5));
         // 0 — общий чат для всех, как было раньше.
         chatLocalRadius = Math.max(0, c.getInt("chat.local-radius", 200));
         chatGlobalPrefix = c.getString("chat.global-prefix", "!");
@@ -159,8 +166,8 @@ public final class PluginConfig {
         sparkAnnounce = c.getBoolean("season.sparks.announce", true);
         sparkAnnounceRadius = Math.max(16, c.getInt("season.sparks.announce-radius", 250));
         sparkVcChance = Math.min(1.0, Math.max(0.0, c.getDouble("season.sparks.vc-chance", 0.45)));
-        sparkVcMin = Math.max(1, c.getInt("season.sparks.vc-min", 5));
-        sparkVcMax = Math.max(sparkVcMin, c.getInt("season.sparks.vc-max", 250));
+        sparkVcMin = Math.max(1, c.getInt("season.sparks.vc-min", 3));
+        sparkVcMax = Math.max(sparkVcMin, c.getInt("season.sparks.vc-max", 60));
         sparkShardsMin = Math.max(1, c.getInt("season.sparks.shards-min", 25));
         sparkShardsMax = Math.max(sparkShardsMin, c.getInt("season.sparks.shards-max", 500));
     }
