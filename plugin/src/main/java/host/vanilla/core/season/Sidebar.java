@@ -3,6 +3,7 @@ package host.vanilla.core.season;
 import host.vanilla.core.VanillaCorePlugin;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import io.papermc.paper.scoreboard.numbers.NumberFormat;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.Criteria;
@@ -28,8 +29,12 @@ import java.util.UUID;
 public final class Sidebar {
 
     private static final MiniMessage MM = MiniMessage.miniMessage();
-    /** Табло различает строки по «игрокам», поэтому у каждой свой ключ. */
-    private static final List<String> KEYS = List.of("l0", "l1", "l2", "l3", "l4", "l5");
+    /**
+     * Табло различает строки по «игрокам», и это имя рисуется следом за текстом
+     * строки. Поэтому ключами берём коды цвета: они уникальны, но на экране от
+     * них ничего не остаётся — иначе в конце каждой строки торчало бы «l1».
+     */
+    private static final List<String> KEYS = List.of("§0", "§1", "§2", "§3", "§4", "§5");
 
     private final VanillaCorePlugin plugin;
     private final Map<UUID, Scoreboard> boards = new HashMap<>();
@@ -71,6 +76,8 @@ public final class Sidebar {
             objective = board.registerNewObjective("vc", Criteria.DUMMY,
                     MM.deserialize("<gradient:#f5c451:#ffe9a8><bold>VanillaCraft</bold></gradient>"));
             objective.setDisplaySlot(DisplaySlot.SIDEBAR);
+            // Очки задают только порядок строк, показывать их справа незачем.
+            objective.numberFormat(NumberFormat.blank());
         }
 
         var profile = plugin.auth().profile(player);
