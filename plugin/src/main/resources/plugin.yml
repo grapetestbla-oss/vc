@@ -76,8 +76,15 @@ commands:
     description: Отклонить телепорт к себе
   sethome:
     description: Отметить точку дома
+    usage: /sethome [имя]
   home:
     description: Телепорт к точке дома
+    usage: /home [имя]
+  homes:
+    description: Список ваших точек дома
+  delhome:
+    description: Удалить точку дома
+    usage: /delhome <имя>
   back:
     description: Вернуться на место смерти
   ec:

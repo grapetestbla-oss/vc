@@ -3,7 +3,9 @@ import { db } from "@/lib/db";
 import { currentUser } from "@/lib/session";
 import { levelFromPlaytime } from "@/lib/levels";
 import { CATEGORY_LABEL, listShopItems } from "@/lib/shop";
+import { homeCapacity, LEVELS_PER_SLOT } from "@/lib/homes";
 import ShopBuy from "@/components/ShopBuy";
+import HomeSlotBuy from "@/components/HomeSlotBuy";
 import Reveal from "@/components/Reveal";
 import { translator } from "@/lib/i18n.server";
 
@@ -23,6 +25,7 @@ export default async function ShopPage() {
 
   const owned = new Map(purchases.map((purchase) => [purchase.itemKey, purchase]));
   const level = user ? levelFromPlaytime(user.playtimeSec) : 0;
+  const homes = user ? await homeCapacity(user.id) : null;
 
   const categories = [...new Set(items.map((item) => item.category))];
 
@@ -100,6 +103,34 @@ export default async function ShopPage() {
           </div>
         </section>
       ))}
+
+      {homes?.base && (
+        <Reveal>
+          <section className="space-y-4">
+            <h2 className="text-xl font-semibold">{t("Точки дома")}</h2>
+            <article className="panel flex flex-col p-5 sm:p-6">
+              <p className="muted text-sm">
+                {t(
+                  "Каждые {n} уровней открывают ещё одну точку дома. Открытую точку нужно докупить, и каждая следующая дороже предыдущей на 500 VC.",
+                  { n: LEVELS_PER_SLOT },
+                )}
+              </p>
+              <p className="mt-3 text-sm">
+                {t("Занято {used} из {total}", { used: homes.used, total: homes.total })}
+                {" · "}
+                {t("уровень {n}", { n: homes.level })}
+              </p>
+              {homes.nextPrice !== null ? (
+                <HomeSlotBuy priceVc={homes.nextPrice} />
+              ) : (
+                <p className="muted mt-4 text-sm">
+                  {t("Следующая точка откроется на {n} уровне", { n: homes.nextLevel ?? 0 })}
+                </p>
+              )}
+            </article>
+          </section>
+        </Reveal>
+      )}
 
       <Reveal>
         <p className="muted text-sm">

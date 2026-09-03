@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { currentUser } from "@/lib/session";
-import { levelFromPlaytime, nextLevelAt } from "@/lib/levels";
+import { levelFromPlaytime, nextLevelAt, nextRewardedLevel } from "@/lib/levels";
 import { ADMIN_LEVELS } from "@/lib/config";
 import TwoFactorCode from "@/components/TwoFactorCode";
 import SkinForm from "@/components/SkinForm";
@@ -64,6 +64,7 @@ export default async function CabinetPage() {
     100,
     Math.round(((user.playtimeSec - levelStart) / (levelEnd - levelStart)) * 100),
   );
+  const nextReward = nextRewardedLevel(level);
   const wagered = rounds.reduce((sum, round) => sum + round.betVc, 0);
   const net = rounds.reduce((sum, round) => sum + round.payoutVc - round.betVc, 0);
 
@@ -111,6 +112,14 @@ export default async function CabinetPage() {
                 })}
               </span>
             </div>
+            {nextReward && (
+              <p className="muted mt-2 text-xs">
+                {t("Награда за прокачку: {vc} VC на {level} уровне", {
+                  vc: nextReward.vc.toLocaleString("ru"),
+                  level: nextReward.level,
+                })}
+              </p>
+            )}
             <div className="mt-2 h-1.5 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.07)" }}>
               <div
                 className="h-full rounded-full transition-[width] duration-1000"

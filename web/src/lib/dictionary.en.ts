@@ -121,6 +121,15 @@ export const EN: Record<string, string> = {
   "Недоступно": "Unavailable",
   "Покупаем…": "Buying…",
   "Купить за {n} VC": "Buy for {n} VC",
+  "Точки дома": "Home points",
+  "Награда за прокачку: {vc} VC на {level} уровне": "Level reward: {vc} VC at level {level}",
+  "Каждые {n} уровней открывают ещё одну точку дома. Открытую точку нужно докупить, и каждая следующая дороже предыдущей на 500 VC.":
+    "Every {n} levels unlock one more home point. An unlocked point still has to be bought, and each next one costs 500 VC more than the last.",
+  "Занято {used} из {total}": "{used} of {total} used",
+  "уровень {n}": "level {n}",
+  "Следующая точка откроется на {n} уровне": "The next point unlocks at level {n}",
+  "Точка добавлена — отметьте её командой /sethome <имя>":
+    "Point added \u2014 mark it in game with /sethome <name>",
   "Ошибка": "Error",
 
   // ────────────────────────────── пополнение ────────────────────────────

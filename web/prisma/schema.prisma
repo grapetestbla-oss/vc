@@ -25,6 +25,12 @@ model User {
   activeDay      String?
   /// Когда в последний раз выдана награда за дневную норму.
   dailyRewardAt  DateTime?
+  /// До какого уровня уже выплачены награды за прокачку. null — игрока ещё не
+  /// видела эта система: тогда планку ставим по текущему уровню, чтобы
+  /// давно наигранные уровни не выплатились задним числом одной кучей.
+  rewardedLevel  Int?
+  /// Сколько точек дома докуплено сверх базовой. Открываются уровнем.
+  homeSlots      Int       @default(0)
   adminLevel     Int       @default(0) // 0 игрок, 1 media … 5 chief
   createdAt      DateTime  @default(now())
   lastSeenAt     DateTime?
@@ -44,6 +50,7 @@ model User {
   totpSecret    String?
   totpEnabledAt DateTime?
 
+  homes                PlayerHome[]
   inventory            InventorySnapshot?
   telegram             TelegramAccount?
   telegramCodes        TelegramLinkCode[]
@@ -672,6 +679,23 @@ model ShopPurchase {
   lastUsedAt  DateTime?
 
   @@unique([userId, itemKey])
+  @@index([userId])
+}
+
+/// Точка дома. Первая открывается покупкой в магазине, следующие — уровнем и
+/// доплатой; координаты хранит сайт, поэтому дома переживают вайп мира сервера
+/// не хуже остальных покупок.
+model PlayerHome {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Имя в нижнем регистре: по нему игрок зовёт /home <имя>.
+  name      String
+  /// Координаты в формате LocationCodec плагина.
+  location  String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, name])
   @@index([userId])
 }
 

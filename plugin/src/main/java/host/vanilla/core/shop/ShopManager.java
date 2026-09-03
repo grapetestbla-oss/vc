@@ -4,7 +4,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import host.vanilla.core.VanillaCorePlugin;
 import host.vanilla.core.util.Accounts;
-import host.vanilla.core.util.LocationCodec;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
@@ -81,7 +80,7 @@ public final class ShopManager {
                 });
     }
 
-    /** Состояние товара сайт хранит как JSON: у дома там строка с координатами. */
+    /** Состояние товара сайт хранит как JSON: разворачиваем его в строку. */
     private String stateString(JsonObject item) {
         if (!item.has("data") || item.get("data").isJsonNull()) return null;
         JsonElement data = item.get("data");
@@ -172,29 +171,6 @@ public final class ShopManager {
         if (last == null) return 0;
         long passed = (System.currentTimeMillis() - last) / 1000L;
         return (int) Math.max(0, entry.cooldownSeconds() - passed);
-    }
-
-    public Location home(Player player) {
-        Entry entry = entry(player, "home");
-        return entry == null ? null : LocationCodec.decode(entry.data());
-    }
-
-    /** Сохраняет точку дома на сайте — она переживает перезапуск сервера. */
-    public void saveHome(Player player, Location location, Runnable after) {
-        Entry entry = entry(player, "home");
-        if (entry == null) return;
-        String encoded = LocationCodec.encode(location);
-        Map<String, Entry> entries = owned.get(player.getUniqueId());
-        if (entries != null) {
-            entries.put("home", new Entry(entry.key(), entry.feature(), entry.title(), entry.permanent(),
-                    entry.chargesLeft(), encoded, entry.cooldownSeconds()));
-        }
-        plugin.api().onMain(
-                plugin.api().post("/api/mc/shop/state", Map.of(
-                        "login", Accounts.name(player),
-                        "key", entry.key(),
-                        "data", Map.of("location", encoded))),
-                response -> after.run());
     }
 
     public void rememberDeath(Player player, Location location) {

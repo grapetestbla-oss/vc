@@ -28,6 +28,8 @@ public final class ShopCommands implements CommandExecutor, TabCompleter {
     private static final long REQUEST_TTL_MS = 60_000;
     /** Вернуться на место смерти можно только по горячим следам. */
     private static final long BACK_TTL_MS = 15 * 60_000;
+    /** Имя точки, если игрок его не назвал: у большинства дом всё равно один. */
+    public static final String DEFAULT_HOME = "дом";
 
     private record Request(UUID from, long createdAt) {}
 
@@ -58,8 +60,10 @@ public final class ShopCommands implements CommandExecutor, TabCompleter {
             case "tpa" -> tpa(player, args);
             case "tpaccept" -> answer(player, true);
             case "tpdeny" -> answer(player, false);
-            case "sethome" -> setHome(player);
-            case "home" -> home(player);
+            case "sethome" -> setHome(player, args);
+            case "home" -> home(player, args);
+            case "homes" -> homes(player);
+            case "delhome" -> delHome(player, args);
             case "back" -> back(player);
             case "ec" -> container(player, "enderchest");
             case "craft" -> container(player, "craft");
@@ -156,7 +160,7 @@ public final class ShopCommands implements CommandExecutor, TabCompleter {
         return true;
     }
 
-    private boolean setHome(Player player) {
+    private boolean setHome(Player player, String[] args) {
         if (!plugin.shop().has(player, "home")) {
             player.sendMessage(messages.get("shop.not-owned"));
             return true;
@@ -165,23 +169,29 @@ public final class ShopCommands implements CommandExecutor, TabCompleter {
             player.sendMessage(messages.get("shop.jailed"));
             return true;
         }
+        String name = args.length > 0 ? args[0] : DEFAULT_HOME;
         Location location = player.getLocation();
-        plugin.shop().saveHome(player, location, () -> player.sendMessage(messages.get("shop.home-set")));
+        plugin.homes().save(player, name, location, error -> {
+            if (error != null) {
+                player.sendMessage(messages.get("shop.home-denied", Map.of("reason", error)));
+                return;
+            }
+            HomesManager.Capacity capacity = plugin.homes().capacity(player);
+            player.sendMessage(messages.get("shop.home-set", Map.of(
+                    "name", name.toLowerCase(Locale.ROOT),
+                    "used", capacity == null ? "?" : String.valueOf(capacity.used()),
+                    "total", capacity == null ? "?" : String.valueOf(capacity.total()))));
+        });
         return true;
     }
 
-    private boolean home(Player player) {
+    private boolean home(Player player, String[] args) {
         if (!plugin.shop().has(player, "home")) {
             player.sendMessage(messages.get("shop.not-owned"));
             return true;
         }
         if (plugin.jail().isJailed(player)) {
             player.sendMessage(messages.get("shop.jailed"));
-            return true;
-        }
-        Location home = plugin.shop().home(player);
-        if (home == null) {
-            player.sendMessage(messages.get("shop.home-missing"));
             return true;
         }
         int cooldown = plugin.shop().cooldownLeft(player, "home");
@@ -191,13 +201,80 @@ public final class ShopCommands implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        // Дом постоянный: заряды не тратятся, но сайту важно время последнего входа.
-        plugin.shop().use(player, "home",
-                left -> {
-                    player.teleport(home);
-                    player.sendMessage(messages.get("shop.home-done"));
-                },
-                status -> player.sendMessage(messages.get("shop.use-failed")));
+        String name = args.length > 0 ? args[0] : null;
+        // Дома перечитываем перед прыжком: точку могли докупить или удалить с
+        // сайта, а кэш набирается при входе.
+        plugin.homes().refresh(player, () -> {
+            if (!player.isOnline()) return;
+            HomesManager.Home home = plugin.homes().find(player, name);
+            if (home == null) {
+                player.sendMessage(messages.get(
+                        plugin.homes().list(player).isEmpty() ? "shop.home-missing" : "shop.home-unknown"));
+                if (!plugin.homes().list(player).isEmpty()) showHomes(player);
+                return;
+            }
+
+            // Дом постоянный: заряды не тратятся, но сайту важно время последнего входа.
+            plugin.shop().use(player, "home",
+                    left -> {
+                        player.teleport(home.location());
+                        player.sendMessage(messages.get("shop.home-done", Map.of("name", home.name())));
+                    },
+                    status -> player.sendMessage(messages.get("shop.use-failed")));
+        });
+        return true;
+    }
+
+    private boolean homes(Player player) {
+        if (!plugin.shop().has(player, "home")) {
+            player.sendMessage(messages.get("shop.not-owned"));
+            return true;
+        }
+        plugin.homes().refresh(player, () -> {
+            if (player.isOnline()) showHomes(player);
+        });
+        return true;
+    }
+
+    private void showHomes(Player player) {
+        HomesManager.Capacity capacity = plugin.homes().capacity(player);
+        player.sendMessage(messages.get("shop.homes-header", Map.of(
+                "used", capacity == null ? "?" : String.valueOf(capacity.used()),
+                "total", capacity == null ? "?" : String.valueOf(capacity.total()))));
+        for (HomesManager.Home home : plugin.homes().list(player)) {
+            Location at = home.location();
+            player.sendMessage(messages.get("shop.homes-line", Map.of(
+                    "name", home.name(),
+                    "x", String.valueOf(at.getBlockX()),
+                    "y", String.valueOf(at.getBlockY()),
+                    "z", String.valueOf(at.getBlockZ()))));
+        }
+        if (plugin.homes().list(player).isEmpty()) {
+            player.sendMessage(messages.get("shop.home-missing"));
+        }
+        if (capacity != null && capacity.nextPrice() != null) {
+            player.sendMessage(messages.get("shop.homes-buy", Map.of(
+                    "price", String.valueOf(capacity.nextPrice()),
+                    "url", plugin.config().siteUrl + "/shop")));
+        } else if (capacity != null && capacity.nextLevel() != null) {
+            player.sendMessage(messages.get("shop.homes-locked", Map.of(
+                    "level", String.valueOf(capacity.nextLevel()))));
+        }
+    }
+
+    private boolean delHome(Player player, String[] args) {
+        if (args.length < 1) {
+            player.sendMessage(messages.get("shop.delhome-usage"));
+            return true;
+        }
+        plugin.homes().delete(player, args[0], error -> {
+            if (error != null) {
+                player.sendMessage(messages.get("shop.home-denied", Map.of("reason", error)));
+                return;
+            }
+            player.sendMessage(messages.get("shop.home-deleted", Map.of(
+                    "name", args[0].toLowerCase(Locale.ROOT))));
+        });
         return true;
     }
 
@@ -259,11 +336,25 @@ public final class ShopCommands implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command,
                                       @NotNull String alias, String[] args) {
-        if (!command.getName().equalsIgnoreCase("tpa") || args.length != 1) return List.of();
+        if (args.length != 1) return List.of();
+        String prefix = args[0].toLowerCase(Locale.ROOT);
+
+        // У домов подсказка нужнее, чем у остальных команд: имя игрок придумал сам.
+        if (sender instanceof Player player
+                && (command.getName().equalsIgnoreCase("home")
+                || command.getName().equalsIgnoreCase("delhome"))) {
+            List<String> names = new ArrayList<>();
+            for (HomesManager.Home home : plugin.homes().list(player)) {
+                if (home.name().startsWith(prefix)) names.add(home.name());
+            }
+            return names;
+        }
+
+        if (!command.getName().equalsIgnoreCase("tpa")) return List.of();
         List<String> names = new ArrayList<>();
         for (Player online : plugin.getServer().getOnlinePlayers()) {
             String name = Accounts.name(online);
-            if (name.toLowerCase(Locale.ROOT).startsWith(args[0].toLowerCase(Locale.ROOT))) names.add(name);
+            if (name.toLowerCase(Locale.ROOT).startsWith(prefix)) names.add(name);
         }
         return names;
     }

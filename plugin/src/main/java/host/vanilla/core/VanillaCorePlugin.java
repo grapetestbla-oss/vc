@@ -36,6 +36,7 @@ import host.vanilla.core.season.ActivityTracker;
 import host.vanilla.core.season.Sidebar;
 import host.vanilla.core.season.SparkManager;
 import host.vanilla.core.season.TabList;
+import host.vanilla.core.shop.HomesManager;
 import host.vanilla.core.shop.ShopCommands;
 import host.vanilla.core.shop.ShopListener;
 import host.vanilla.core.shop.ShopManager;
@@ -82,6 +83,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
     private CaseShop caseShop;
     private DiceGame dice;
     private ShopManager shop;
+    private HomesManager homes;
     private ShopCommands shopCommands;
     private CaseListener caseListener;
     private NamespacedKey hatKey;
@@ -122,6 +124,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         caseShop = new CaseShop(this, messages);
         dice = new DiceGame(this, messages);
         shop = new ShopManager(this);
+        homes = new HomesManager(this);
         shopCommands = new ShopCommands(this, messages);
 
         registerListeners();
@@ -158,8 +161,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
 
         bind("cosmetics", new CosmeticCommand(this, cosmetics));
 
-        for (String name : List.of("shop", "tpa", "tpaccept", "tpdeny", "sethome", "home", "back",
-                "ec", "craft")) {
+        for (String name : List.of("shop", "tpa", "tpaccept", "tpdeny", "sethome", "home", "homes",
+                "delhome", "back", "ec", "craft")) {
             bind(name, shopCommands);
         }
 
@@ -289,6 +292,15 @@ public final class VanillaCorePlugin extends JavaPlugin {
                     player.sendMessage(messages.get("daily.done", Map.of(
                             "amount", data.get("rewardVc").getAsString())));
                 }
+
+                // Награда за уровень приходит здесь же: сайт видит повышение
+                // раньше плагина — уровень считается из наигранного времени.
+                if (data.has("levelPayout") && data.get("levelPayout").isJsonObject()) {
+                    JsonObject payout = data.getAsJsonObject("levelPayout");
+                    player.sendMessage(messages.get("level.reward", Map.of(
+                            "level", payout.get("toLevel").getAsString(),
+                            "amount", payout.get("vc").getAsString())));
+                }
             }
         });
     }
@@ -333,6 +345,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
             }
 
             shop.refresh(player);
+            homes.refresh(player, null);
 
             if (response.has("jail") && !response.get("jail").isJsonNull()) {
                 JsonObject jailData = response.getAsJsonObject("jail");
@@ -444,6 +457,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         jail.syncOnQuit(player);
         cosmetics.forget(player);
         shop.forget(player);
+        homes.forget(player);
         checks.onQuit(player);
         esp.disable(player);
     }
@@ -481,6 +495,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
     public NewsBroadcaster news() { return news; }
     public CosmeticEngine cosmetics() { return cosmetics; }
     public ShopManager shop() { return shop; }
+
+    public HomesManager homes() { return homes; }
     public ActionRunner actions() { return actions; }
     public MaintenanceWatcher maintenance() { return maintenance; }
     public SparkManager sparks() { return sparks; }

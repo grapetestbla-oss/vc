@@ -3,6 +3,7 @@ import { serverTokenValid, unauthorized } from "@/lib/mcauth";
 import { rewardPendingPromo } from "@/lib/promo";
 import { addActiveTime, goalSeconds, rewardVc } from "@/lib/daily";
 import { levelFromPlaytime } from "@/lib/levels";
+import { grantLevelRewards } from "@/lib/progress";
 
 /**
  * Плагин раз в минуту присылает наигранные секунды по онлайн-игрокам и
@@ -39,6 +40,8 @@ export async function POST(request: Request) {
 
     // Уровень мог только что дорасти до порога промокода — проверяем.
     await rewardPendingPromo(player.id);
+    // И до уровня с наградой за прокачку.
+    const levelPayout = await grantLevelRewards(player.id);
 
     // Афк не засчитываем в норму, но время игры считаем как раньше.
     const daily = entry.active
@@ -64,6 +67,7 @@ export async function POST(request: Request) {
       rewarded: daily.rewarded,
       justRewarded: daily.justRewarded,
       rewardVc: daily.rewardVc,
+      ...(levelPayout ? { levelPayout } : {}),
     };
   }
 

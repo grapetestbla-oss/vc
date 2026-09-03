@@ -2823,6 +2823,179 @@ const run = async () => {
     extraTick.json?.players?.Grinder,
   );
 
+  console.log("— Награды за уровень и точки дома —");
+  const climber = await register("Climber");
+  const climberMe = await api("/api/me", { cookie: climber.session });
+
+  // Уровень считается из наигранного времени, а один тик сервер обрезает до 120
+  // секунд. Поэтому 25 часов до пятого уровня набираем пачкой минутных записей —
+  // тем же путём, каким их шлёт плагин, только за один запрос.
+  const minuteTicks = (login, count) =>
+    Array.from({ length: count }, () => ({ login, seconds: 120, active: false }));
+
+  const beforeLevel = (await api("/api/me", { cookie: climber.session })).json.balanceVc;
+  const climbing = await api("/api/mc/playtime", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { entries: minuteTicks("Climber", 749) },
+  });
+  check("до порога уровень четвёртый", climbing.json?.players?.Climber?.level === 4, {
+    level: climbing.json?.players?.Climber?.level,
+  });
+  check(
+    "за уровни без награды ничего не начислено",
+    (await api("/api/me", { cookie: climber.session })).json.balanceVc === beforeLevel,
+    null,
+  );
+
+  const levelUp = await api("/api/mc/playtime", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { entries: minuteTicks("Climber", 1) },
+  });
+  check("пятый уровень взят", levelUp.json?.players?.Climber?.level === 5, levelUp.json?.players?.Climber);
+  check(
+    "плагину сказано, за что награда",
+    levelUp.json?.players?.Climber?.levelPayout?.toLevel === 5 &&
+      levelUp.json?.players?.Climber?.levelPayout?.vc === 500,
+    levelUp.json?.players?.Climber?.levelPayout,
+  );
+  const afterLevel = (await api("/api/me", { cookie: climber.session })).json.balanceVc;
+  check("за пятый уровень начислено 500 VC", afterLevel - beforeLevel === 500, {
+    before: beforeLevel,
+    after: afterLevel,
+  });
+
+  const sameLevel = await api("/api/mc/playtime", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { entries: minuteTicks("Climber", 1) },
+  });
+  check(
+    "второй раз за тот же уровень не платят",
+    (await api("/api/me", { cookie: climber.session })).json.balanceVc === afterLevel &&
+      sameLevel.json?.players?.Climber?.levelPayout === undefined,
+    sameLevel.json?.players?.Climber,
+  );
+
+  const homesNoToken = await api("/api/mc/homes?login=Climber");
+  check("дома закрыты без токена сервера", homesNoToken.status === 401);
+
+  await api("/api/panel/balance", {
+    method: "POST",
+    cookie: steve.session,
+    body: { userId: climberMe.json.id, amount: 20000, reason: "на дома" },
+  });
+
+  const homesBeforeItem = await api("/api/mc/homes?login=Climber", { serverToken: TOKEN });
+  check(
+    "без покупки точек дома нет",
+    homesBeforeItem.json?.capacity?.base === false && homesBeforeItem.json?.capacity?.total === 0,
+    homesBeforeItem.json?.capacity,
+  );
+
+  const setWithoutItem = await api("/api/mc/homes", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Climber", action: "set", name: "дом", location: "world;10;64;10;0;0" },
+  });
+  check("без покупки дом не отмечается", setWithoutItem.json?.status === "denied", setWithoutItem.json);
+
+  const buyHome = await api("/api/shop/buy", {
+    method: "POST",
+    cookie: climber.session,
+    body: { key: "home_point" },
+  });
+  check("точка дома куплена", buyHome.json?.ok === true, buyHome.json);
+
+  const firstHome = await api("/api/mc/homes", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Climber", action: "set", name: "Дом", location: "world;10;64;10;0;0" },
+  });
+  check(
+    "первая точка отмечена и имя приведено к нижнему регистру",
+    firstHome.json?.status === "ok" && firstHome.json?.homes?.[0]?.name === "дом",
+    firstHome.json,
+  );
+  check("вместимость по покупке — одна точка", firstHome.json?.capacity?.total === 1, firstHome.json?.capacity);
+
+  const overflow = await api("/api/mc/homes", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Climber", action: "set", name: "шахта", location: "world;99;12;99;0;0" },
+  });
+  check("вторая точка без слота не ставится", overflow.json?.status === "denied", overflow.json);
+
+  const moveHome = await api("/api/mc/homes", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Climber", action: "set", name: "дом", location: "world;11;65;11;0;0" },
+  });
+  check(
+    "перенос существующей точки лимит не трогает",
+    moveHome.json?.status === "ok" && moveHome.json?.homes?.length === 1 &&
+      moveHome.json.homes[0].location === "world;11;65;11;0;0",
+    moveHome.json,
+  );
+
+  const badName = await api("/api/mc/homes", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Climber", action: "set", name: "дом с пробелом", location: "world;1;2;3;0;0" },
+  });
+  check("имя с пробелом отклоняется", badName.json?.status === "denied", badName.json);
+
+  const beforeSlot = (await api("/api/me", { cookie: climber.session })).json.balanceVc;
+  const slot = await api("/api/shop/home-slot", { method: "POST", cookie: climber.session });
+  check("слот дома куплен за 2000 VC", slot.json?.ok === true && slot.json?.price === 2000, slot.json);
+  check(
+    "VC за слот списаны",
+    (await api("/api/me", { cookie: climber.session })).json.balanceVc === beforeSlot - 2000,
+    { before: beforeSlot },
+  );
+
+  const secondHome = await api("/api/mc/homes", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Climber", action: "set", name: "шахта", location: "world;99;12;99;0;0" },
+  });
+  check(
+    "на купленный слот точка встаёт",
+    secondHome.json?.status === "ok" && secondHome.json?.homes?.length === 2 &&
+      secondHome.json?.capacity?.total === 2,
+    secondHome.json,
+  );
+
+  // Пятый уровень открывает ровно один слот: второй ждёт десятого.
+  const earlySlot = await api("/api/shop/home-slot", { method: "POST", cookie: climber.session });
+  check("слот сверх уровня не продаётся", earlySlot.status === 400, earlySlot.json);
+  const lockedCapacity = await api("/api/mc/homes?login=Climber", { serverToken: TOKEN });
+  check(
+    "плагину видно, на каком уровне откроется следующая точка",
+    lockedCapacity.json?.capacity?.nextPrice === null && lockedCapacity.json?.capacity?.nextLevel === 10,
+    lockedCapacity.json?.capacity,
+  );
+
+  const dropHome = await api("/api/mc/homes", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Climber", action: "delete", name: "Шахта" },
+  });
+  check(
+    "точка удаляется и слот освобождается",
+    dropHome.json?.status === "ok" && dropHome.json?.homes?.length === 1 &&
+      dropHome.json?.capacity?.total === 2,
+    dropHome.json,
+  );
+
+  const dropMissing = await api("/api/mc/homes", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Climber", action: "delete", name: "погреб" },
+  });
+  check("удаление несуществующей точки отклоняется", dropMissing.json?.status === "denied", dropMissing.json);
+
   console.log("— Мост чата с Telegram —");
   const chatNoToken = await api("/api/mc/chat", { method: "POST", body: { lines: [] } });
   check("мост чата закрыт без токена", chatNoToken.status === 401);
