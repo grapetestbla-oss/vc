@@ -2996,6 +2996,122 @@ const run = async () => {
   });
   check("удаление несуществующей точки отклоняется", dropMissing.json?.status === "denied", dropMissing.json);
 
+  console.log("— Судная ночь —");
+  const purgeNoToken = await api("/api/mc/purge");
+  check("судная ночь закрыта без токена сервера", purgeNoToken.status === 401);
+
+  const purgeOff = await api("/api/mc/purge", { serverToken: TOKEN });
+  check("по умолчанию режим выключен", purgeOff.json?.enabled === false, purgeOff.json);
+  check("доля потери — половина баланса", purgeOff.json?.dropPercent === 50, purgeOff.json);
+
+  const purgeByPlayer = await api("/api/panel/purge", {
+    method: "POST",
+    cookie: alex.session,
+    body: { enabled: true },
+  });
+  check("обычный игрок судную ночь не включает", purgeByPlayer.status === 403, purgeByPlayer.json);
+
+  const victim = await register("Zhertva");
+  const raider = await register("Nalyotchik");
+  const victimMe = await api("/api/me", { cookie: victim.session });
+  const raiderMe = await api("/api/me", { cookie: raider.session });
+  await api("/api/panel/balance", {
+    method: "POST",
+    cookie: steve.session,
+    body: { userId: victimMe.json.id, amount: 1000, reason: "на судную ночь" },
+  });
+
+  // Пока ночь не началась, смерть баланс не трогает.
+  const deathBefore = await api("/api/mc/purge/death", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Zhertva", killer: "Nalyotchik" },
+  });
+  check("вне судной ночи смерть ничего не стоит", deathBefore.json?.status === "skipped", deathBefore.json);
+  check(
+    "баланс погибшего не тронут",
+    (await api("/api/me", { cookie: victim.session })).json.balanceVc === 1000,
+    null,
+  );
+
+  const pastEnd = await api("/api/panel/purge", {
+    method: "POST",
+    cookie: steve.session,
+    body: { enabled: true, until: new Date(Date.now() - 60_000).toISOString() },
+  });
+  check("окончание в прошлом отклоняется", pastEnd.status === 400, pastEnd.json);
+
+  const purgeOn = await api("/api/panel/purge", {
+    method: "POST",
+    cookie: steve.session,
+    body: { enabled: true, until: null },
+  });
+  check("чиф включает судную ночь", purgeOn.json?.enabled === true, purgeOn.json);
+  check(
+    "плагин видит включённый режим",
+    (await api("/api/mc/purge", { serverToken: TOKEN })).json?.enabled === true,
+    null,
+  );
+
+  const killed = await api("/api/mc/purge/death", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Zhertva", killer: "Nalyotchik" },
+  });
+  check("с погибшего снята половина", killed.json?.lost === 500 && killed.json?.balance === 500, killed.json);
+  check("убийца назван в ответе", killed.json?.killer === "Nalyotchik", killed.json);
+  check(
+    "VC достались убийце",
+    (await api("/api/me", { cookie: raider.session })).json.balanceVc === raiderMe.json.balanceVc + 500,
+    { before: raiderMe.json.balanceVc },
+  );
+
+  // Вторая смерть подряд считает половину от остатка, а не от прежнего баланса.
+  const killedAgain = await api("/api/mc/purge/death", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Zhertva", killer: "Nalyotchik" },
+  });
+  check(
+    "вторая смерть считает половину остатка",
+    killedAgain.json?.lost === 250 && killedAgain.json?.balance === 250,
+    killedAgain.json,
+  );
+
+  const solo = await api("/api/mc/purge/death", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Zhertva" },
+  });
+  check("без убийцы VC сгорают", solo.json?.lost === 125 && solo.json?.taken === 0, solo.json);
+
+  const selfKill = await api("/api/mc/purge/death", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Zhertva", killer: "Zhertva" },
+  });
+  check("сам себе VC не возвращает", selfKill.json?.taken === 0, selfKill.json);
+
+  // Ночь заканчивается сама: в шесть утра никто кнопку жать не будет.
+  const soonEnd = await api("/api/panel/purge", {
+    method: "POST",
+    cookie: steve.session,
+    body: { enabled: true, until: new Date(Date.now() + 1500).toISOString() },
+  });
+  check("срок окончания принят", soonEnd.json?.until !== null, soonEnd.json);
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+  const expired = await api("/api/mc/purge", { serverToken: TOKEN });
+  check("после срока режим выключается сам", expired.json?.enabled === false, expired.json);
+
+  const afterExpiry = await api("/api/mc/purge/death", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Zhertva", killer: "Nalyotchik" },
+  });
+  check("истёкшая ночь баланс не трогает", afterExpiry.json?.status === "skipped", afterExpiry.json);
+
+  await api("/api/panel/purge", { method: "POST", cookie: steve.session, body: { enabled: false } });
+
   console.log("— Мост чата с Telegram —");
   const chatNoToken = await api("/api/mc/chat", { method: "POST", body: { lines: [] } });
   check("мост чата закрыт без токена", chatNoToken.status === 401);

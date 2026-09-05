@@ -33,6 +33,7 @@ import host.vanilla.core.news.NewsBroadcaster;
 import host.vanilla.core.report.ReportManager;
 import host.vanilla.core.season.GiveawayNotifier;
 import host.vanilla.core.season.ActivityTracker;
+import host.vanilla.core.season.PurgeNight;
 import host.vanilla.core.season.Sidebar;
 import host.vanilla.core.season.SparkManager;
 import host.vanilla.core.season.TabList;
@@ -75,6 +76,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
     private CosmeticEngine cosmetics;
     private ActionRunner actions;
     private MaintenanceWatcher maintenance;
+    private PurgeNight purge;
     private TabList tabList;
     private Sidebar sidebar;
     private ActivityTracker activity;
@@ -116,6 +118,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         cosmetics = new CosmeticEngine(this);
         actions = new ActionRunner(this, messages);
         maintenance = new MaintenanceWatcher(this, messages);
+        purge = new PurgeNight(this, messages);
         tabList = new TabList(this);
         sidebar = new Sidebar(this);
         activity = new ActivityTracker(this);
@@ -140,6 +143,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         manager.registerEvents(new StaffListener(this, checks), this);
         manager.registerEvents(vanish, this);
         manager.registerEvents(activity, this);
+        manager.registerEvents(purge, this);
         manager.registerEvents(new ReportMenuListener(this, reports), this);
         manager.registerEvents(new CosmeticListener(this, cosmetics), this);
         manager.registerEvents(new ShopListener(this, shopCommands, messages), this);
@@ -220,6 +224,10 @@ public final class VanillaCorePlugin extends JavaPlugin {
         // Техработы проверяем чаще новостей: закрытие сервера не должно ждать минуту.
         getServer().getScheduler().runTaskTimer(this, maintenance::poll, 100L,
                 config.maintenancePollSeconds * 20L);
+        // Судную ночь спрашиваем в том же ритме: включили в панели — режим у
+        // игроков поменялся, не дожидаясь перезахода.
+        getServer().getScheduler().runTaskTimer(this, purge::poll, 120L,
+                config.purgePollSeconds * 20L);
         // Поручения с сайта (очистка инвентаря) забираем в том же ритме, что и новости.
         getServer().getScheduler().runTaskTimer(this, actions::poll,
                 config.newsPollSeconds * 20L + 40L, config.newsPollSeconds * 20L);
@@ -332,6 +340,9 @@ public final class VanillaCorePlugin extends JavaPlugin {
             applyRole(player, profile.adminLevel());
             // Проверяем сразу после входа: уровень админки известен только теперь.
             if (maintenance.kickIfNeeded(player)) return;
+            // Режим ставим после applyRole: он же решает, кому положен
+            // наблюдатель, и судная ночь не должна вытаскивать оттуда админов.
+            purge.apply(player);
             tabList.welcome(player);
             // Плашку о розыгрыше показываем с задержкой: сразу после входа
             // игрок читает приветствие и подсказки по авторизации.
@@ -499,6 +510,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
     public HomesManager homes() { return homes; }
     public ActionRunner actions() { return actions; }
     public MaintenanceWatcher maintenance() { return maintenance; }
+
+    public PurgeNight purge() { return purge; }
     public SparkManager sparks() { return sparks; }
     public GiveawayNotifier giveaways() { return giveaways; }
     public JailJobs jailJobs() { return jailJobs; }

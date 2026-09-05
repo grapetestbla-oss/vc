@@ -43,6 +43,7 @@ export const PERMISSIONS: Permission[] = [
   { key: "server.control", title: "Управление сервером", group: "Сервер", defaultLevel: 5 },
   { key: "games.toggle", title: "Включение мини-игр", group: "Сервер", defaultLevel: 5 },
   { key: "maintenance.toggle", title: "Технические работы", group: "Сервер", defaultLevel: 5 },
+  { key: "purge.toggle", title: "Судная ночь", group: "Сервер", defaultLevel: 5 },
   { key: "ranks.manage", title: "Ранги и права", group: "Сервер", defaultLevel: 5 },
 ];
 

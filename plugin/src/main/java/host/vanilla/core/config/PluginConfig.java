@@ -63,6 +63,7 @@ public final class PluginConfig {
     public final int espRefreshSeconds;
     public final int newsPollSeconds;
     public final int maintenancePollSeconds;
+    public final int purgePollSeconds;
     /// Как часто напоминать о розыгрышах. 0 — не напоминать.
     public final int giveawayNotifySeconds;
     /// На каком расстоянии игроки могут играть в кости.
@@ -146,6 +147,7 @@ public final class PluginConfig {
         espRefreshSeconds = Math.max(2, c.getInt("staff.esp-refresh-seconds", 5));
         newsPollSeconds = Math.max(30, c.getInt("news.poll-seconds", 60));
         maintenancePollSeconds = Math.max(5, c.getInt("maintenance.poll-seconds", 10));
+        purgePollSeconds = Math.max(5, c.getInt("purge.poll-seconds", 15));
         giveawayNotifySeconds = Math.max(0, c.getInt("giveaway.notify-seconds", 900));
         diceRadius = Math.max(3, Math.min(32, c.getInt("dice.radius", 8)));
 

@@ -62,6 +62,11 @@ maintenance:
   # никого не пускает, кроме 5 уровня.
   poll-seconds: 10
 
+purge:
+  # Как часто спрашивать сайт, не идёт ли судная ночь. Пока идёт, все играют в
+  # режиме приключения, а смерть стоит части баланса. Включается в панели.
+  poll-seconds: 15
+
 dice:
   # На каком расстоянии друг от друга игроки могут играть в кости.
   radius: 8
@@ -308,6 +313,12 @@ messages:
   chat.global-empty: "<gray>После <white><prefix><gray> нужен текст."
   daily.done: "<green>Дневная норма выполнена! Начислено <white><amount> VC<green>."
   level.reward: "<gold>Уровень <level>! Награда: <amount> VC."
+
+  purge.start: "<dark_red><bold>СУДНАЯ НОЧЬ.<reset> <red>Ломать и ставить нельзя, драться — можно. Смерть стоит <percent>% баланса, и VC заберёт убийца."
+  purge.end: "<green>Судная ночь закончена. Обычная игра вернулась."
+  purge.hint: "<red>Идёт судная ночь: смерть стоит <percent>% баланса."
+  purge.lost: "<dark_red>Вы потеряли <amount> VC. Осталось: <balance> VC."
+  purge.taken: "<gold>С <player> снято <amount> VC — они ваши."
   vote.thanks: "<green>Спасибо за голос! Начислено <white><amount> VC<green>."
   vote.thanks-streak: "<green>Спасибо за голос! Начислено <white><amount> VC<green> — серия <white><streak><green> дней подряд."
   tg.code: "<green>Код привязки: <white><code><green>. Отправьте его боту в течение <minutes> минут."

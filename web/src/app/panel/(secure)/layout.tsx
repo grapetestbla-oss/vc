@@ -23,6 +23,7 @@ const NAV = [
   { href: "/panel/server", label: "Сервер", permission: "server.control" },
   { href: "/panel/giveaways", label: "Розыгрыши", permission: "giveaways.manage" },
   { href: "/panel/games", label: "Мини-игры", permission: "games.toggle" },
+  { href: "/panel/purge", label: "Судная ночь", permission: "purge.toggle" },
   { href: "/panel/maintenance", label: "Техработы", permission: "maintenance.toggle" },
   { href: "/panel/ranks", label: "Ранги и права", permission: "ranks.manage" },
   { href: "/panel/staff", label: "Персонал", permission: "users.staff" },
