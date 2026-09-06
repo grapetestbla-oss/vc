@@ -402,7 +402,7 @@ const run = async () => {
   check(
     "цена кейса списана",
     paidOpen.json?.balanceVc ===
-      beforeCase.json.balanceVc - 250 + (paidOpen.json?.kind === "VC" ? paidOpen.json.amount : 0),
+      beforeCase.json.balanceVc - 200 + (paidOpen.json?.kind === "VC" ? paidOpen.json.amount : 0),
     { before: beforeCase.json.balanceVc, after: paidOpen.json?.balanceVc, item: paidOpen.json?.kind },
   );
   check("счётчик гаранта считает", paidOpen.json?.pity?.threshold === 40, paidOpen.json?.pity);
@@ -3023,7 +3023,7 @@ const run = async () => {
     body: { caseKey: "fastfood" },
   });
   check("кейс открывается", ffOpen.status === 200, ffOpen.json);
-  check("цена кейса — 350 VC", ffOpen.json?.balanceVc === 40000 - 350, ffOpen.json);
+  check("цена кейса — 500 VC", ffOpen.json?.balanceVc === 40000 - 500, ffOpen.json);
 
   // Косметика кейса не должна давать защиты: шляпа занимает слот шлема, и
   // броня среди материалов означала бы преимущество за деньги.

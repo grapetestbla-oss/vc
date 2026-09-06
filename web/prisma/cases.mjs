@@ -36,7 +36,7 @@ export const CASES = [
     name: "Дикий кейс",
     description:
       "Шлейфы, ауры и шляпы первого сезона. Гарант легендарки — сорок открытий.",
-    priceVc: 250,
+    priceVc: 200,
     seasonKey: "season-1",
     pityThreshold: 40,
     sortOrder: 1,
@@ -69,7 +69,7 @@ export const CASES = [
     name: "Зверинец",
     description:
       "Питомцы, которые ходят за вами по пятам. Гарант легендарки — тридцать открытий.",
-    priceVc: 400,
+    priceVc: 500,
     seasonKey: "season-1",
     pityThreshold: 30,
     sortOrder: 2,
@@ -93,7 +93,7 @@ export const CASES = [
     name: "Кейс легенд",
     description:
       "Только редкое и выше, включая предметы с номерами экземпляров. Гарант — двадцать открытий.",
-    priceVc: 900,
+    priceVc: 500,
     seasonKey: "season-1",
     pityThreshold: 20,
     sortOrder: 3,
@@ -126,7 +126,7 @@ export const CASES = [
     name: "Фаст фуд",
     description:
       "Три дня и ни днём больше: бургеры, картошка, ведро от полковника и золотая легенда фуд-корта. Гарант легендарки — двадцать пять открытий.",
-    priceVc: 350,
+    priceVc: 500,
     seasonKey: "season-1",
     pityThreshold: 25,
     sortOrder: 4,
