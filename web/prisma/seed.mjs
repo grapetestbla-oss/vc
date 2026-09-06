@@ -63,16 +63,40 @@ async function main() {
       update: data,
     });
 
-    await db.caseItem.deleteMany({ where: { caseKey: caseSeed.key } });
-    await db.caseItem.createMany({
-      data: caseSeed.items.map((item) => ({
-        caseKey: caseSeed.key,
+    // Содержимое кейса сверяем построчно, а не пересоздаём целиком. История
+    // открытий ссылается на строку кейса каскадом: удаление и создание заново
+    // стирало бы её при каждом запуске — вместе с записями provably fair и с
+    // отметками о бесплатном открытии, после чего суточный ящик открывался бы
+    // всем повторно.
+    const existing = await db.caseItem.findMany({ where: { caseKey: caseSeed.key } });
+    const signature = (item) =>
+      [item.kind, item.cosmeticKey ?? "", item.amount ?? ""].join("|");
+    const known = new Map(existing.map((row) => [signature(row), row]));
+    const seen = new Set();
+
+    for (const item of caseSeed.items) {
+      const data = {
         kind: item.kind,
         cosmeticKey: item.kind === "COSMETIC" ? item.cosmeticKey : null,
         amount: item.kind === "COSMETIC" ? null : item.amount,
         weight: item.weight,
-      })),
-    });
+      };
+      const key = signature(data);
+      seen.add(key);
+
+      const row = known.get(key);
+      if (!row) {
+        await db.caseItem.create({ data: { caseKey: caseSeed.key, ...data } });
+      } else if (row.weight !== data.weight) {
+        await db.caseItem.update({ where: { id: row.id }, data: { weight: data.weight } });
+      }
+    }
+
+    // Убранное из каталога удаляем: вместе с ним уходит и история его выпадений,
+    // но иначе выбывший предмет продолжал бы выпадать.
+    for (const row of existing) {
+      if (!seen.has(signature(row))) await db.caseItem.delete({ where: { id: row.id } });
+    }
   }
 
   for (const item of SHOP_ITEMS) {

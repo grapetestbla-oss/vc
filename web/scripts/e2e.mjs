@@ -8,11 +8,23 @@
  * и TELEGRAM_API_URL, указывающим на заглушку: те же значения передаются сюда в
  * TELEGRAM_WEBHOOK_SECRET и TELEGRAM_STUB_PORT.
  */
+import { execFileSync } from "node:child_process";
+
 const BASE = process.env.BASE ?? "http://127.0.0.1:3000";
 const TOKEN = process.env.MC_SERVER_TOKEN ?? "testtoken";
 
 let passed = 0;
 let failed = 0;
+let skipped = 0;
+
+/**
+ * Проверка, которую этот стенд провести не может. Пишем её отдельной строкой,
+ * а не молча пропускаем: пропуск должен быть виден в выводе.
+ */
+function skip(name, why) {
+  skipped++;
+  console.log(`skip  ${name} — ${why}`);
+}
 
 function check(name, condition, details) {
   if (condition) {
@@ -3050,6 +3062,60 @@ const run = async () => {
   }
   check("из кейса выпадает косметика «Фаст фуда»", ffCosmetics.length > 0, ffCosmetics);
 
+  console.log("— Повторный прогон каталога —");
+  // Каталог накатывают после каждой правки цен и косметики. Он не должен
+  // стирать историю открытий: на неё завязаны записи provably fair и отметка о
+  // бесплатном ящике, а без неё суточный кейс открывался бы заново всем.
+  const beforeSeed = await api("/api/cases/open", {
+    method: "POST",
+    cookie: foodie.session,
+    body: { caseKey: "fastfood" },
+  });
+  check("кейс открыт до прогона каталога", beforeSeed.status === 200, beforeSeed.json);
+  const balanceBeforeSeed = beforeSeed.json.balanceVc;
+
+  let seeded = true;
+  let seedError = "";
+  try {
+    execFileSync("node", ["prisma/seed.mjs"], { stdio: "pipe" });
+  } catch (error) {
+    seeded = false;
+    seedError = String(error?.stderr ?? error);
+  }
+
+  if (!seeded && /Can't reach database server|ECONNREFUSED/.test(seedError)) {
+    // PGlite держит ровно одно соединение, и его занял сам сайт. На настоящем
+    // Postgres проверка проходит целиком.
+    skip("прогон каталога поверх открытий", "стенд на PGlite не пускает второе соединение");
+  } else if (!seeded) {
+    check("каталог накатывается", false, seedError);
+  } else {
+    check("каталог накатился повторно", true);
+    // Бесплатный ящик Steve открыл в самом начале прогона. Если история
+    // открытий пережила каталог, второй раз за сутки его не дадут.
+    const freeAfterSeed = await api("/api/cases/open", {
+      method: "POST",
+      cookie: steve.session,
+      body: { caseKey: "daily" },
+    });
+    check(
+      "прогон каталога не вернул бесплатный ящик",
+      freeAfterSeed.status === 400,
+      freeAfterSeed.json,
+    );
+    check(
+      "баланс после прогона каталога на месте",
+      (await api("/api/me", { cookie: foodie.session })).json.balanceVc === balanceBeforeSeed,
+      { expected: balanceBeforeSeed },
+    );
+    const shelfAfterSeed = await api("/api/mc/cases?login=Steve", { serverToken: TOKEN });
+    check(
+      "кейсы после прогона на месте",
+      shelfAfterSeed.json?.cases?.some((item) => item.key === "fastfood"),
+      shelfAfterSeed.json?.cases?.map((item) => item.key),
+    );
+  }
+
   console.log("— Судная ночь —");
   const purgeNoToken = await api("/api/mc/purge");
   check("судная ночь закрыта без токена сервера", purgeNoToken.status === 401);
@@ -3775,7 +3841,9 @@ const run = async () => {
   check("пустой ранг удаляется", freeDelete.json?.ok === true, freeDelete.json);
 
   console.log("— Итог —");
-  console.log(`Пройдено: ${passed}, провалено: ${failed}`);
+  console.log(
+    `Пройдено: ${passed}, провалено: ${failed}` + (skipped ? `, пропущено: ${skipped}` : ""),
+  );
   process.exit(failed === 0 ? 0 : 1);
 };
 
