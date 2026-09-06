@@ -2,6 +2,10 @@
  * Кейсы. Шансы заданы весами: шанс предмета = вес / сумма весов кейса.
  * Значения подобраны так, чтобы легендарка ощущалась событием, но гарант
  * не давал уйти в бесконечное невезение.
+ *
+ * У временных кейсов дата окончания записана явной строкой, а не «плюс три дня
+ * от сегодня»: каталог накатывается при каждом деплое, и относительный срок
+ * продлевал бы событие на каждой выкатке.
  */
 
 export const CASES = [
@@ -115,6 +119,34 @@ export const CASES = [
       { kind: "COSMETIC", cosmeticKey: "title_pioneer", weight: 6 },
       { kind: "COSMETIC", cosmeticKey: "join_dragon", weight: 4 },
       { kind: "COSMETIC", cosmeticKey: "mark_beacon", weight: 2 },
+    ],
+  },
+  {
+    key: "fastfood",
+    name: "Фаст фуд",
+    description:
+      "Три дня и ни днём больше: бургеры, картошка, ведро от полковника и золотая легенда фуд-корта. Гарант легендарки — двадцать пять открытий.",
+    priceVc: 350,
+    seasonKey: "season-1",
+    pityThreshold: 25,
+    sortOrder: 4,
+    // 9 сентября, 23:59:59 по Москве.
+    availableUntil: "2026-09-09T20:59:59.000Z",
+    items: [
+      { kind: "SHARDS", amount: 50, weight: 250 },
+      { kind: "VC", amount: 120, weight: 140 },
+      { kind: "COSMETIC", cosmeticKey: "ff_hat_fries", weight: 130 },
+      { kind: "COSMETIC", cosmeticKey: "ff_hat_shake", weight: 130 },
+      { kind: "COSMETIC", cosmeticKey: "ff_trail_grill", weight: 120 },
+      { kind: "COSMETIC", cosmeticKey: "ff_name_ketchup", weight: 110 },
+      { kind: "COSMETIC", cosmeticKey: "ff_hat_burger", weight: 70 },
+      { kind: "COSMETIC", cosmeticKey: "ff_hat_bucket", weight: 70 },
+      { kind: "COSMETIC", cosmeticKey: "ff_aura_soda", weight: 65 },
+      { kind: "COSMETIC", cosmeticKey: "ff_join_order", weight: 60 },
+      { kind: "COSMETIC", cosmeticKey: "ff_title_gurman", weight: 55 },
+      { kind: "COSMETIC", cosmeticKey: "ff_pet_courier", weight: 22 },
+      { kind: "COSMETIC", cosmeticKey: "ff_title_combo", weight: 20 },
+      { kind: "COSMETIC", cosmeticKey: "ff_hat_golden", weight: 5 },
     ],
   },
 ];

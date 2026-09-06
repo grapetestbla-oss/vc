@@ -8,7 +8,13 @@ export async function GET(request: Request) {
 
   const login = new URL(request.url).searchParams.get("login");
   const cases = await db.caseType.findMany({
-    where: { active: true, freeDaily: false },
+    where: {
+      active: true,
+      freeDaily: false,
+      // Кончившийся кейс с витрины убираем: купить его всё равно нельзя, а в
+      // списке он выглядел бы как рабочий.
+      OR: [{ availableUntil: null }, { availableUntil: { gt: new Date() } }],
+    },
     orderBy: { sortOrder: "asc" },
     select: { key: true, name: true, description: true, priceVc: true },
   });

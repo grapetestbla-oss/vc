@@ -2996,6 +2996,60 @@ const run = async () => {
   });
   check("удаление несуществующей точки отклоняется", dropMissing.json?.status === "denied", dropMissing.json);
 
+  console.log("— Кейс «Фаст фуд» —");
+  const shelfPage = await fetch(BASE + "/cases");
+  const shelfHtml = await shelfPage.text();
+  check("временный кейс на витрине", shelfHtml.includes("Фаст фуд"));
+  check("на карточке видна дата окончания", shelfHtml.includes("до 9 сентября"), null);
+
+  const ffShop = await api("/api/mc/cases?login=Steve", { serverToken: TOKEN });
+  check(
+    "временный кейс продаётся и в игре",
+    ffShop.json?.cases?.some((item) => item.key === "fastfood"),
+    ffShop.json?.cases?.map((item) => item.key),
+  );
+
+  const foodie = await register("Obedennyy");
+  const foodieMe = await api("/api/me", { cookie: foodie.session });
+  await api("/api/panel/balance", {
+    method: "POST",
+    cookie: steve.session,
+    body: { userId: foodieMe.json.id, amount: 40000, reason: "на фаст фуд" },
+  });
+
+  const ffOpen = await api("/api/cases/open", {
+    method: "POST",
+    cookie: foodie.session,
+    body: { caseKey: "fastfood" },
+  });
+  check("кейс открывается", ffOpen.status === 200, ffOpen.json);
+  check("цена кейса — 350 VC", ffOpen.json?.balanceVc === 40000 - 350, ffOpen.json);
+
+  // Косметика кейса не должна давать защиты: шляпа занимает слот шлема, и
+  // броня среди материалов означала бы преимущество за деньги.
+  // Страница коллекции только для своих: без куки она уводит на вход.
+  const collectionPage = await fetch(BASE + "/collection", {
+    headers: { Cookie: foodie.session },
+  });
+  const collectionHtml = await collectionPage.text();
+  check("коллекция «Комбо-обед» появилась", collectionHtml.includes("Комбо-обед"), {
+    status: collectionPage.status,
+  });
+
+  // Открываем пачкой, пока не наберём хоть одну шляпу: проверяем, что предметы
+  // кейса действительно выдаются и попадают в профиль игрока.
+  let ffCosmetics = [];
+  for (let attempt = 0; attempt < 12 && ffCosmetics.length === 0; attempt += 1) {
+    const roll = await api("/api/cases/open", {
+      method: "POST",
+      cookie: foodie.session,
+      body: { caseKey: "fastfood", count: 5 },
+    });
+    const rewards = roll.json?.results ?? (roll.json?.reward ? [roll.json.reward] : []);
+    ffCosmetics = rewards.filter((item) => item?.cosmetic?.key?.startsWith("ff_"));
+  }
+  check("из кейса выпадает косметика «Фаст фуда»", ffCosmetics.length > 0, ffCosmetics);
+
   console.log("— Судная ночь —");
   const purgeNoToken = await api("/api/mc/purge");
   check("судная ночь закрыта без токена сервера", purgeNoToken.status === 401);

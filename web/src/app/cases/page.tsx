@@ -12,7 +12,7 @@ export default async function CasesPage() {
   const t = await translator();
   const user = await currentUser();
   const cases = await db.caseType.findMany({
-    where: { active: true },
+    where: { active: true, OR: [{ availableUntil: null }, { availableUntil: { gt: new Date() } }] },
     orderBy: { sortOrder: "asc" },
     include: { items: { include: { cosmetic: true } } },
   });
@@ -87,6 +87,22 @@ export default async function CasesPage() {
                       : `${caseType.priceVc} VC`}
                   </span>
                 </div>
+                {caseType.availableUntil && (
+                  <p
+                    className="mt-2 inline-flex self-start rounded-full px-3 py-1 text-xs font-semibold"
+                    style={{ background: "rgba(255,107,107,0.12)", color: "var(--danger)" }}
+                  >
+                    {t("до {date}", {
+                      date: caseType.availableUntil.toLocaleString("ru", {
+                        day: "numeric",
+                        month: "long",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        timeZone: "Europe/Moscow",
+                      }),
+                    })}
+                  </p>
+                )}
                 <p className="muted mt-2 text-sm">{caseType.description}</p>
 
                 <ul className="mt-5 flex-1 space-y-1.5 text-sm">

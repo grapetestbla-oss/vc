@@ -52,6 +52,9 @@ async function main() {
       freeDaily: caseSeed.freeDaily ?? false,
       pityThreshold: caseSeed.pityThreshold ?? 0,
       sortOrder: caseSeed.sortOrder,
+      // Срок временного кейса перезаписываем каждый раз: продлить или закрыть
+      // событие должно быть можно правкой каталога, а не руками в базе.
+      availableUntil: caseSeed.availableUntil ? new Date(caseSeed.availableUntil) : null,
       active: true,
     };
     await db.caseType.upsert({
