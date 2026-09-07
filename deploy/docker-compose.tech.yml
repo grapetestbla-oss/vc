@@ -1,0 +1,71 @@
+# Технический сайт tech.vanillacraft.click.
+#
+# Отдельный стек рядом с боевым: свой контейнер сайта, свой порт, своя база.
+# Postgres общий с боевым — не из экономии на изоляции, а из-за памяти: второй
+# сервер базы на этой машине стоил бы 150–250 МБ впустую. Данные всё равно
+# разведены, стенд работает с базой vanilla_tech и боевую не видит.
+#
+# Запускается своим именем проекта, поэтому боевой стек не перезапускается:
+#   docker compose -p vc-tech --env-file .env -f docker-compose.tech.yml up -d --build
+services:
+  tech:
+    build:
+      context: ../web
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    environment:
+      DATABASE_URL: postgresql://vanilla:${POSTGRES_PASSWORD}@postgres:5432/vanilla_tech
+      MC_SERVER_TOKEN: ${TECH_MC_SERVER_TOKEN:-${MC_SERVER_TOKEN}}
+      # Признак стенда: закрывает сайт для всех, кроме списка ниже, и просит
+      # поисковики его не индексировать.
+      STAGING: "1"
+      STAGING_LOGINS: ${STAGING_LOGINS:-rym6a}
+      # Кассы на стенде выключены: там нечего оплачивать настоящими деньгами.
+      FREEKASSA_MERCHANT_ID: ""
+      PLATEGA_MERCHANT_ID: ""
+      # Игровой сервер стенду не подчиняется: кнопки управления в его панели
+      # трогали бы боевой сервер.
+      GAME_PANEL_URL: ""
+      GAME_PANEL_KEY: ""
+      GAME_PANEL_SERVER_ID: ""
+      # Телеграм тоже боевой: стенд не должен писать в общий чат.
+      TELEGRAM_BOT_TOKEN: ""
+      TELEGRAM_WEBHOOK_SECRET: ""
+      # Выкатку боевого сайта со стенда не запускают — токена агента здесь нет.
+      DEPLOY_AGENT_TOKEN: ""
+      GAME_RTP: ${GAME_RTP:-0.95}
+      VC_PER_RUB: ${VC_PER_RUB:-2}
+      DAILY_ACTIVE_HOURS: ${DAILY_ACTIVE_HOURS:-5}
+      DAILY_REWARD_VC: ${DAILY_REWARD_VC:-200}
+      TELEGRAM_CHANNEL_URL: ${TELEGRAM_CHANNEL_URL:-https://t.me/vanillacraftx}
+      BOOTSTRAP_ADMIN_LOGIN: ${BOOTSTRAP_ADMIN_LOGIN:-}
+      NODE_ENV: production
+    ports:
+      - "127.0.0.1:3001:3000"
+    networks:
+      - default
+      - prod
+
+  # Схема и каталог для базы стенда. Тот же приём, что у боевого мигратора.
+  tech-migrator:
+    build:
+      context: ../web
+      target: builder
+    profiles: ["tools"]
+    environment:
+      DATABASE_URL: postgresql://vanilla:${POSTGRES_PASSWORD}@postgres:5432/vanilla_tech
+    command: ["node", "--version"]
+    networks:
+      - prod
+
+# Боевой стек поднимает свою сеть сам; стенд подключается к ней, чтобы видеть
+# контейнер postgres по имени.
+networks:
+  prod:
+    external: true
+    name: deploy_default

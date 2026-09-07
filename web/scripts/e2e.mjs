@@ -12,6 +12,7 @@ import { execFileSync } from "node:child_process";
 
 const BASE = process.env.BASE ?? "http://127.0.0.1:3000";
 const TOKEN = process.env.MC_SERVER_TOKEN ?? "testtoken";
+const DEPLOY_TOKEN = process.env.DEPLOY_AGENT_TOKEN ?? "e2e-deploy-token";
 
 let passed = 0;
 let failed = 0;
@@ -36,12 +37,13 @@ function check(name, condition, details) {
   }
 }
 
-async function api(path, { method = "GET", body, cookie, serverToken, ip } = {}) {
+async function api(path, { method = "GET", body, cookie, serverToken, deployToken, ip } = {}) {
   const headers = { "Content-Type": "application/json" };
   // Разные адреса, иначе тесты упрутся в защиту от массовой регистрации.
   if (ip) headers["X-Forwarded-For"] = ip;
   if (cookie) headers.Cookie = cookie;
   if (serverToken) headers["X-Server-Token"] = serverToken;
+  if (deployToken) headers["X-Deploy-Token"] = deployToken;
   const response = await fetch(BASE + path, {
     method,
     headers,
@@ -3007,6 +3009,102 @@ const run = async () => {
     body: { login: "Climber", action: "delete", name: "погреб" },
   });
   check("удаление несуществующей точки отклоняется", dropMissing.json?.status === "denied", dropMissing.json);
+
+  console.log("— Выкатка из панели —");
+  const releaseByPlayer = await api("/api/panel/release", { cookie: alex.session });
+  check("игрок не видит выкатку", releaseByPlayer.status === 403, releaseByPlayer.json);
+
+  const releaseNoToken = await api("/api/deploy/next", { method: "POST" });
+  check("агент выкатки закрыт без токена", releaseNoToken.status === 401, releaseNoToken.json);
+
+  const releaseView = await api("/api/panel/release", { cookie: steve.session });
+  check("чиф видит раздел выкатки", releaseView.status === 200, releaseView.json);
+  // Прогон идёт под ником Steve, а выкатка открыта только rym6a: кнопка должна
+  // быть закрыта даже чифу, если он не в списке.
+  check(
+    "чужому чифу кнопка закрыта",
+    releaseView.json?.allowed === false && releaseView.json?.logins?.includes("rym6a"),
+    { allowed: releaseView.json?.allowed, logins: releaseView.json?.logins },
+  );
+
+  const releaseDenied = await api("/api/panel/release", {
+    method: "POST",
+    cookie: steve.session,
+    body: { seedCatalogue: false, restartGame: false, note: "мимо" },
+  });
+  check("не из списка — выкатить нельзя", releaseDenied.status === 400, releaseDenied.json);
+  check(
+    "отказ ничего не поставил в очередь",
+    (await api("/api/panel/release", { cookie: steve.session })).json?.releases?.length === 0,
+    null,
+  );
+
+  const agentEmpty = await api("/api/deploy/next", {
+    method: "POST",
+    deployToken: DEPLOY_TOKEN,
+  });
+  check("агенту без задач отвечают пустотой", agentEmpty.json?.release === null, agentEmpty.json);
+
+  const agentBadReport = await api("/api/deploy/report", {
+    method: "POST",
+    deployToken: DEPLOY_TOKEN,
+    body: { id: "нет-такой", ok: true, log: "" },
+  });
+  check("отчёт о неизвестной выкатке отклоняется", agentBadReport.status === 404, agentBadReport.json);
+
+  // Полный круг: кнопку жмёт тот, кто в списке, задачу забирает агент, отчёт
+  // возвращается в панель. Ник заводим настоящий — список сверяется по нему.
+  const owner = await register("rym6a");
+  const ownerMe = await api("/api/me", { cookie: owner.session });
+  await api("/api/panel/staff", {
+    method: "POST",
+    cookie: steve.session,
+    body: { userId: ownerMe.json.id, level: 5 },
+  });
+  await api("/api/panel/verify", {
+    method: "POST",
+    cookie: owner.session,
+    body: { password: "password123" },
+  });
+
+  const releaseQueued = await api("/api/panel/release", {
+    method: "POST",
+    cookie: owner.session,
+    body: { seedCatalogue: true, restartGame: false, note: "проверка выкатки" },
+  });
+  check("свой в списке ставит выкатку в очередь", releaseQueued.json?.ok === true, releaseQueued.json);
+
+  const releaseSecondQueue = await api("/api/panel/release", {
+    method: "POST",
+    cookie: owner.session,
+    body: { seedCatalogue: false, restartGame: false, note: "вторая" },
+  });
+  check("вторая выкатка не встаёт поверх первой", releaseSecondQueue.status === 400, releaseSecondQueue.json);
+
+  const releaseClaimed = await api("/api/deploy/next", { method: "POST", deployToken: DEPLOY_TOKEN });
+  check(
+    "агент забирает задачу с веткой и флагом каталога",
+    releaseClaimed.json?.release?.id === releaseQueued.json.release.id &&
+      releaseClaimed.json?.release?.seedCatalogue === true &&
+      typeof releaseClaimed.json?.release?.branch === "string",
+    releaseClaimed.json,
+  );
+
+  const releaseClaimedTwice = await api("/api/deploy/next", { method: "POST", deployToken: DEPLOY_TOKEN });
+  check("одна задача не достаётся двум агентам", releaseClaimedTwice.json?.release === null, releaseClaimedTwice.json);
+
+  const releaseReported = await api("/api/deploy/report", {
+    method: "POST",
+    deployToken: DEPLOY_TOKEN,
+    body: { id: releaseQueued.json.release.id, ok: true, log: "==> Готово" },
+  });
+  check("отчёт закрывает выкатку", releaseReported.json?.status === "DONE", releaseReported.json);
+
+  const releaseHistory = await api("/api/panel/release", { cookie: owner.session });
+  check("выкатка видна в истории с выводом", releaseHistory.json?.releases?.[0]?.log === "==> Готово", {
+    releases: releaseHistory.json?.releases?.map((item) => item.status),
+  });
+  check("кнопка снова доступна", releaseHistory.json?.allowed === true, releaseHistory.json?.allowed);
 
   console.log("— Кейс «Фаст фуд» —");
   const shelfPage = await fetch(BASE + "/cases");

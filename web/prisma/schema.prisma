@@ -51,6 +51,7 @@ model User {
   totpEnabledAt DateTime?
 
   homes                PlayerHome[]
+  releases             Release[]            @relation("ReleaseAuthor")
   inventory            InventorySnapshot?
   telegram             TelegramAccount?
   telegramCodes        TelegramLinkCode[]
@@ -697,6 +698,37 @@ model PlayerHome {
 
   @@unique([userId, name])
   @@index([userId])
+}
+
+/// Состояние выкатки на боевой сайт. Кнопку жмут в панели, а работу делает
+/// агент на самом VPS: у контейнера сайта нет доступа ни к docker, ни к git,
+/// и давать его ради кнопки — значит открыть выполнение команд на хосте из веба.
+enum ReleaseStatus {
+  PENDING
+  RUNNING
+  DONE
+  FAILED
+}
+
+model Release {
+  id            String        @id @default(cuid())
+  status        ReleaseStatus @default(PENDING)
+  /// Ветка, которую выкатывают.
+  branch        String
+  /// Прогнать ли каталог: косметика, кейсы, товары магазина.
+  seedCatalogue Boolean       @default(false)
+  /// Перезапустить ли игровой сервер, когда сайт поднимется.
+  restartGame   Boolean       @default(false)
+  note          String        @default("")
+  requestedById String
+  requestedBy   User          @relation("ReleaseAuthor", fields: [requestedById], references: [id], onDelete: Cascade)
+  createdAt     DateTime      @default(now())
+  startedAt     DateTime?
+  finishedAt    DateTime?
+  /// Хвост вывода скриптов: по нему видно, на чём всё встало.
+  log           String        @default("")
+
+  @@index([status, createdAt])
 }
 
 // ──────────────────────────── Промо и бонусы ─────────────────────────────

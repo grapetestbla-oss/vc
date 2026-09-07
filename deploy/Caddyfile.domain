@@ -10,10 +10,33 @@
 		reverse_proxy 127.0.0.1:3000
 	}
 
+	# API агента выкатки: он живёт на этой же машине и ходит на 127.0.0.1
+	# напрямую. Снаружи сюда стучаться незачем — токен есть, но лишний
+	# открытый маршрут к выкатке боевого сайта не нужен.
+	@deploy path /api/deploy/*
+	respond @deploy 403
+
 	reverse_proxy 127.0.0.1:3000
 
 	log {
 		output file /data/access.log
+		format json
+	}
+}
+
+# Технический сайт: та же сборка, своя база, вход только по списку STAGING_LOGINS.
+# Заслонку держит сам сайт, Caddy только доводит запрос до нужного контейнера.
+tech.{$SITE_DOMAIN} {
+	encode gzip
+
+	# Ни плагин, ни агент выкатки со стендом не разговаривают.
+	@closed path /api/mc/* /api/deploy/*
+	respond @closed 403
+
+	reverse_proxy 127.0.0.1:3001
+
+	log {
+		output file /data/tech-access.log
 		format json
 	}
 }

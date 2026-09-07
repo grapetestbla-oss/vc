@@ -56,6 +56,11 @@ services:
       GAME_PANEL_KEY: ${GAME_PANEL_KEY:-}
       GAME_PANEL_SERVER_ID: ${GAME_PANEL_SERVER_ID:-}
       BOOTSTRAP_ADMIN_LOGIN: ${BOOTSTRAP_ADMIN_LOGIN:-}
+      # Выкатка из панели. Кому доступна кнопка и какую ветку выкатываем;
+      # токеном представляется агент на VPS, который делает саму работу.
+      RELEASE_LOGINS: ${RELEASE_LOGINS:-rym6a}
+      RELEASE_BRANCH: ${RELEASE_BRANCH:-claude/minecraft-server-demorgan-16y10o}
+      DEPLOY_AGENT_TOKEN: ${DEPLOY_AGENT_TOKEN:-}
       # Telegram-бот. Без токена и секрета вебхука бот просто не работает —
       # ключи держим здесь, в репозитории их быть не должно.
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
