@@ -3135,17 +3135,19 @@ const run = async () => {
   check("кнопка снова доступна", releaseHistory.json?.allowed === true, releaseHistory.json?.allowed);
 
   console.log("— Кейс «Фаст фуд» —");
+  // Кейс временный. Пока срок не вышел — он в продаже, после — исчезает с
+  // обеих витрин и не открывается. Проверяем ту сторону, которая сейчас
+  // настоящая: привязка проверок к дате означала бы, что однажды утром прогон
+  // покраснеет сам по себе, без единой правки в коде.
   const shelfPage = await fetch(BASE + "/cases");
   const shelfHtml = await shelfPage.text();
-  check("временный кейс на витрине", shelfHtml.includes("Фаст фуд"));
-  check("на карточке видна дата окончания", shelfHtml.includes("до 9 сентября"), null);
-
   const ffShop = await api("/api/mc/cases?login=Steve", { serverToken: TOKEN });
-  check(
-    "временный кейс продаётся и в игре",
-    ffShop.json?.cases?.some((item) => item.key === "fastfood"),
-    ffShop.json?.cases?.map((item) => item.key),
-  );
+  const ffInGame = Boolean(ffShop.json?.cases?.some((item) => item.key === "fastfood"));
+  const ffOnSite = shelfHtml.includes("Фаст фуд");
+  check("витрины сайта и игры сходятся по временному кейсу", ffOnSite === ffInGame, {
+    сайт: ffOnSite,
+    игра: ffInGame,
+  });
 
   const foodie = await register("Obedennyy");
   const foodieMe = await api("/api/me", { cookie: foodie.session });
@@ -3160,33 +3162,46 @@ const run = async () => {
     cookie: foodie.session,
     body: { caseKey: "fastfood" },
   });
-  check("кейс открывается", ffOpen.status === 200, ffOpen.json);
-  check("цена кейса — 500 VC", ffOpen.json?.balanceVc === 40000 - 500, ffOpen.json);
 
-  // Косметика кейса не должна давать защиты: шляпа занимает слот шлема, и
-  // броня среди материалов означала бы преимущество за деньги.
+  if (ffOnSite) {
+    check("на карточке видна дата окончания", shelfHtml.includes("до 9 сентября"), null);
+    check("кейс открывается", ffOpen.status === 200, ffOpen.json);
+    check("цена кейса — 500 VC", ffOpen.json?.balanceVc === 40000 - 500, ffOpen.json);
+
+    // Открываем пачкой, пока не наберём хоть один предмет: проверяем, что
+    // косметика кейса действительно выдаётся и попадает в профиль игрока.
+    let ffCosmetics = [];
+    for (let attempt = 0; attempt < 12 && ffCosmetics.length === 0; attempt += 1) {
+      const roll = await api("/api/cases/open", {
+        method: "POST",
+        cookie: foodie.session,
+        body: { caseKey: "fastfood", count: 5 },
+      });
+      const rewards = roll.json?.results ?? (roll.json?.reward ? [roll.json.reward] : []);
+      ffCosmetics = rewards.filter((item) => item?.cosmetic?.key?.startsWith("ff_"));
+    }
+    check("из кейса выпадает косметика «Фаст фуда»", ffCosmetics.length > 0, ffCosmetics);
+  } else {
+    check("кончившийся кейс ушёл с витрины сайта", !ffOnSite);
+    check("кончившийся кейс ушёл с витрины в игре", !ffInGame);
+    check("кончившийся кейс не открывается", ffOpen.status === 400, ffOpen.json);
+    check(
+      "за отказ VC не списаны",
+      (await api("/api/me", { cookie: foodie.session })).json.balanceVc === 40000,
+      null,
+    );
+  }
+
+  // Косметика кейса остаётся в каталоге и после его окончания: коллекция никуда
+  // не девается у тех, кто успел собрать.
   // Страница коллекции только для своих: без куки она уводит на вход.
   const collectionPage = await fetch(BASE + "/collection", {
     headers: { Cookie: foodie.session },
   });
   const collectionHtml = await collectionPage.text();
-  check("коллекция «Комбо-обед» появилась", collectionHtml.includes("Комбо-обед"), {
+  check("коллекция «Комбо-обед» на месте", collectionHtml.includes("Комбо-обед"), {
     status: collectionPage.status,
   });
-
-  // Открываем пачкой, пока не наберём хоть одну шляпу: проверяем, что предметы
-  // кейса действительно выдаются и попадают в профиль игрока.
-  let ffCosmetics = [];
-  for (let attempt = 0; attempt < 12 && ffCosmetics.length === 0; attempt += 1) {
-    const roll = await api("/api/cases/open", {
-      method: "POST",
-      cookie: foodie.session,
-      body: { caseKey: "fastfood", count: 5 },
-    });
-    const rewards = roll.json?.results ?? (roll.json?.reward ? [roll.json.reward] : []);
-    ffCosmetics = rewards.filter((item) => item?.cosmetic?.key?.startsWith("ff_"));
-  }
-  check("из кейса выпадает косметика «Фаст фуда»", ffCosmetics.length > 0, ffCosmetics);
 
   console.log("— Повторный прогон каталога —");
   // Каталог накатывают после каждой правки цен и косметики. Он не должен
@@ -3195,7 +3210,7 @@ const run = async () => {
   const beforeSeed = await api("/api/cases/open", {
     method: "POST",
     cookie: foodie.session,
-    body: { caseKey: "fastfood" },
+    body: { caseKey: "wild" },
   });
   check("кейс открыт до прогона каталога", beforeSeed.status === 200, beforeSeed.json);
   const balanceBeforeSeed = beforeSeed.json.balanceVc;
