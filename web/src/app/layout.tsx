@@ -12,14 +12,26 @@ import SiteHeader from "@/components/SiteHeader";
 import BackdropLines from "@/components/BackdropLines";
 import LangProvider from "@/components/LangProvider";
 import { translate } from "@/lib/i18n";
+import Image from "next/image";
 import { getLang } from "@/lib/i18n.server";
 
 const inter = Inter({ subsets: ["latin", "cyrillic"], display: "swap" });
 
 export const metadata: Metadata = {
+  // Абсолютный адрес нужен ссылкам: без него картинка в превью Telegram и
+  // соцсетей уходит относительным путём и не открывается.
+  metadataBase: new URL(CONFIG.siteUrl),
   title: "VanillaCraft — ванилла без приватов",
   description:
     "Чистое выживание без китов за донат и приватов. Деморган вместо бана, честные кейсы и мини-игры.",
+  openGraph: {
+    type: "website",
+    siteName: "VanillaCraft",
+    title: "VanillaCraft — ванилла без приватов",
+    description:
+      "Чистое выживание без китов за донат и приватов. Деморган вместо бана, честные кейсы и мини-игры.",
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 /** Пути, которые работают и во время техработ: без них чиф не сможет войти и всё выключить. */
@@ -72,7 +84,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
         <footer className="mt-20 border-t" style={{ borderColor: "var(--border)" }}>
           <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-4 py-8 text-sm">
-            <span className="muted">VanillaCraft · vanillacraft.click</span>
+            <span className="flex items-center gap-2.5">
+              <Image
+                src="/logo.png"
+                alt=""
+                width={28}
+                height={28}
+                className="h-7 w-7 rounded-md"
+                style={{ border: "1px solid var(--border)" }}
+              />
+              <span className="muted">VanillaCraft · vanillacraft.click</span>
+            </span>
             <div className="ml-auto flex flex-wrap items-center gap-4">
               <a
                 href={CONFIG.telegramChannel}

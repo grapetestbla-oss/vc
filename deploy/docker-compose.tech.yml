@@ -23,6 +23,7 @@ services:
       MC_SERVER_TOKEN: ${TECH_MC_SERVER_TOKEN:-${MC_SERVER_TOKEN}}
       # Признак стенда: закрывает сайт для всех, кроме списка ниже, и просит
       # поисковики его не индексировать.
+      SITE_URL: ${TECH_SITE_URL:-https://tech.vanillacraft.click}
       STAGING: "1"
       STAGING_LOGINS: ${STAGING_LOGINS:-rym6a}
       # Кассы на стенде выключены: там нечего оплачивать настоящими деньгами.

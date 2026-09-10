@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -52,8 +53,22 @@ export default function SiteHeader({
       }}
     >
       <nav className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-4 lg:gap-5">
-        <Link href="/" className="shrink-0 text-lg font-bold tracking-tight">
-          Vanilla<span style={{ color: "var(--gold)" }}>Craft</span>
+        <Link href="/" className="flex shrink-0 items-center gap-2.5">
+          {/* Знак в шапке — картинка с собственным фоном, поэтому скругляем его
+              и подсвечиваем рамкой: иначе на прозрачной шапке он выглядел бы
+              наклеенным квадратом. */}
+          <Image
+            src="/logo.png"
+            alt=""
+            width={32}
+            height={32}
+            priority
+            className="h-8 w-8 rounded-lg"
+            style={{ border: "1px solid var(--border)" }}
+          />
+          <span className="text-lg font-bold tracking-tight">
+            Vanilla<span style={{ color: "var(--gold)" }}>Craft</span>
+          </span>
         </Link>
 
         <div className="hidden items-center gap-1 md:flex">

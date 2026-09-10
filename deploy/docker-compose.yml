@@ -33,6 +33,8 @@ services:
     environment:
       DATABASE_URL: postgresql://vanilla:${POSTGRES_PASSWORD}@postgres:5432/vanilla
       MC_SERVER_TOKEN: ${MC_SERVER_TOKEN:?set MC_SERVER_TOKEN}
+      # Адрес сайта: по нему собираются ссылки на картинку превью.
+      SITE_URL: ${SITE_URL:-https://vanillacraft.click}
       GAME_RTP: ${GAME_RTP:-0.95}
       VC_PER_RUB: ${VC_PER_RUB:-2}
       PARTNER_SHARE_PERCENT: ${PARTNER_SHARE_PERCENT:-10}

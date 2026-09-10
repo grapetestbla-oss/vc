@@ -10,6 +10,8 @@ function text(name: string, fallback: string): string {
 }
 
 export const CONFIG = {
+  /** Адрес сайта. Нужен ссылкам-превью: относительный путь к картинке в них не работает. */
+  siteUrl: text("SITE_URL", "https://vanillacraft.click"),
   /** Канал сообщества: ссылка в шапке и подвале сайта. */
   telegramChannel: text("TELEGRAM_CHANNEL_URL", "https://t.me/vanillacraftx"),
   /** Возврат игроку в мини-играх. 0.95 = 5% преимущества заведения. */

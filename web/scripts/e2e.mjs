@@ -3010,6 +3010,34 @@ const run = async () => {
   });
   check("удаление несуществующей точки отклоняется", dropMissing.json?.status === "denied", dropMissing.json);
 
+  console.log("— Логотип —");
+  const logoFile = await fetch(BASE + "/logo.png");
+  check(
+    "логотип отдаётся сайтом",
+    logoFile.status === 200 && (logoFile.headers.get("content-type") ?? "").includes("image/png"),
+    { status: logoFile.status, type: logoFile.headers.get("content-type") },
+  );
+
+  const iconFile = await fetch(BASE + "/icon.png");
+  check("иконка вкладки на месте", iconFile.status === 200, { status: iconFile.status });
+
+  const ogFile = await fetch(BASE + "/opengraph-image.png");
+  check("картинка для ссылок на месте", ogFile.status === 200, { status: ogFile.status });
+
+  const homeWithLogo = await fetch(BASE + "/");
+  const homeHtml = await homeWithLogo.text();
+  check("знак стоит в шапке", homeHtml.includes("logo.png"), null);
+  check(
+    "у ссылки есть картинка превью",
+    homeHtml.includes("og:image") && homeHtml.includes("opengraph-image"),
+    null,
+  );
+
+  const iconForServer = await fetch(BASE + "/server-icon.png");
+  check("иконка сервера отдаётся сайтом", iconForServer.status === 200, {
+    status: iconForServer.status,
+  });
+
   console.log("— Выкатка из панели —");
   const releaseByPlayer = await api("/api/panel/release", { cookie: alex.session });
   check("игрок не видит выкатку", releaseByPlayer.status === 403, releaseByPlayer.json);
