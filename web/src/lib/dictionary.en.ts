@@ -122,6 +122,15 @@ export const EN: Record<string, string> = {
   "Покупаем…": "Buying…",
   "Купить за {n} VC": "Buy for {n} VC",
   "Точки дома": "Home points",
+  "Готовый ролик": "Ready-made clip",
+  "Видео с вашим промокодом": "A video with your promo code",
+  "Та же заставка, что и в наших роликах, только код в ней ваш. Ставьте в начало или в конец видео, в сторис и в шапку канала.":
+    "The same intro we use in our own clips, with your code in it. Put it at the start or end of a video, in stories, or on your channel banner.",
+  "Скачать видеобаннер": "Download the video banner",
+  "Собираем ролик…": "Rendering the clip…",
+  "Не удалось собрать ролик": "Could not render the clip",
+  "8 секунд, 1920×586, без звука — под шапку канала и вставку в видео.":
+    "8 seconds, 1920x586, no audio - for channel banners and video inserts.",
   "Награда за прокачку: {vc} VC на {level} уровне": "Level reward: {vc} VC at level {level}",
   "Каждые {n} уровней открывают ещё одну точку дома. Открытую точку нужно докупить, и каждая следующая дороже предыдущей на 500 VC.":
     "Every {n} levels unlock one more home point. An unlocked point still has to be bought, and each next one costs 500 VC more than the last.",

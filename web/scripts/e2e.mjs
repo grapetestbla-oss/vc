@@ -3010,6 +3010,54 @@ const run = async () => {
   });
   check("удаление несуществующей точки отклоняется", dropMissing.json?.status === "denied", dropMissing.json);
 
+  console.log("— Видеобаннер партнёра —");
+  const videoAnon = await fetch(BASE + "/api/partners/banner-video");
+  check("гостю ролик не собирают", videoAnon.status === 401, { status: videoAnon.status });
+
+  const videoNoPromo = await fetch(BASE + "/api/partners/banner-video", {
+    headers: { Cookie: alex.session },
+  });
+  check("без промокода ролик не собирают", videoNoPromo.status === 403, {
+    status: videoNoPromo.status,
+  });
+
+  // Партнёр BLOGGER2 заведён выше, при разборе заявок.
+  const videoStart = Date.now();
+  const video = await fetch(BASE + "/api/partners/banner-video", {
+    headers: { Cookie: blogger.session },
+  });
+  const videoBody = video.ok ? await video.arrayBuffer() : null;
+  check("партнёру собирают ролик", video.status === 200, {
+    status: video.status,
+    сек: ((Date.now() - videoStart) / 1000).toFixed(1),
+  });
+  check(
+    "ролик приходит как mp4 с именем по коду",
+    video.headers.get("content-type") === "video/mp4" &&
+      (video.headers.get("content-disposition") ?? "").includes("blogger2"),
+    {
+      type: video.headers.get("content-type"),
+      name: video.headers.get("content-disposition"),
+    },
+  );
+  check("в ролике есть содержимое", (videoBody?.byteLength ?? 0) > 200_000, {
+    байт: videoBody?.byteLength,
+  });
+  // Первые четыре байта mp4 — размер бокса, дальше метка ftyp.
+  const videoHead = videoBody ? new TextDecoder().decode(new Uint8Array(videoBody).slice(4, 8)) : "";
+  check("файл действительно mp4", videoHead === "ftyp", { метка: videoHead });
+
+  // Повтор идёт из кэша: собирать одно и то же на каждое нажатие незачем.
+  const repeatStart = Date.now();
+  const videoAgain = await fetch(BASE + "/api/partners/banner-video", {
+    headers: { Cookie: blogger.session },
+  });
+  const repeatMs = Date.now() - repeatStart;
+  check("повтор отдаётся из кэша", videoAgain.status === 200 && repeatMs < 1500, {
+    мс: repeatMs,
+  });
+  await videoAgain.arrayBuffer();
+
   console.log("— Логотип —");
   const logoFile = await fetch(BASE + "/logo.png");
   check(

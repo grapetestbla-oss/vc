@@ -12,6 +12,8 @@ RUN npx prisma generate && npm run build
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+# ffmpeg собирает видеобаннеры партнёров: в ролике подменяется одна надпись.
+RUN apk add --no-cache ffmpeg
 RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
 COPY --from=builder /app/publi[c] ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./

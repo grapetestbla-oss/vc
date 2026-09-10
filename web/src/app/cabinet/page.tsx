@@ -16,6 +16,7 @@ import { translator } from "@/lib/i18n.server";
 import CountUp from "@/components/CountUp";
 import LogoutButton from "@/components/LogoutButton";
 import PartnerBanner from "@/components/PartnerBanner";
+import PartnerVideoBanner from "@/components/PartnerVideoBanner";
 import CopyField from "@/components/CopyField";
 import { headers } from "next/headers";
 
@@ -279,6 +280,19 @@ export default async function CabinetPage() {
               rewardVc={promo.rewardVc}
               requiredLevel={promo.requiredLevel}
             />
+          </section>
+        </Reveal>
+      )}
+
+      {promo && (
+        <Reveal delay={115}>
+          <section className="panel p-5 sm:p-6">
+            <p className="eyebrow">{t("Готовый ролик")}</p>
+            <h2 className="mt-1 text-lg font-semibold">{t("Видео с вашим промокодом")}</h2>
+            <p className="muted mt-2 mb-4 text-sm">
+              {t("Та же заставка, что и в наших роликах, только код в ней ваш. Ставьте в начало или в конец видео, в сторис и в шапку канала.")}
+            </p>
+            <PartnerVideoBanner code={promo.code} />
           </section>
         </Reveal>
       )}
