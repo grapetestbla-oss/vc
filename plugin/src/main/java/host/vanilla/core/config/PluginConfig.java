@@ -64,6 +64,11 @@ public final class PluginConfig {
     public final int newsPollSeconds;
     public final int maintenancePollSeconds;
     public final int purgePollSeconds;
+    public final boolean xrayEnabled;
+    public final String xrayWorld;
+    public final int xrayChunkPercent;
+    public final int xrayMinY;
+    public final int xrayMaxY;
     public final boolean restartEnabled;
     public final String restartAt;
     public final String restartZone;
@@ -151,6 +156,11 @@ public final class PluginConfig {
         newsPollSeconds = Math.max(30, c.getInt("news.poll-seconds", 60));
         maintenancePollSeconds = Math.max(5, c.getInt("maintenance.poll-seconds", 10));
         purgePollSeconds = Math.max(5, c.getInt("purge.poll-seconds", 15));
+        xrayEnabled = c.getBoolean("xray.enabled", true);
+        xrayWorld = c.getString("xray.world", "world");
+        xrayChunkPercent = Math.max(0, Math.min(100, c.getInt("xray.chunk-percent", 8)));
+        xrayMinY = c.getInt("xray.min-y", -56);
+        xrayMaxY = Math.max(xrayMinY + 1, c.getInt("xray.max-y", 12));
         restartEnabled = c.getBoolean("restart.enabled", true);
         restartAt = c.getString("restart.at", "00:00");
         restartZone = c.getString("restart.zone", "Europe/Moscow");

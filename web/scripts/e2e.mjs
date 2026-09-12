@@ -3190,6 +3190,45 @@ const run = async () => {
   });
   check("кнопка снова доступна", releaseHistory.json?.allowed === true, releaseHistory.json?.allowed);
 
+  console.log("— Ловушечная руда против X-Ray —");
+  const xrayNoToken = await api("/api/mc/xray", { method: "POST", body: { login: "Steve" } });
+  check("ловушка закрыта без токена сервера", xrayNoToken.status === 401);
+
+  const digger = await register("Kopatel");
+  const xrayHit = await api("/api/mc/xray", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: {
+      login: "Kopatel", ore: "DIAMOND_ORE", world: "world",
+      x: 120, y: -40, z: -33, hits: 1, brokenNearby: 4,
+    },
+  });
+  check("первое попадание — сработка низкой важности", xrayHit.json?.severity === 1, xrayHit.json);
+
+  const xrayThird = await api("/api/mc/xray", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: {
+      login: "Kopatel", ore: "ANCIENT_DEBRIS", world: "world",
+      x: 140, y: -50, z: -10, hits: 3, brokenNearby: 2,
+    },
+  });
+  check("третье попадание — высокая важность", xrayThird.json?.severity === 3, xrayThird.json);
+
+  const xrayUnknown = await api("/api/mc/xray", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "НетТакого", ore: "DIAMOND_ORE", world: "world", x: 1, y: 2, z: 3 },
+  });
+  check("ловушка у незнакомого ника молчит", xrayUnknown.json?.status === "not_found", xrayUnknown.json);
+
+  const flagsPage = await fetch(BASE + "/panel/flags", { headers: { Cookie: steve.session } });
+  const flagsHtml = await flagsPage.text();
+  check("сработка видна в панели", flagsHtml.includes("Kopatel") && flagsHtml.includes("X-Ray"), {
+    status: flagsPage.status,
+  });
+  void digger;
+
   console.log("— Кейс «Фаст фуд» —");
   // Кейс временный. Пока срок не вышел — он в продаже, после — исчезает с
   // обеих витрин и не открывается. Проверяем ту сторону, которая сейчас

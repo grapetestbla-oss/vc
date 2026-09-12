@@ -9,6 +9,7 @@ import host.vanilla.core.admin.InventoryReporter;
 import host.vanilla.core.admin.StaffCommands;
 import host.vanilla.core.admin.StaffListener;
 import host.vanilla.core.admin.VanishManager;
+import host.vanilla.core.admin.XrayTraps;
 import host.vanilla.core.api.ApiClient;
 import host.vanilla.core.auth.AuthCommands;
 import host.vanilla.core.auth.AuthListener;
@@ -79,6 +80,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
     private MaintenanceWatcher maintenance;
     private PurgeNight purge;
     private DailyRestart restart;
+    private XrayTraps xray;
     private TabList tabList;
     private Sidebar sidebar;
     private ActivityTracker activity;
@@ -123,6 +125,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
         maintenance = new MaintenanceWatcher(this, messages);
         purge = new PurgeNight(this, messages);
         restart = new DailyRestart(this, messages);
+        xray = new XrayTraps(this);
+        xray.load();
         tabList = new TabList(this);
         sidebar = new Sidebar(this);
         activity = new ActivityTracker(this);
@@ -177,6 +181,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         manager.registerEvents(vanish, this);
         manager.registerEvents(activity, this);
         manager.registerEvents(purge, this);
+        manager.registerEvents(xray, this);
         manager.registerEvents(new ReportMenuListener(this, reports), this);
         manager.registerEvents(new CosmeticListener(this, cosmetics), this);
         manager.registerEvents(new ShopListener(this, shopCommands, messages), this);
@@ -261,6 +266,9 @@ public final class VanillaCorePlugin extends JavaPlugin {
         // игроков поменялся, не дожидаясь перезахода.
         getServer().getScheduler().runTaskTimer(this, purge::poll, 120L,
                 config.purgePollSeconds * 20L);
+        // Ловушки X-Ray пишем на диск редко: файл маленький, а терять его при
+        // падении сервера нельзя — забытая руда потом подставит честного игрока.
+        getServer().getScheduler().runTaskTimer(this, xray::save, 1200L, 1200L);
         // Ночной перезапуск проверяем раз в секунду: предупреждения идут по
         // отметкам вплоть до последней секунды.
         if (config.restartEnabled) {
@@ -512,6 +520,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         jail.syncOnQuit(player);
         cosmetics.forget(player);
         shop.forget(player);
+        xray.forget(player);
         homes.forget(player);
         checks.onQuit(player);
         esp.disable(player);
@@ -533,6 +542,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
             jail.syncOnQuit(player);
         }
         if (cosmetics != null) cosmetics.shutdown();
+        if (xray != null) xray.save();
     }
 
     public PluginConfig config() { return config; }
@@ -558,6 +568,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
     public PurgeNight purge() { return purge; }
 
     public DailyRestart restart() { return restart; }
+
+    public XrayTraps xray() { return xray; }
     public SparkManager sparks() { return sparks; }
     public GiveawayNotifier giveaways() { return giveaways; }
     public JailJobs jailJobs() { return jailJobs; }

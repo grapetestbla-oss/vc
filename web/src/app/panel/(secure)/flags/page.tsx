@@ -4,6 +4,16 @@ import { requirePanel } from "@/lib/panel";
 
 export const dynamic = "force-dynamic";
 
+/** Виды сработок по-русски: в списке их читают глазами, а не грепают. */
+const KIND_LABEL: Record<string, string> = {
+  MULTI_ACCOUNT_IP: "Несколько аккаунтов с одного адреса",
+  GAME_ANOMALY: "Аномалия в мини-играх",
+  VC_SPIKE: "Резкий скачок баланса",
+  LOGIN_BRUTE: "Перебор пароля",
+  NEW_GEO: "Вход из нового региона",
+  XRAY_TRAP: "Выкопана ловушечная руда (X-Ray)",
+};
+
 export default async function FlagsPage() {
   const admin = await requirePanel(3, "flags.view");
   if (!admin) return null;
@@ -22,7 +32,7 @@ export default async function FlagsPage() {
         {flags.map((flag) => (
           <li key={flag.id} className="border-t pt-3" style={{ borderColor: "var(--border)" }}>
             <span className={flag.severity >= 3 ? "text-red-400" : "text-yellow-400"}>
-              {flag.kind}
+              {KIND_LABEL[flag.kind] ?? flag.kind}
             </span>{" "}
             ·{" "}
             <Link href={`/panel/users/${flag.user.id}`} className="underline">
