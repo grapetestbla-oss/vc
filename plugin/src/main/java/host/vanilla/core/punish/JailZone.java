@@ -66,35 +66,88 @@ public final class JailZone {
         world.setSpawnLocation(0, config.jailFloorY + 1, 0);
     }
 
-    /** Идемпотентно: гоняется при каждом старте и чинит арену. */
+    /**
+     * Идемпотентно: гоняется при каждом старте и чинит арену.
+     *
+     * Раньше порода стояла кольцом в три блока высотой у самой стены — её
+     * просто не находили: заключённый бил барьеры и бедрок, получал «здесь
+     * ломать нельзя» и решал, что работа сломана. Теперь половину зала
+     * занимает сплошной забой от пола до потолка, промахнуться мимо него
+     * нельзя.
+     *
+     * Ломается только порода: стены и потолок сделаны из другого материала, а
+     * проверка ломки пропускает ровно jail.mine-material — значит декор можно
+     * ставить любой, прокопаться сквозь него не выйдет.
+     */
     private void build() {
         int half = config.jailSize / 2;
         int floor = config.jailFloorY;
         int ceiling = floor + config.jailHeight;
+        // Забой занимает дальнюю половину зала, двор — ближнюю.
+        int faceEdge = 1;
 
         for (int x = -half; x <= half; x++) {
             for (int z = -half; z <= half; z++) {
                 world.getBlockAt(x, floor, z).setType(Material.BEDROCK, false);
-                world.getBlockAt(x, ceiling, z).setType(Material.BARRIER, false);
 
                 boolean wall = Math.abs(x) == half || Math.abs(z) == half;
-                boolean face = Math.abs(x) == half - 1 || Math.abs(z) == half - 1;
-
-                for (int y = floor + 1; y < ceiling; y++) {
+                for (int y = floor + 1; y <= ceiling; y++) {
                     Block block = world.getBlockAt(x, y, z);
-                    if (wall) {
-                        block.setType(Material.BARRIER, false);
-                    } else if (face && y <= floor + 3) {
-                        // Стенка породы: игрок стоит на полу и бьёт её, а не внутри неё.
-                        block.setType(config.jailMineMaterial, false);
-                    } else if (block.getType() != Material.AIR) {
-                        block.setType(Material.AIR, false);
+
+                    if (wall || y == ceiling) {
+                        block.setType(wallMaterial(x, y, z, floor, ceiling), false);
+                        continue;
                     }
+                    if (z >= faceEdge) {
+                        // Сплошной забой: копай куда хочешь, порода не кончится.
+                        block.setType(config.jailMineMaterial, false);
+                        continue;
+                    }
+                    if (block.getType() != Material.AIR) block.setType(Material.AIR, false);
                 }
             }
         }
-        world.getBlockAt(0, ceiling - 1, 0).setType(Material.GLOWSTONE, false);
+
+        decorate(half, floor, ceiling, faceEdge);
         plugin.getLogger().info("Арена деморгана готова.");
+    }
+
+    /** Стены и потолок: тёмный камень с прожилками, чтобы это была шахта. */
+    private Material wallMaterial(int x, int y, int z, int floor, int ceiling) {
+        if (y == ceiling) return Material.POLISHED_DEEPSLATE;
+        if (y == floor + 1) return Material.DEEPSLATE_TILES;
+        // Простая раскладка без случайности: арена чинится при каждом старте, и
+        // случайный узор перекладывался бы заново каждый раз.
+        return ((x + z + y) & 3) == 0 ? Material.CRACKED_DEEPSLATE_BRICKS : Material.DEEPSLATE_BRICKS;
+    }
+
+    /** Свет, рельсы и пара мелочей: двор должен выглядеть обжитым. */
+    private void decorate(int half, int floor, int ceiling, int faceEdge) {
+        int inner = half - 1;
+
+        // Фонари под потолком по периметру двора.
+        for (int x = -inner + 2; x <= inner - 2; x += 4) {
+            lamp(x, ceiling - 1, -inner);
+        }
+        for (int z = -inner; z < faceEdge; z += 4) {
+            lamp(-inner, ceiling - 1, z);
+            lamp(inner, ceiling - 1, z);
+        }
+
+        // Рельсы от двора к забою: видно, куда идти работать.
+        for (int z = -inner + 1; z < faceEdge; z++) {
+            world.getBlockAt(0, floor + 1, z).setType(Material.RAIL, false);
+        }
+
+        // Немного инвентаря у стены — просто чтобы двор не был пустой коробкой.
+        world.getBlockAt(-inner + 1, floor + 1, -inner + 1).setType(Material.BARREL, false);
+        world.getBlockAt(-inner + 2, floor + 1, -inner + 1).setType(Material.BARREL, false);
+        world.getBlockAt(inner - 1, floor + 1, -inner + 1).setType(Material.ANVIL, false);
+        world.getBlockAt(inner - 2, floor + 1, -inner + 1).setType(Material.CAULDRON, false);
+    }
+
+    private void lamp(int x, int y, int z) {
+        world.getBlockAt(x, y, z).setType(Material.SHROOMLIGHT, false);
     }
 
     public Location spawn() {
@@ -105,7 +158,9 @@ public final class JailZone {
             plugin.getLogger().severe("Мир деморгана недоступен: сажаем в обычный мир.");
             return plugin.getServer().getWorlds().get(0).getSpawnLocation();
         }
-        return new Location(world, 0.5, config.jailFloorY + 1, 0.5);
+        // Ставим во дворе, спиной к забою: в самом забое стоять негде.
+        int yard = -(config.jailSize / 2) + 3;
+        return new Location(world, 0.5, config.jailFloorY + 1, yard + 0.5, 0f, 0f);
     }
 
     public boolean isInside(Location location) {
@@ -114,8 +169,8 @@ public final class JailZone {
         int half = config.jailSize / 2;
         return Math.abs(location.getBlockX()) < half
                 && Math.abs(location.getBlockZ()) < half
-                && location.getY() >= config.jailFloorY
-                && location.getY() <= config.jailFloorY + config.jailHeight;
+                && location.getBlockY() > config.jailFloorY
+                && location.getBlockY() < config.jailFloorY + config.jailHeight;
     }
 
     public boolean isMineBlock(Block block) {

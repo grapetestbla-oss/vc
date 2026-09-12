@@ -33,6 +33,7 @@ import host.vanilla.core.news.NewsBroadcaster;
 import host.vanilla.core.report.ReportManager;
 import host.vanilla.core.season.GiveawayNotifier;
 import host.vanilla.core.season.ActivityTracker;
+import host.vanilla.core.season.DailyRestart;
 import host.vanilla.core.season.PurgeNight;
 import host.vanilla.core.season.Sidebar;
 import host.vanilla.core.season.SparkManager;
@@ -77,6 +78,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
     private ActionRunner actions;
     private MaintenanceWatcher maintenance;
     private PurgeNight purge;
+    private DailyRestart restart;
     private TabList tabList;
     private Sidebar sidebar;
     private ActivityTracker activity;
@@ -93,6 +95,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        mergeNewConfigKeys();
         config = new PluginConfig(getConfig());
         config.validate().forEach(problem -> getLogger().warning(problem));
         Accounts.setPrefix(config.bedrockPrefix);
@@ -119,6 +122,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         actions = new ActionRunner(this, messages);
         maintenance = new MaintenanceWatcher(this, messages);
         purge = new PurgeNight(this, messages);
+        restart = new DailyRestart(this, messages);
         tabList = new TabList(this);
         sidebar = new Sidebar(this);
         activity = new ActivityTracker(this);
@@ -133,6 +137,35 @@ public final class VanillaCorePlugin extends JavaPlugin {
         registerListeners();
         registerCommands();
         scheduleTasks();
+    }
+
+    /**
+     * Досыпает в config.yml ключи, появившиеся в новых версиях плагина.
+     *
+     * Bukkit пишет файл только если его нет, и новые разделы в уже созданный не
+     * добавляет. За лето конфиг на сервере отстал на десяток разделов — чата,
+     * боковой панели, судной ночи, магазина там просто не было, и поменять их
+     * было нечем: работали значения из кода, а правка файла ничего не давала.
+     *
+     * Файл трогаем, только если чего-то действительно не хватает: у
+     * работающего сервера конфиг не должен переписываться на ровном месте.
+     */
+    private void mergeNewConfigKeys() {
+        var defaults = getConfig().getDefaults();
+        if (defaults == null) return;
+
+        var missing = defaults.getKeys(true).stream()
+                .filter(key -> !getConfig().isSet(key))
+                // Ветки без значения (просто заголовки разделов) сами по себе
+                // ничего не решают — считаем только настоящие настройки.
+                .filter(key -> !defaults.isConfigurationSection(key))
+                .toList();
+        if (missing.isEmpty()) return;
+
+        getConfig().options().copyDefaults(true);
+        saveConfig();
+        getLogger().info("В config.yml добавлены новые настройки: " + missing.size()
+                + " шт., например " + missing.get(0));
     }
 
     private void registerListeners() {
@@ -228,6 +261,11 @@ public final class VanillaCorePlugin extends JavaPlugin {
         // игроков поменялся, не дожидаясь перезахода.
         getServer().getScheduler().runTaskTimer(this, purge::poll, 120L,
                 config.purgePollSeconds * 20L);
+        // Ночной перезапуск проверяем раз в секунду: предупреждения идут по
+        // отметкам вплоть до последней секунды.
+        if (config.restartEnabled) {
+            getServer().getScheduler().runTaskTimer(this, restart::tick, 20L, 20L);
+        }
         // Поручения с сайта (очистка инвентаря) забираем в том же ритме, что и новости.
         getServer().getScheduler().runTaskTimer(this, actions::poll,
                 config.newsPollSeconds * 20L + 40L, config.newsPollSeconds * 20L);
@@ -274,7 +312,10 @@ public final class VanillaCorePlugin extends JavaPlugin {
             entries.add(Map.of(
                     "login", Accounts.name(player),
                     "seconds", 60,
-                    "active", activity.active(player)));
+                    "active", activity.active(player),
+                    // Часы невидимке считаем как всем, а в онлайн на сайте не
+                    // показываем: он пришёл смотреть, а не числиться.
+                    "hidden", vanish.vanished(player)));
         }
         if (entries.isEmpty()) return;
 
@@ -343,6 +384,9 @@ public final class VanillaCorePlugin extends JavaPlugin {
             // Режим ставим после applyRole: он же решает, кому положен
             // наблюдатель, и судная ночь не должна вытаскивать оттуда админов.
             purge.apply(player);
+            // Объявление о входе и автоневидимость админов — здесь: до
+            // авторизации уровень админки неизвестен.
+            vanish.onAuthenticated(player);
             tabList.welcome(player);
             // Плашку о розыгрыше показываем с задержкой: сразу после входа
             // игрок читает приветствие и подсказки по авторизации.
@@ -512,6 +556,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
     public MaintenanceWatcher maintenance() { return maintenance; }
 
     public PurgeNight purge() { return purge; }
+
+    public DailyRestart restart() { return restart; }
     public SparkManager sparks() { return sparks; }
     public GiveawayNotifier giveaways() { return giveaways; }
     public JailJobs jailJobs() { return jailJobs; }

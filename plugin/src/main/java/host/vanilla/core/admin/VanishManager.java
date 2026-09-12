@@ -38,6 +38,8 @@ public final class VanishManager implements Listener {
     private final Set<UUID> hidden = ConcurrentHashMap.newKeySet();
     /** Кому уже напомнили, что в чате его видно. Сбрасывается при выключении. */
     private final Set<UUID> warned = ConcurrentHashMap.newKeySet();
+    /** О чьём входе сервер уже объявил — по ним же объявляем и выход. */
+    private final Set<UUID> announced = ConcurrentHashMap.newKeySet();
 
     public VanishManager(VanillaCorePlugin plugin, Messages messages) {
         this.plugin = plugin;
@@ -99,23 +101,60 @@ public final class VanishManager implements Listener {
         warned.remove(player.getUniqueId());
     }
 
-    /** Заходящий не должен увидеть тех, кто уже скрыт. */
+    /** Сколько игроков видно со стороны: невидимок наружу не показываем. */
+    public int publicOnline() {
+        int count = 0;
+        for (Player player : plugin.getServer().getOnlinePlayers()) {
+            if (!vanished(player)) count++;
+        }
+        return count;
+    }
+
+    /**
+     * Вход. Сообщение гасим всем без разбора и объявляем сами — уже после
+     * ввода пароля.
+     *
+     * Иначе объявить вовремя нечем: уровень админки приходит с сайта только
+     * после авторизации, а сообщение сервер отправляет в момент подключения —
+     * то есть раньше, чем становится известно, кого надо прятать. Заодно
+     * пропадают объявления о тех, кто так и не вошёл: набрал неверный пароль и
+     * улетел с сервера.
+     */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onJoin(PlayerJoinEvent event) {
         Player joined = event.getPlayer();
-        if (vanished(joined)) {
-            event.joinMessage(null);
-            hide(joined);
-        }
+        event.joinMessage(null);
+        announced.remove(joined.getUniqueId());
+        if (vanished(joined)) hide(joined);
+
         if (sees(joined)) return;
         for (Player player : plugin.getServer().getOnlinePlayers()) {
             if (vanished(player) && !player.equals(joined)) joined.hidePlayer(plugin, player);
         }
     }
 
+    /**
+     * Игрок ввёл пароль: администрацию со 2 уровня сразу уводим в невидимость,
+     * остальных объявляем. Админ приходит смотреть, а не участвовать, и
+     * объявление о его входе меняет поведение тех, за кем он пришёл смотреть.
+     */
+    public void onAuthenticated(Player player) {
+        if (plugin.auth().adminLevel(player) >= LEVEL) {
+            if (!vanished(player)) hide(player);
+            player.sendMessage(messages.get("staff.hide-auto"));
+            return;
+        }
+        if (!announced.add(player.getUniqueId())) return;
+        plugin.getServer().broadcast(messages.plain("join.announce",
+                Map.of("player", host.vanilla.core.util.Accounts.name(player))));
+    }
+
     @EventHandler(priority = EventPriority.MONITOR)
     public void onQuit(PlayerQuitEvent event) {
-        if (vanished(event.getPlayer())) event.quitMessage(null);
+        Player player = event.getPlayer();
+        // О выходе говорим только про тех, о чьём входе говорили: иначе о
+        // невидимке и о невошедшем сервер сообщит на ровном месте.
+        if (!announced.remove(player.getUniqueId())) event.quitMessage(null);
     }
 
     /** Достижения выдают присутствие не хуже чата. */
@@ -144,6 +183,24 @@ public final class VanishManager implements Listener {
     @EventHandler(ignoreCancelled = true)
     public void onTarget(EntityTargetEvent event) {
         if (event.getTarget() instanceof Player player && vanished(player)) event.setCancelled(true);
+    }
+
+    /**
+     * Внешний счётчик игроков: в списке серверов и в мониторингах невидимка
+     * тоже не должен считаться. Иначе «онлайн 3» при двух игроках и одном
+     * скрытом админе выдавал бы его первым же взглядом на список.
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPing(com.destroystokyo.paper.event.server.PaperServerListPingEvent event) {
+        int hiddenNow = plugin.getServer().getOnlinePlayers().size() - publicOnline();
+        if (hiddenNow <= 0) return;
+        event.setNumPlayers(Math.max(0, event.getNumPlayers() - hiddenNow));
+        // В списке имён при наведении на сервер невидимок тоже быть не должно:
+        // Paper отдаёт его перебором, из которого игрока можно убрать.
+        var iterator = event.iterator();
+        while (iterator.hasNext()) {
+            if (vanished(iterator.next())) iterator.remove();
+        }
     }
 
     @EventHandler(ignoreCancelled = true)

@@ -22,7 +22,9 @@ public final class TabList {
     public void refresh() {
         double tps = Math.min(20.0, plugin.getServer().getTPS()[0]);
         double mspt = plugin.getServer().getAverageTickTime();
-        int online = plugin.getServer().getOnlinePlayers().size();
+        // Невидимая администрация в онлайн не входит: она пришла смотреть, и
+        // её присутствие не должно быть видно по счётчику.
+        int online = plugin.vanish().publicOnline();
 
         String tpsColor = tps >= 18.5 ? "<green>" : tps >= 15 ? "<yellow>" : "<red>";
         String season = plugin.config().seasonName;

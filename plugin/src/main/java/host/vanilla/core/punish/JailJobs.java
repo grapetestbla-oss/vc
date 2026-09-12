@@ -110,7 +110,8 @@ public final class JailJobs implements Listener {
         var world = plugin.jail().zone().world();
         if (world == null) return;
 
-        Location spot = plugin.jail().zone().spawn().clone().add(2.5, 0, 2.5);
+        // Прораб стоит во дворе рядом со спавном: в забое для него места нет.
+        Location spot = plugin.jail().zone().spawn().clone().add(2.5, 0, 0.5);
         world.getChunkAt(spot).load();
 
         Villager keep = null;
@@ -218,10 +219,12 @@ public final class JailJobs implements Listener {
         int half = Math.max(3, plugin.config().jailSize / 2 - 2);
 
         for (int i = 0; i < count; i++) {
+            // Разбрасываем только по двору: в забое сплошная порода, и мусор
+            // внутри неё было бы не собрать.
             Location spot = center.clone().add(
                     random.nextInt(-half, half + 1) + 0.5,
                     0.4,
-                    random.nextInt(-half, half + 1) + 0.5);
+                    random.nextInt(0, 5) + 0.5);
 
             ItemStack trash = new ItemStack(Material.PAPER);
             ItemMeta meta = trash.getItemMeta();
