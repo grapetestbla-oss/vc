@@ -799,6 +799,9 @@ model CaseType {
   priceVc     Int
   active      Boolean @default(true)
   imageUrl    String?
+  /// Цвет свечения карточки на витрине. Берётся из арта кейса, чтобы рамка и
+  /// подсветка совпадали с картинкой, а не спорили с ней.
+  accent      String?
 
   seasonKey      String?
   /// После этой даты кейс исчезает навсегда — вместе с шансом выбить его предметы.

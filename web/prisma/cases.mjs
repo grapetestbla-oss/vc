@@ -11,9 +11,11 @@
 export const CASES = [
   {
     key: "daily",
+    imageUrl: "/cases/daily.png",
+    accent: "#f5c451",
     name: "Ежедневный ящик",
     description:
-      "Одно бесплатное открытие в сутки. Заходите каждый день — осколки копятся сами.",
+      "Одно бесплатное открытие в сутки. Заходите каждый день — VC и косметика копятся сами.",
     priceVc: 0,
     freeDaily: true,
     seasonKey: "season-1",
@@ -33,6 +35,8 @@ export const CASES = [
   },
   {
     key: "wild",
+    imageUrl: "/cases/wild.png",
+    accent: "#ff4d4d",
     name: "Дикий кейс",
     description:
       "Шлейфы, ауры и шляпы первого сезона. Гарант легендарки — сорок открытий.",
@@ -66,6 +70,8 @@ export const CASES = [
   },
   {
     key: "zoo",
+    imageUrl: "/cases/zoo.png",
+    accent: "#5ce65c",
     name: "Зверинец",
     description:
       "Питомцы, которые ходят за вами по пятам. Гарант легендарки — тридцать открытий.",
@@ -90,6 +96,8 @@ export const CASES = [
   },
   {
     key: "legends",
+    imageUrl: "/cases/legends.png",
+    accent: "#b06bff",
     name: "Кейс легенд",
     description:
       "Только редкое и выше, включая предметы с номерами экземпляров. Гарант — двадцать открытий.",

@@ -51,6 +51,8 @@ async function main() {
       seasonKey: caseSeed.seasonKey ?? null,
       freeDaily: caseSeed.freeDaily ?? false,
       pityThreshold: caseSeed.pityThreshold ?? 0,
+      imageUrl: caseSeed.imageUrl ?? null,
+      accent: caseSeed.accent ?? null,
       sortOrder: caseSeed.sortOrder,
       // Срок временного кейса перезаписываем каждый раз: продлить или закрыть
       // событие должно быть можно правкой каталога, а не руками в базе.

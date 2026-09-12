@@ -2701,9 +2701,12 @@ const run = async () => {
   check("на сколько хватило VC — столько и открылось", partial.json?.opened === 2, partial.json?.opened);
   check("недостача объясняется словами", Boolean(partial.json?.stopped), partial.json?.stopped);
   // Кейс может вернуть VC, поэтому ровного нуля тут не бывает: считаем выигрыш.
-  const brokeWon = partial.json.results
-    .filter((item) => item.kind === "VC")
-    .reduce((sum, item) => sum + item.amount, 0);
+  // Дубль тоже приходит деньгами, хотя вид у него COSMETIC, — его учитываем
+  // отдельным полем, иначе баланс «не сходится» на ровном месте.
+  const brokeWon = partial.json.results.reduce(
+    (sum, item) => sum + (item.kind === "VC" ? item.amount : 0) + (item.refundVc ?? 0),
+    0,
+  );
   const brokeLeft = (await api("/api/me", { cookie: brokePlayer.session })).json.balanceVc;
   check("потрачено ровно на два кейса, выигрыш зачислен", brokeLeft === brokeWon, {
     brokeLeft,
@@ -3189,6 +3192,20 @@ const run = async () => {
     releases: releaseHistory.json?.releases?.map((item) => item.status),
   });
   check("кнопка снова доступна", releaseHistory.json?.allowed === true, releaseHistory.json?.allowed);
+
+  console.log("— Витрина кейсов с артами —");
+  const artPage = await fetch(BASE + "/cases");
+  const artHtml = await artPage.text();
+  check("на витрине есть арты кейсов", artHtml.includes("/cases/daily.png") || artHtml.includes("daily.png"), null);
+  check("шансы спрятаны под раскладку, но на странице есть", artHtml.includes("шансами"), null);
+
+  for (const key of ["daily", "wild", "zoo", "legends"]) {
+    const art = await fetch(`${BASE}/cases/${key}.png`);
+    check(`арт ${key} отдаётся`, art.status === 200, { status: art.status });
+  }
+
+  const mcShelf = await api("/api/mc/cases?login=Steve", { serverToken: TOKEN });
+  check("кейсы в игре по-прежнему приходят", (mcShelf.json?.cases?.length ?? 0) >= 3, null);
 
   console.log("— Ловушечная руда против X-Ray —");
   const xrayNoToken = await api("/api/mc/xray", { method: "POST", body: { login: "Steve" } });

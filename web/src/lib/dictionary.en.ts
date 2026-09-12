@@ -122,6 +122,11 @@ export const EN: Record<string, string> = {
   "Покупаем…": "Buying…",
   "Купить за {n} VC": "Buy for {n} VC",
   "Точки дома": "Home points",
+  "бесплатно": "free",
+  "Что внутри и с какими шансами": "What is inside and the odds",
+  "Прямая покупка.": "Direct purchase.",
+  "Нужный предмет берётся из каталога за VC — без всякой случайности.":
+    "Take the exact item from the catalogue for VC, with no randomness at all.",
   "Готовый ролик": "Ready-made clip",
   "Видео с вашим промокодом": "A video with your promo code",
   "Та же заставка, что и в наших роликах, только код в ней ваш. Ставьте в начало или в конец видео, в сторис и в шапку канала.":

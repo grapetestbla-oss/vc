@@ -1,10 +1,11 @@
+import Image from "next/image";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import CaseOpener from "@/components/CaseOpener";
 import { currentUser } from "@/lib/session";
 import Reveal from "@/components/Reveal";
 import { translator } from "@/lib/i18n.server";
-import { rarityColor, rarityLabel, KIND_LABEL } from "@/lib/rarity";
+import { rarityColor } from "@/lib/rarity";
 
 export const dynamic = "force-dynamic";
 
@@ -53,15 +54,13 @@ export default async function CasesPage() {
         )}
       </header>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
         {cases.map((caseType, index) => {
           const total = caseType.items.reduce((sum, item) => sum + item.weight, 0);
           const pity = pityCounters.find((counter) => counter.caseKey === caseType.key);
           const slots = caseType.items.map((item) => ({
             id: item.id,
-            label:
-              item.cosmetic?.name ??
-              `${item.amount} ${item.kind === "VC" ? "VC" : t("оск.")}`,
+            label: item.cosmetic?.name ?? `${item.amount} VC`,
             rarity: item.cosmetic?.rarity ?? "common",
             kind: item.cosmetic?.kind ?? null,
           }));
@@ -73,83 +72,123 @@ export default async function CasesPage() {
             return left - right || b.weight - a.weight;
           });
 
+          const accent = caseType.accent ?? "var(--gold)";
+
           return (
-            <Reveal key={caseType.key} delay={index * 70}>
-              <section className="panel panel-hover flex h-full flex-col p-6">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <h2 className="text-2xl font-semibold">{caseType.name}</h2>
-                  <span className="text-sm tabular-nums" style={{ color: "var(--gold)" }}>
-                    {caseType.freeDaily
-                      ? t("бесплатно, раз в сутки")
-                      : `${caseType.priceVc} VC`}
-                  </span>
-                </div>
-                {caseType.availableUntil && (
-                  <p
-                    className="mt-2 inline-flex self-start rounded-full px-3 py-1 text-xs font-semibold"
-                    style={{ background: "rgba(255,107,107,0.12)", color: "var(--danger)" }}
-                  >
-                    {t("до {date}", {
-                      date: caseType.availableUntil.toLocaleString("ru", {
-                        day: "numeric",
-                        month: "long",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        timeZone: "Europe/Moscow",
-                      }),
-                    })}
-                  </p>
-                )}
-                <p className="muted mt-2 text-sm">{caseType.description}</p>
-
-                <ul className="mt-5 flex-1 space-y-1.5 text-sm">
-                  {sorted.map((item) => {
-                    const chance = (item.weight / total) * 100;
-                    const color = rarityColor(item.cosmetic?.rarity ?? "common");
-                    return (
-                      <li key={item.id} className="flex items-center gap-3">
-                        <span
-                          className="h-1.5 w-1.5 shrink-0 rounded-full"
-                          style={{ background: color, boxShadow: `0 0 8px ${color}` }}
-                        />
-                        <span style={{ color }}>
-                          {item.cosmetic?.name ??
-                            `${item.amount} VC`}
-                        </span>
-                        {item.cosmetic && (
-                          <span className="muted text-xs">
-                            {t(KIND_LABEL[item.cosmetic.kind])}
-                            {item.cosmetic.serialLimit &&
-                              ` · ${t("всего {n} шт.", { n: item.cosmetic.serialLimit })}`}
-                          </span>
-                        )}
-                        <span className="muted ml-auto tabular-nums text-xs">
-                          {chance < 1 ? chance.toFixed(2) : chance.toFixed(1)}%
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-
-                <div className="mt-6">
-                  {user ? (
-                    <CaseOpener
-                      caseKey={caseType.key}
-                      price={caseType.priceVc}
-                      free={caseType.freeDaily}
-                      freeUsed={usedFree.has(caseType.key)}
-                      slots={slots}
-                      pity={
-                        caseType.pityThreshold
-                          ? { current: pity?.count ?? 0, threshold: caseType.pityThreshold }
-                          : null
-                      }
+            <Reveal key={caseType.key} delay={index * 60} className="h-full">
+              <section
+                className="panel flex h-full flex-col overflow-hidden p-0"
+                style={{ borderColor: `${accent}33` }}
+              >
+                {caseType.imageUrl ? (
+                  <div className="relative" style={{ background: "#08090a" }}>
+                    <Image
+                      src={caseType.imageUrl}
+                      alt=""
+                      width={640}
+                      height={420}
+                      className="h-auto w-full"
+                      sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
                     />
-                  ) : (
-                    <Link href="/login?next=/cases" className="btn-ghost">
-                      {t("Войти, чтобы открывать")}
-                    </Link>
+                    {/* Подпись кейса кладём поверх арта: в самой картинке её нет,
+                        иначе она жила бы отдельно от цены и таймера. */}
+                    <div
+                      className="absolute inset-x-0 bottom-0 flex items-center gap-2 px-4 pb-3 pt-10"
+                      style={{ background: "linear-gradient(to top, #08090aff, #08090a00)" }}
+                    >
+                      <span className="text-lg font-bold tracking-tight">{caseType.name}</span>
+                      <span
+                        className="ml-auto rounded-full px-3 py-1 text-sm font-semibold tabular-nums"
+                        style={{ background: `${accent}1f`, color: accent }}
+                      >
+                        {caseType.freeDaily ? t("бесплатно") : `${caseType.priceVc} VC`}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 px-5 pt-5">
+                    <span className="text-lg font-bold tracking-tight">{caseType.name}</span>
+                    <span
+                      className="ml-auto rounded-full px-3 py-1 text-sm font-semibold tabular-nums"
+                      style={{ background: `${accent}1f`, color: accent }}
+                    >
+                      {caseType.freeDaily ? t("бесплатно") : `${caseType.priceVc} VC`}
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex flex-1 flex-col p-5">
+                  {caseType.availableUntil && (
+                    <p
+                      className="mb-2 inline-flex self-start rounded-full px-3 py-1 text-xs font-semibold"
+                      style={{ background: "rgba(255,107,107,0.12)", color: "var(--danger)" }}
+                    >
+                      {t("до {date}", {
+                        date: caseType.availableUntil.toLocaleString("ru", {
+                          day: "numeric",
+                          month: "long",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          timeZone: "Europe/Moscow",
+                        }),
+                      })}
+                    </p>
                   )}
+                  <p className="muted text-sm">{caseType.description}</p>
+
+                  {/* Шансы прячем под раскладку: они нужны и обязаны быть
+                      честными, но в сетке карточек портят вид длинным списком. */}
+                  <details className="mt-4">
+                    <summary className="muted cursor-pointer text-sm hover:text-white">
+                      {t("Что внутри и с какими шансами")}
+                    </summary>
+                    <ul className="mt-3 space-y-1.5 text-sm">
+                      {sorted.map((item) => {
+                        const chance = (item.weight / total) * 100;
+                        const color = rarityColor(item.cosmetic?.rarity ?? "common");
+                        return (
+                          <li key={item.id} className="flex items-center gap-2">
+                            <span
+                              className="h-1.5 w-1.5 shrink-0 rounded-full"
+                              style={{ background: color, boxShadow: `0 0 8px ${color}` }}
+                            />
+                            <span style={{ color }}>
+                              {item.cosmetic?.name ?? `${item.amount} VC`}
+                            </span>
+                            {item.cosmetic?.serialLimit && (
+                              <span className="muted text-xs">
+                                {t("всего {n} шт.", { n: item.cosmetic.serialLimit })}
+                              </span>
+                            )}
+                            <span className="muted ml-auto tabular-nums text-xs">
+                              {chance < 1 ? chance.toFixed(2) : chance.toFixed(1)}%
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </details>
+
+                  <div className="mt-auto pt-5">
+                    {user ? (
+                      <CaseOpener
+                        caseKey={caseType.key}
+                        price={caseType.priceVc}
+                        free={caseType.freeDaily}
+                        freeUsed={usedFree.has(caseType.key)}
+                        slots={slots}
+                        pity={
+                          caseType.pityThreshold
+                            ? { current: pity?.count ?? 0, threshold: caseType.pityThreshold }
+                            : null
+                        }
+                      />
+                    ) : (
+                      <Link href="/login?next=/cases" className="btn-ghost">
+                        {t("Войти, чтобы открывать")}
+                      </Link>
+                    )}
+                  </div>
                 </div>
               </section>
             </Reveal>
@@ -170,8 +209,8 @@ export default async function CasesPage() {
               {t("Уже имеющийся предмет возвращается деньгами: 10 VC за обычный, 30 за редкий, 100 за эпический, 300 за легендарный.")}
             </li>
             <li>
-              <span style={{ color: "var(--gold)" }}>{t("Дубли.")}</span>{" "}
-              {t("За них покупается конкретный предмет из каталога — без всякой случайности.")}
+              <span style={{ color: "var(--gold)" }}>{t("Прямая покупка.")}</span>{" "}
+              {t("Нужный предмет берётся из каталога за VC — без всякой случайности.")}
             </li>
             <li>
               <span style={{ color: "var(--gold)" }}>{t("Коллекции.")}</span>{" "}
