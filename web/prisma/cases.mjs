@@ -19,8 +19,8 @@ export const CASES = [
     seasonKey: "season-1",
     sortOrder: 0,
     items: [
-      { kind: "SHARDS", amount: 15, weight: 300 },
-      { kind: "SHARDS", amount: 40, weight: 120 },
+      { kind: "VC", amount: 5, weight: 300 },
+      { kind: "VC", amount: 13, weight: 120 },
       { kind: "VC", amount: 25, weight: 220 },
       { kind: "VC", amount: 75, weight: 90 },
       { kind: "COSMETIC", cosmeticKey: "trail_firefly", weight: 60 },
@@ -41,7 +41,7 @@ export const CASES = [
     pityThreshold: 40,
     sortOrder: 1,
     items: [
-      { kind: "SHARDS", amount: 40, weight: 260 },
+      { kind: "VC", amount: 13, weight: 260 },
       { kind: "VC", amount: 100, weight: 150 },
       { kind: "COSMETIC", cosmeticKey: "trail_ash", weight: 130 },
       { kind: "COSMETIC", cosmeticKey: "trail_firefly", weight: 130 },
@@ -74,7 +74,7 @@ export const CASES = [
     pityThreshold: 30,
     sortOrder: 2,
     items: [
-      { kind: "SHARDS", amount: 60, weight: 240 },
+      { kind: "VC", amount: 20, weight: 240 },
       { kind: "VC", amount: 150, weight: 130 },
       { kind: "COSMETIC", cosmeticKey: "hat_cake", weight: 110 },
       { kind: "COSMETIC", cosmeticKey: "title_survivor", weight: 90 },
@@ -98,7 +98,7 @@ export const CASES = [
     pityThreshold: 20,
     sortOrder: 3,
     items: [
-      { kind: "SHARDS", amount: 150, weight: 200 },
+      { kind: "VC", amount: 50, weight: 200 },
       { kind: "VC", amount: 400, weight: 120 },
       { kind: "COSMETIC", cosmeticKey: "trail_snowstorm", weight: 90 },
       { kind: "COSMETIC", cosmeticKey: "trail_ember", weight: 90 },
@@ -133,7 +133,7 @@ export const CASES = [
     // 9 сентября, 23:59:59 по Москве.
     availableUntil: "2026-09-09T20:59:59.000Z",
     items: [
-      { kind: "SHARDS", amount: 50, weight: 250 },
+      { kind: "VC", amount: 17, weight: 250 },
       { kind: "VC", amount: 120, weight: 140 },
       { kind: "COSMETIC", cosmeticKey: "ff_hat_fries", weight: 130 },
       { kind: "COSMETIC", cosmeticKey: "ff_hat_shake", weight: 130 },

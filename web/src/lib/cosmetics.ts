@@ -1,12 +1,18 @@
 import type { Prisma } from "@prisma/client";
 import { db } from "./db";
 
-/** Сколько осколков даёт дубль. Дубль не должен ощущаться потерей открытия. */
-export const DUPLICATE_SHARDS: Record<string, number> = {
-  common: 30,
-  rare: 90,
-  epic: 300,
-  legendary: 900,
+/**
+ * Сколько VC даёт дубль. Дубль не должен ощущаться потерей открытия.
+ *
+ * Числа — прежние осколки, пересчитанные по курсу обмена три к одному: игроки
+ * привыкли к их соотношению между редкостями, и менять заодно и его значило бы
+ * ломать два ощущения разом.
+ */
+export const DUPLICATE_VC: Record<string, number> = {
+  common: 10,
+  rare: 30,
+  epic: 100,
+  legendary: 300,
 };
 
 /** Косметика одного вида взаимоисключающая: два шлейфа сразу не носят. */
@@ -42,34 +48,34 @@ export async function equipCosmetic(
 }
 
 /**
- * Выдаёт косметику. Возвращает осколки вместо предмета, если он уже есть или
+ * Выдаёт косметику. Возвращает VC вместо предмета, если он уже есть или
  * лимитированные экземпляры разобрали.
  */
 export async function grantCosmetic(
   tx: Prisma.TransactionClient,
   userId: string,
   key: string,
-): Promise<{ granted: boolean; serial: number | null; shards: number }> {
+): Promise<{ granted: boolean; serial: number | null; refundVc: number }> {
   const cosmetic = await tx.cosmetic.findUniqueOrThrow({ where: { key } });
-  const shards = DUPLICATE_SHARDS[cosmetic.rarity] ?? 30;
+  const refundVc = DUPLICATE_VC[cosmetic.rarity] ?? 10;
 
   const existing = await tx.userCosmetic.findUnique({
     where: { userId_key: { userId, key } },
   });
-  if (existing) return { granted: false, serial: null, shards };
+  if (existing) return { granted: false, serial: null, refundVc };
 
   let serial: number | null = null;
   if (cosmetic.serialLimit) {
     const issued = await tx.userCosmetic.count({ where: { key } });
     if (issued >= cosmetic.serialLimit) {
-      // Экземпляры закончились — предмет больше не выдаём, компенсируем осколками.
-      return { granted: false, serial: null, shards };
+      // Экземпляры закончились — предмет больше не выдаём, компенсируем деньгами.
+      return { granted: false, serial: null, refundVc };
     }
     serial = issued + 1;
   }
 
   await tx.userCosmetic.create({ data: { userId, key, serial } });
-  return { granted: true, serial, shards: 0 };
+  return { granted: true, serial, refundVc: 0 };
 }
 
 /**

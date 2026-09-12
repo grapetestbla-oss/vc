@@ -1,7 +1,7 @@
 import { currentUser } from "@/lib/session";
-import { buyWithShards, CaseError } from "@/lib/cases";
+import { buyCosmetic, CaseError } from "@/lib/cases";
 
-/** Покупка предмета за осколки. */
+/** Покупка предмета за VC, без кейса. */
 export async function POST(request: Request) {
   const user = await currentUser();
   if (!user) return Response.json({ error: "unauthorized" }, { status: 401 });
@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   if (!key) return Response.json({ error: "key required" }, { status: 400 });
 
   try {
-    const result = await buyWithShards(user.id, key);
+    const result = await buyCosmetic(user.id, key);
     return Response.json({ ok: true, ...result });
   } catch (error) {
     if (error instanceof CaseError) {

@@ -56,7 +56,7 @@ export async function POST(request: Request) {
           ? { name: result.cosmetic.name, rarity: result.cosmetic.rarity, kind: result.cosmetic.kind }
           : null,
         balance: result.balanceVc,
-        shards: result.shards,
+        refundVc: result.refundVc,
       });
     }
 

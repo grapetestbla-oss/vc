@@ -39,15 +39,12 @@ export default async function CasesPage() {
         <p className="eyebrow fade-up">{t("Первый сезон")}</p>
         <h1 className="fade-up text-4xl font-bold tracking-tight md:text-5xl">{t("Кейсы")}</h1>
         <p className="fade-up muted max-w-2xl">
-          {t("Внутри — только то, что видно другим игрокам: шлейфы, ауры, питомцы, шляпы, эффекты входа и метки в мире. Ничего, что даёт преимущество в игре. Шансы указаны честно, дубли превращаются в осколки, а гарант не даёт застрять в невезении.")}
+          {t("Внутри — только то, что видно другим игрокам: шлейфы, ауры, питомцы, шляпы, эффекты входа и метки в мире. Ничего, что даёт преимущество в игре. Шансы указаны честно, дубли возвращаются в VC, а гарант не даёт застрять в невезении.")}
         </p>
         {user && (
           <p className="fade-up text-sm">
             <span style={{ color: "var(--gold)" }}>{user.balanceVc.toLocaleString("ru")} VC</span>
-            <span className="muted"> · </span>
-            <span style={{ color: "var(--mint)" }}>
-              {t("{n} осколков", { n: user.shards.toLocaleString("ru") })}
-            </span>
+
             <span className="muted"> · </span>
             <Link href="/collection" className="muted underline hover:text-white">
               {t("моя коллекция")}
@@ -117,7 +114,7 @@ export default async function CasesPage() {
                         />
                         <span style={{ color }}>
                           {item.cosmetic?.name ??
-                            `${item.amount} ${item.kind === "VC" ? "VC" : t("осколков")}`}
+                            `${item.amount} VC`}
                         </span>
                         {item.cosmetic && (
                           <span className="muted text-xs">
@@ -170,10 +167,10 @@ export default async function CasesPage() {
             </li>
             <li>
               <span style={{ color: "var(--gold)" }}>{t("Дубли.")}</span>{" "}
-              {t("Уже имеющийся предмет превращается в осколки: 30 за обычный, 90 за редкий, 300 за эпический, 900 за легендарный.")}
+              {t("Уже имеющийся предмет возвращается деньгами: 10 VC за обычный, 30 за редкий, 100 за эпический, 300 за легендарный.")}
             </li>
             <li>
-              <span style={{ color: "var(--gold)" }}>{t("Осколки.")}</span>{" "}
+              <span style={{ color: "var(--gold)" }}>{t("Дубли.")}</span>{" "}
               {t("За них покупается конкретный предмет из каталога — без всякой случайности.")}
             </li>
             <li>

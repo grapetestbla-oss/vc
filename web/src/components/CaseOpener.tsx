@@ -20,7 +20,7 @@ type OpenResponse = {
   serial: number | null;
   fromPity: boolean;
   balanceVc: number;
-  shards: number;
+  refundVc: number;
   pity: { current: number; threshold: number };
   collectionRewards: string[];
   error?: string;
@@ -145,7 +145,7 @@ export default function CaseOpener({
           label:
             single.kind === "VC"
               ? `${single.amount} VC`
-              : t("{n} осколков", { n: single.amount }),
+              : t("{n} VC", { n: single.amount }),
           rarity: "common",
           kind: null,
         };
@@ -237,7 +237,7 @@ export default function CaseOpener({
                   <div style={{ color: "var(--gold)" }}>
                     {item.kind === "VC"
                       ? `+${item.amount} VC`
-                      : `+${t("{n} осколков", { n: item.amount })}`}
+                      : `+${t("{n} VC", { n: item.amount })}`}
                   </div>
                 )}
               </div>
@@ -275,7 +275,7 @@ export default function CaseOpener({
               </div>
               {result.duplicate && (
                 <p className="muted mt-1 text-sm">
-                  {t("Дубль — начислено {n} осколков.", { n: result.amount })}
+                  {t("Дубль — начислено {n} VC.", { n: result.amount })}
                 </p>
               )}
               {result.fromPity && (
@@ -288,7 +288,7 @@ export default function CaseOpener({
             <span className="text-lg font-semibold">
               {result.kind === "VC"
                 ? `+${result.amount} VC`
-                : `+${t("{n} осколков", { n: result.amount })}`}
+                : `+${t("{n} VC", { n: result.amount })}`}
             </span>
           )}
 

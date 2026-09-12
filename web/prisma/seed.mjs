@@ -26,7 +26,7 @@ async function main() {
       collectionKey: cosmetic.collectionKey ?? null,
       serialLimit: cosmetic.serialLimit ?? null,
       obtainable: cosmetic.obtainable ?? true,
-      shardPrice: cosmetic.shardPrice ?? null,
+      priceVc: cosmetic.priceVc ?? null,
     };
     await db.cosmetic.upsert({
       where: { key: cosmetic.key },

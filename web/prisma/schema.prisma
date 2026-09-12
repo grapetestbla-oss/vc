@@ -17,7 +17,8 @@ model User {
   email          String    @unique
   passwordHash   String
   balanceVc      Int       @default(0)
-  /// Осколки: дубли из кейсов превращаются в них, за них покупают нужный предмет.
+  /// Осколки убраны из игры: дубли и награды идут сразу в VC. Поле осталось
+  /// только как след прошлой валюты — по нему видно, что перевод уже сделан.
   shards         Int       @default(0)
   playtimeSec    Int       @default(0)
   /// Активные (не афк) секунды за сегодня и день, к которому они относятся.
@@ -847,7 +848,8 @@ model Cosmetic {
   serialLimit   Int?
   /// Награда за коллекцию — в кейсах не выпадает.
   obtainable    Boolean      @default(true)
-  shardPrice    Int?
+  /// Цена в VC для прямой покупки предмета, без кейса. null — только из кейса.
+  priceVc       Int?
 
   owners    UserCosmetic[]
   caseItems CaseItem[]

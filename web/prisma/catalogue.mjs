@@ -20,7 +20,7 @@ export const COSMETICS = [
     payload: { particle: "ASH", count: 3, speed: 0.01 },
     seasonKey: SEASON,
     collectionKey: "elements",
-    shardPrice: 40,
+    priceVc: 13,
   },
   {
     key: "trail_firefly",
@@ -30,7 +30,7 @@ export const COSMETICS = [
     rarity: "common",
     payload: { particle: "END_ROD", count: 2, speed: 0.01 },
     seasonKey: SEASON,
-    shardPrice: 40,
+    priceVc: 13,
   },
   {
     key: "trail_snowstorm",
@@ -41,7 +41,7 @@ export const COSMETICS = [
     payload: { particle: "SNOWFLAKE", count: 6, speed: 0.02 },
     seasonKey: SEASON,
     collectionKey: "elements",
-    shardPrice: 120,
+    priceVc: 40,
   },
   {
     key: "trail_ember",
@@ -52,7 +52,7 @@ export const COSMETICS = [
     payload: { particle: "FLAME", count: 4, speed: 0.01 },
     seasonKey: SEASON,
     collectionKey: "elements",
-    shardPrice: 120,
+    priceVc: 40,
   },
   {
     key: "trail_souls",
@@ -63,7 +63,7 @@ export const COSMETICS = [
     payload: { particle: "SOUL_FIRE_FLAME", count: 5, speed: 0.015 },
     seasonKey: SEASON,
     collectionKey: "elements",
-    shardPrice: 400,
+    priceVc: 133,
   },
   {
     key: "trail_rift",
@@ -74,7 +74,7 @@ export const COSMETICS = [
     payload: { particle: "REVERSE_PORTAL", count: 8, speed: 0.05 },
     seasonKey: SEASON,
     collectionKey: "elements",
-    shardPrice: 400,
+    priceVc: 133,
   },
   {
     key: "trail_dragon",
@@ -84,7 +84,7 @@ export const COSMETICS = [
     rarity: "legendary",
     payload: { particle: "DRAGON_BREATH", count: 6, speed: 0.02 },
     seasonKey: SEASON,
-    shardPrice: 1200,
+    priceVc: 400,
   },
   {
     key: "trail_eclipse",
@@ -106,7 +106,7 @@ export const COSMETICS = [
     rarity: "common",
     payload: { particle: "ENCHANT", radius: 0.9, count: 4 },
     seasonKey: SEASON,
-    shardPrice: 40,
+    priceVc: 13,
   },
   {
     key: "aura_honey",
@@ -116,7 +116,7 @@ export const COSMETICS = [
     rarity: "rare",
     payload: { particle: "FALLING_HONEY", radius: 1.1, count: 3 },
     seasonKey: SEASON,
-    shardPrice: 120,
+    priceVc: 40,
   },
   {
     key: "aura_storm",
@@ -126,7 +126,7 @@ export const COSMETICS = [
     rarity: "epic",
     payload: { particle: "ELECTRIC_SPARK", radius: 1.2, count: 6 },
     seasonKey: SEASON,
-    shardPrice: 400,
+    priceVc: 133,
   },
   {
     key: "aura_totem",
@@ -136,7 +136,7 @@ export const COSMETICS = [
     rarity: "legendary",
     payload: { particle: "TOTEM_OF_UNDYING", radius: 1.0, count: 8 },
     seasonKey: SEASON,
-    shardPrice: 1200,
+    priceVc: 400,
   },
 
   // ───────────────────────────── питомцы ────────────────────────────
@@ -149,7 +149,7 @@ export const COSMETICS = [
     payload: { entity: "FOX", name: "Лисёнок" },
     seasonKey: SEASON,
     collectionKey: "zoo",
-    shardPrice: 150,
+    priceVc: 50,
   },
   {
     key: "pet_axolotl",
@@ -160,7 +160,7 @@ export const COSMETICS = [
     payload: { entity: "AXOLOTL", name: "Аксолотль" },
     seasonKey: SEASON,
     collectionKey: "zoo",
-    shardPrice: 150,
+    priceVc: 50,
   },
   {
     key: "pet_bee",
@@ -171,7 +171,7 @@ export const COSMETICS = [
     payload: { entity: "BEE", name: "Пчела" },
     seasonKey: SEASON,
     collectionKey: "zoo",
-    shardPrice: 450,
+    priceVc: 150,
   },
   {
     key: "pet_allay",
@@ -182,7 +182,7 @@ export const COSMETICS = [
     payload: { entity: "ALLAY", name: "Аллай" },
     seasonKey: SEASON,
     collectionKey: "zoo",
-    shardPrice: 1300,
+    priceVc: 433,
   },
   {
     key: "pet_phantom",
@@ -204,7 +204,7 @@ export const COSMETICS = [
     rarity: "common",
     payload: { material: "CAKE" },
     seasonKey: SEASON,
-    shardPrice: 50,
+    priceVc: 17,
   },
   {
     key: "hat_lantern",
@@ -214,7 +214,7 @@ export const COSMETICS = [
     rarity: "rare",
     payload: { material: "LANTERN" },
     seasonKey: SEASON,
-    shardPrice: 130,
+    priceVc: 43,
   },
   {
     key: "hat_sunflower",
@@ -224,7 +224,7 @@ export const COSMETICS = [
     rarity: "common",
     payload: { material: "SUNFLOWER" },
     seasonKey: SEASON,
-    shardPrice: 50,
+    priceVc: 17,
   },
   {
     key: "hat_beacon",
@@ -234,7 +234,7 @@ export const COSMETICS = [
     rarity: "epic",
     payload: { material: "BEACON" },
     seasonKey: SEASON,
-    shardPrice: 450,
+    priceVc: 150,
   },
   {
     key: "hat_dragon_egg",
@@ -245,7 +245,7 @@ export const COSMETICS = [
     payload: { material: "DRAGON_EGG" },
     seasonKey: SEASON,
     serialLimit: 50,
-    shardPrice: 1500,
+    priceVc: 500,
   },
 
   // ──────────────────────── эффекты появления ───────────────────────
@@ -257,7 +257,7 @@ export const COSMETICS = [
     rarity: "common",
     payload: { sound: "ENTITY_PLAYER_LEVELUP", particle: "HAPPY_VILLAGER" },
     seasonKey: SEASON,
-    shardPrice: 40,
+    priceVc: 13,
   },
   {
     key: "join_thunder",
@@ -267,7 +267,7 @@ export const COSMETICS = [
     rarity: "rare",
     payload: { sound: "ENTITY_LIGHTNING_BOLT_THUNDER", lightning: true },
     seasonKey: SEASON,
-    shardPrice: 130,
+    priceVc: 43,
   },
   {
     key: "join_totem",
@@ -277,7 +277,7 @@ export const COSMETICS = [
     rarity: "epic",
     payload: { sound: "ITEM_TOTEM_USE", particle: "TOTEM_OF_UNDYING" },
     seasonKey: SEASON,
-    shardPrice: 450,
+    priceVc: 150,
   },
   {
     key: "join_dragon",
@@ -288,7 +288,7 @@ export const COSMETICS = [
     payload: { sound: "ENTITY_ENDER_DRAGON_GROWL", global: true },
     seasonKey: SEASON,
     serialLimit: 25,
-    shardPrice: 1500,
+    priceVc: 500,
   },
 
   // ───────────────────────── цвета и титулы ─────────────────────────
@@ -300,7 +300,7 @@ export const COSMETICS = [
     rarity: "common",
     payload: { color: "#3ddc97" },
     seasonKey: SEASON,
-    shardPrice: 40,
+    priceVc: 13,
   },
   {
     key: "name_gold",
@@ -310,7 +310,7 @@ export const COSMETICS = [
     rarity: "rare",
     payload: { color: "#f5c451" },
     seasonKey: SEASON,
-    shardPrice: 120,
+    priceVc: 40,
   },
   {
     key: "name_crimson",
@@ -320,7 +320,7 @@ export const COSMETICS = [
     rarity: "rare",
     payload: { color: "#ff6b6b" },
     seasonKey: SEASON,
-    shardPrice: 120,
+    priceVc: 40,
   },
   {
     key: "title_miner",
@@ -330,7 +330,7 @@ export const COSMETICS = [
     rarity: "common",
     payload: { text: "Шахтёр", color: "#8d95a5" },
     seasonKey: SEASON,
-    shardPrice: 60,
+    priceVc: 20,
   },
   {
     key: "title_survivor",
@@ -340,7 +340,7 @@ export const COSMETICS = [
     rarity: "rare",
     payload: { text: "Выживший", color: "#3ddc97" },
     seasonKey: SEASON,
-    shardPrice: 140,
+    priceVc: 47,
   },
   {
     key: "title_pioneer",
@@ -351,7 +351,7 @@ export const COSMETICS = [
     payload: { text: "Первопроходец", color: "#f5c451" },
     seasonKey: SEASON,
     serialLimit: 100,
-    shardPrice: 1400,
+    priceVc: 467,
   },
 
   // ─────────────────────────── метки в мире ─────────────────────────
@@ -391,7 +391,7 @@ export const COSMETICS = [
     payload: { material: "BREAD" },
     seasonKey: SEASON,
     collectionKey: "fastfood",
-    shardPrice: 130,
+    priceVc: 43,
   },
   {
     key: "ff_hat_fries",
@@ -402,7 +402,7 @@ export const COSMETICS = [
     payload: { material: "BAKED_POTATO" },
     seasonKey: SEASON,
     collectionKey: "fastfood",
-    shardPrice: 50,
+    priceVc: 17,
   },
   {
     key: "ff_hat_bucket",
@@ -413,7 +413,7 @@ export const COSMETICS = [
     payload: { material: "COOKED_CHICKEN" },
     seasonKey: SEASON,
     collectionKey: "fastfood",
-    shardPrice: 130,
+    priceVc: 43,
   },
   {
     key: "ff_hat_shake",
@@ -424,7 +424,7 @@ export const COSMETICS = [
     payload: { material: "MILK_BUCKET" },
     seasonKey: SEASON,
     collectionKey: "fastfood",
-    shardPrice: 50,
+    priceVc: 17,
   },
   {
     key: "ff_hat_golden",
@@ -435,7 +435,7 @@ export const COSMETICS = [
     payload: { material: "ENCHANTED_GOLDEN_APPLE" },
     seasonKey: SEASON,
     serialLimit: 30,
-    shardPrice: 1500,
+    priceVc: 500,
   },
   {
     key: "ff_trail_grill",
@@ -445,7 +445,7 @@ export const COSMETICS = [
     rarity: "common",
     payload: { particle: "SMOKE", count: 4, speed: 0.01 },
     seasonKey: SEASON,
-    shardPrice: 40,
+    priceVc: 13,
   },
   {
     key: "ff_aura_soda",
@@ -456,7 +456,7 @@ export const COSMETICS = [
     payload: { particle: "BUBBLE", radius: 1.0, count: 5 },
     seasonKey: SEASON,
     collectionKey: "fastfood",
-    shardPrice: 120,
+    priceVc: 40,
   },
   {
     key: "ff_pet_courier",
@@ -466,7 +466,7 @@ export const COSMETICS = [
     rarity: "epic",
     payload: { entity: "CHICKEN", name: "Курьер" },
     seasonKey: SEASON,
-    shardPrice: 450,
+    priceVc: 150,
   },
   {
     key: "ff_join_order",
@@ -476,7 +476,7 @@ export const COSMETICS = [
     rarity: "rare",
     payload: { sound: "BLOCK_NOTE_BLOCK_BELL", particle: "HAPPY_VILLAGER" },
     seasonKey: SEASON,
-    shardPrice: 130,
+    priceVc: 43,
   },
   {
     key: "ff_name_ketchup",
@@ -486,7 +486,7 @@ export const COSMETICS = [
     rarity: "common",
     payload: { color: "#d62300" },
     seasonKey: SEASON,
-    shardPrice: 40,
+    priceVc: 13,
   },
   {
     key: "ff_title_gurman",
@@ -496,7 +496,7 @@ export const COSMETICS = [
     rarity: "rare",
     payload: { text: "Гурман", color: "#ffa733" },
     seasonKey: SEASON,
-    shardPrice: 140,
+    priceVc: 47,
   },
   {
     key: "ff_title_combo",
@@ -506,7 +506,7 @@ export const COSMETICS = [
     rarity: "epic",
     payload: { text: "Комбо", color: "#f5c451" },
     seasonKey: SEASON,
-    shardPrice: 450,
+    priceVc: 150,
   },
   {
     key: "ff_pet_mascot",

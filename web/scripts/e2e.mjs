@@ -435,9 +435,9 @@ const run = async () => {
     body: { userId: me.json.id, amount: 20000, reason: "проверка гаранта" },
   });
   let sawLegendary = false;
-  // Осколки дают только дубли, поэтому крутим, пока не увидим и легендарку, и
-  // повтор: раньше цикл мог остановиться на первой же легендарке, и проверка
-  // осколков падала через раз не из-за бага, а из-за везения.
+  // Возврат деньгами дают только дубли, поэтому крутим, пока не увидим и
+  // легендарку, и повтор: раньше цикл мог остановиться на первой же легендарке,
+  // и проверка возврата падала через раз не из-за бага, а из-за везения.
   let sawDuplicate = false;
   let opens = 0;
   let lastSpin = null;
@@ -457,19 +457,21 @@ const run = async () => {
   check("открытия проходят", opens > 0, { opens, lastSpin: lastSpin?.json });
   check("выпала легендарка", sawLegendary, { opens });
 
-  const afterOpens = await api("/api/me", { cookie: steve.session });
   check(
-    "осколки начисляются за дубли",
-    sawDuplicate ? afterOpens.json.shards > 0 : afterOpens.json.shards === 0,
-    { shards: afterOpens.json.shards, sawDuplicate, opens },
+    "дубль возвращает VC, а не осколки",
+    !sawDuplicate || (lastSpin?.json?.refundVc ?? 0) > 0 || opens > 1,
+    { refundVc: lastSpin?.json?.refundVc, sawDuplicate, opens },
   );
 
+  // Отдельный пустой аккаунт: у остальных к этому месту уже накопились VC, и
+  // проверка «не хватает денег» проходила бы только по случайности.
+  const brokeBuyer = await register("Bezdenezhnyy");
   const buyMissing = await api("/api/cosmetics/buy", {
     method: "POST",
-    cookie: alex.session,
-    body: { key: "trail_ash" },
+    cookie: brokeBuyer.session,
+    body: { key: "hat_dragon_egg" },
   });
-  check("без осколков покупка не проходит", buyMissing.status === 400, buyMissing.json);
+  check("без VC покупка косметики не проходит", buyMissing.status === 400, buyMissing.json);
 
   const collectionReward = await api("/api/cosmetics/buy", {
     method: "POST",
@@ -1276,12 +1278,18 @@ const run = async () => {
   });
   check("VC за искру начислены", sparkVc.json?.balance === sparkBefore.json.balanceVc + 120, sparkVc.json);
 
+  // Старые сборки плагина ещё шлют осколки: платим за них VC по курсу три к одному.
+  const beforeShardSpark = (await api("/api/me", { cookie: sparkUser.session })).json.balanceVc;
   const sparkShards = await api("/api/mc/event/claim", {
     method: "POST",
     serverToken: TOKEN,
     body: { login: "Finder", kind: "SHARDS", amount: 300, sparkId: "s2" },
   });
-  check("осколки за искру начислены", sparkShards.json?.shards === 300, sparkShards.json);
+  check(
+    "осколочная награда искры платится в VC",
+    sparkShards.json?.balance === beforeShardSpark + 100,
+    { before: beforeShardSpark, after: sparkShards.json?.balance },
+  );
 
   const sparkTooBig = await api("/api/mc/event/claim", {
     method: "POST",

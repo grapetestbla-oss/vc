@@ -18,7 +18,7 @@ export default function CosmeticCard({
     equipped: boolean;
     serial: number | null;
     serialLimit: number | null;
-    shardPrice: number | null;
+    priceVc: number | null;
     obtainable: boolean;
   };
 }) {
@@ -76,13 +76,13 @@ export default function CosmeticCard({
           >
             {item.equipped ? t("Снять") : t("Надеть")}
           </button>
-        ) : item.shardPrice && item.obtainable ? (
+        ) : item.priceVc && item.obtainable ? (
           <button
             className="btn-ghost w-full"
             disabled={busy}
             onClick={() => call("/api/cosmetics/buy", { key: item.key })}
           >
-            {t("Купить за {n} осколков", { n: item.shardPrice })}
+            {t("Купить за {n} VC", { n: item.priceVc })}
           </button>
         ) : (
           <p className="muted text-center text-xs">

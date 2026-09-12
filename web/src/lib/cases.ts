@@ -102,7 +102,8 @@ export type OpenResult = {
   serial: number | null;
   fromPity: boolean;
   balanceVc: number;
-  shards: number;
+  /** Сколько VC вернул дубль. 0 — предмет выпал впервые. */
+  refundVc: number;
   pity: { current: number; threshold: number };
   collectionRewards: string[];
   fairness: { serverSeedHash: string; clientSeed: string; nonce: number };
@@ -191,9 +192,11 @@ export async function openCase(
     let amount = 0;
     let duplicate = false;
     let serial: number | null = null;
-    let shardsGained = 0;
+    let refundVc = 0;
 
-    if (item.kind === "VC") {
+    if (item.kind === "VC" || item.kind === "SHARDS") {
+      // SHARDS остался в перечне ради старых записей об открытиях: осколков
+      // больше нет, и такие строки каталога давно переведены в VC.
       amount = item.amount ?? 0;
       await applyTransaction({
         userId,
@@ -202,21 +205,21 @@ export async function openCase(
         meta: { case: caseType.key },
         tx,
       });
-    } else if (item.kind === "SHARDS") {
-      amount = item.amount ?? 0;
-      shardsGained = amount;
     } else if (item.cosmeticKey) {
       const granted = await grantCosmetic(tx, userId, item.cosmeticKey);
       duplicate = !granted.granted;
       serial = granted.serial;
-      shardsGained = granted.shards;
-      amount = granted.shards;
+      refundVc = granted.refundVc;
+      amount = granted.refundVc;
     }
 
-    if (shardsGained > 0) {
-      await tx.user.update({
-        where: { id: userId },
-        data: { shards: { increment: shardsGained } },
+    if (refundVc > 0) {
+      await applyTransaction({
+        userId,
+        type: "CASE_REWARD",
+        amount: refundVc,
+        meta: { case: caseType.key, duplicate: item.cosmeticKey },
+        tx,
       });
     }
 
@@ -246,7 +249,7 @@ export async function openCase(
 
     const user = await tx.user.findUniqueOrThrow({
       where: { id: userId },
-      select: { balanceVc: true, shards: true },
+      select: { balanceVc: true },
     });
     const counter = caseType.pityThreshold
       ? await tx.pityCounter.findUnique({
@@ -259,7 +262,7 @@ export async function openCase(
       duplicate,
       serial,
       balanceVc: user.balanceVc,
-      shards: user.shards,
+      refundVc,
       pityCurrent: counter?.count ?? 0,
       collectionRewards,
     };
@@ -283,40 +286,49 @@ export async function openCase(
     serial: result.serial,
     fromPity: forcedByPity,
     balanceVc: result.balanceVc,
-    shards: result.shards,
+    refundVc: result.refundVc,
     pity: { current: result.pityCurrent, threshold: caseType.pityThreshold },
     collectionRewards: result.collectionRewards,
     fairness: { serverSeedHash, clientSeed, nonce },
   };
 }
 
-/** Покупка конкретного предмета за осколки — лечит невезение в кейсах. */
-export async function buyWithShards(userId: string, key: string) {
+/**
+ * Покупка конкретного предмета за VC — лечит невезение в кейсах.
+ *
+ * Списываем через общую кассу, а не прямым уменьшением поля: так покупка
+ * попадает в историю операций игрока, чего у прежних осколков не было.
+ */
+export async function buyCosmetic(userId: string, key: string) {
   return db.$transaction(async (tx) => {
     const cosmetic = await tx.cosmetic.findUnique({ where: { key } });
-    if (!cosmetic || !cosmetic.shardPrice) throw new CaseError("Этот предмет не продаётся");
+    if (!cosmetic || !cosmetic.priceVc) throw new CaseError("Этот предмет не продаётся");
 
     const owned = await tx.userCosmetic.findUnique({
       where: { userId_key: { userId, key } },
     });
     if (owned) throw new CaseError("Он у вас уже есть");
 
-    const updated = await tx.user.updateMany({
-      where: { id: userId, shards: { gte: cosmetic.shardPrice } },
-      data: { shards: { decrement: cosmetic.shardPrice } },
-    });
-    if (updated.count === 0) throw new CaseError("Не хватает осколков");
+    let balance: number;
+    try {
+      balance = await applyTransaction({
+        userId,
+        type: "SHOP_BUY",
+        amount: -cosmetic.priceVc,
+        meta: { cosmetic: key, title: cosmetic.name },
+        tx,
+      });
+    } catch (error) {
+      if (error instanceof InsufficientFunds) throw new CaseError("Недостаточно VC");
+      throw error;
+    }
 
     const granted = await grantCosmetic(tx, userId, key);
     if (!granted.granted) {
       throw new CaseError("Экземпляры этого предмета закончились");
     }
     const rewards = await claimCollections(tx, userId);
-    const user = await tx.user.findUniqueOrThrow({
-      where: { id: userId },
-      select: { shards: true },
-    });
 
-    return { shards: user.shards, serial: granted.serial, collectionRewards: rewards };
+    return { balanceVc: balance, serial: granted.serial, collectionRewards: rewards };
   });
 }

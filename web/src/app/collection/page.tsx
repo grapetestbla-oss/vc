@@ -42,11 +42,11 @@ export default async function CollectionPage() {
         <p className="eyebrow fade-up">{t("Первый сезон")}</p>
         <h1 className="fade-up text-4xl font-bold tracking-tight md:text-5xl">{t("Коллекция")}</h1>
         <p className="fade-up muted max-w-2xl">
-          {t("Собрано {owned} из {total} предметов сезона. Осколков:", {
+          {t("Собрано {owned} из {total} предметов сезона. Баланс:", {
             owned: ownedCount,
             total: totalCount,
           })}{" "}
-          <span style={{ color: "var(--mint)" }}>{user.shards.toLocaleString("ru")}</span>.{" "}
+          <span style={{ color: "var(--gold)" }}>{user.balanceVc.toLocaleString("ru")} VC</span>.{" "}
           {t("Один активный предмет на каждый вид — снимите текущий, чтобы надеть другой.")}
         </p>
         <p className="fade-up">
@@ -120,7 +120,7 @@ export default async function CollectionPage() {
                       equipped: ownedItem?.equipped ?? false,
                       serial: ownedItem?.serial ?? null,
                       serialLimit: cosmetic.serialLimit,
-                      shardPrice: cosmetic.shardPrice,
+                      priceVc: cosmetic.priceVc,
                       obtainable: cosmetic.obtainable,
                     }}
                   />

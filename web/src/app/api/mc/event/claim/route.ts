@@ -25,6 +25,8 @@ export async function POST(request: Request) {
     sparkId?: string;
   };
   if (!login || !sparkId) return Response.json({ error: "login and sparkId required" }, { status: 400 });
+  // SHARDS ещё присылают старые сборки плагина: осколков больше нет, такую
+  // награду просто платим в VC по прежнему курсу обмена.
   if (kind !== "VC" && kind !== "SHARDS") {
     return Response.json({ error: "kind must be VC or SHARDS" }, { status: 400 });
   }
@@ -37,7 +39,7 @@ export async function POST(request: Request) {
 
   const user = await db.user.findUnique({
     where: { login },
-    select: { id: true, balanceVc: true, shards: true },
+    select: { id: true, balanceVc: true },
   });
   if (!user) return Response.json({ status: "not_found" });
 
@@ -46,33 +48,19 @@ export async function POST(request: Request) {
     return Response.json({ status: "rate_limited" });
   }
 
-  if (kind === "VC") {
-    const balance = await applyTransaction({
-      userId: user.id,
-      type: "EVENT",
-      amount: value,
-      meta: { event: "spark", sparkId },
-    });
-    await audit({
-      actorId: null,
-      action: "event.spark.claim",
-      targetUserId: user.id,
-      meta: { kind, amount: value, sparkId },
-    });
-    return Response.json({ status: "ok", balance, shards: user.shards });
-  }
-
-  const updated = await db.user.update({
-    where: { id: user.id },
-    data: { shards: { increment: value } },
-    select: { shards: true, balanceVc: true },
+  const reward = kind === "VC" ? value : Math.max(1, Math.round(value / 3));
+  const balance = await applyTransaction({
+    userId: user.id,
+    type: "EVENT",
+    amount: reward,
+    meta: { event: "spark", sparkId, kind },
   });
   await audit({
     actorId: null,
     action: "event.spark.claim",
     targetUserId: user.id,
-    meta: { kind, amount: value, sparkId },
+    meta: { kind, amount: reward, sparkId },
   });
 
-  return Response.json({ status: "ok", shards: updated.shards, balance: updated.balanceVc });
+  return Response.json({ status: "ok", balance });
 }
