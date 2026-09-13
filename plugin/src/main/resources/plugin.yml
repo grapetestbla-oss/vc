@@ -74,6 +74,9 @@ commands:
     description: Разрешить телепорт к себе
   tpdeny:
     description: Отклонить телепорт к себе
+  vcflag:
+    description: Сработка античита (вызывается античитом из консоли)
+    usage: /vcflag <ник> [проверка] [уровень]
   sethome:
     description: Отметить точку дома
     usage: /sethome [имя]

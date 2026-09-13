@@ -2,6 +2,7 @@ package host.vanilla.core;
 
 import com.google.gson.JsonObject;
 import host.vanilla.core.admin.ActionRunner;
+import host.vanilla.core.admin.CheatBridge;
 import host.vanilla.core.admin.CheckManager;
 import host.vanilla.core.admin.MaintenanceWatcher;
 import host.vanilla.core.admin.EspManager;
@@ -206,6 +207,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         }
 
         bind("cosmetics", new CosmeticCommand(this, cosmetics));
+        bind("vcflag", new CheatBridge(this, messages));
 
         for (String name : List.of("shop", "tpa", "tpaccept", "tpdeny", "sethome", "home", "homes",
                 "delhome", "back", "ec", "craft")) {

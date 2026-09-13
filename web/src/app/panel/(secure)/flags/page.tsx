@@ -12,6 +12,7 @@ const KIND_LABEL: Record<string, string> = {
   LOGIN_BRUTE: "Перебор пароля",
   NEW_GEO: "Вход из нового региона",
   XRAY_TRAP: "Выкопана ловушечная руда (X-Ray)",
+  ANTICHEAT: "Сработка античита",
 };
 
 export default async function FlagsPage() {

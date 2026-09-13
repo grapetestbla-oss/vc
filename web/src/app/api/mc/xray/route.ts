@@ -1,5 +1,5 @@
 import { serverTokenValid, unauthorized } from "@/lib/mcauth";
-import { reportXray } from "@/lib/xray";
+import { reportXray } from "@/lib/cheat";
 
 /** Игрок выкопал ловушечную руду: заводим сработку и будим администрацию. */
 export async function POST(request: Request) {

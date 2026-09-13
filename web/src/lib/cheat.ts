@@ -3,7 +3,7 @@ import { flag } from "./antifraud";
 import { escapeHtml, send } from "./telegram";
 
 /**
- * Ловушечная руда против X-Ray.
+ * Сработки античита: и наши ловушки, и чужой плагин.
  *
  * Плагин прячет в камне руду, к которой нет ни одного открытого подхода: её не
  * видно ни с поверхности, ни из пещеры, и наткнуться на неё обычной шахтой
@@ -71,6 +71,51 @@ export async function reportXray(report: XrayReport) {
       `Игрок: <b>${escapeHtml(user.login)}</b>\n` +
       `Блок: ${escapeHtml(report.ore)} в ${escapeHtml(report.world)} на ${report.x}, ${report.y}, ${report.z}\n` +
       `Ловушек за сессию: ${report.hits}, блоков сломано рядом: ${report.brokenNearby}\n` +
+      `${site}/panel/flags`,
+  );
+
+  return { severity };
+}
+
+export type CheatReport = {
+  login: string;
+  /** Название проверки так, как его назвал античит: Speed, Reach, KillAura. */
+  check: string;
+  /** Уровень нарушений, накопленный античитом. Чем больше, тем увереннее он. */
+  level: number;
+  /** Что прислал плагин целиком — на случай, если формат у него свой. */
+  raw: string;
+};
+
+/**
+ * Сработка стороннего античита.
+ *
+ * Плагин античита зовёт консольную команду сервера, та стучится сюда. Через
+ * команду, а не через его API, намеренно: так обвязка не привязана к одному
+ * античиту и переживёт его замену — настроить вызов умеет каждый.
+ */
+export async function reportAnticheat(report: CheatReport) {
+  const user = await db.user.findUnique({
+    where: { login: report.login },
+    select: { id: true, login: true },
+  });
+  if (!user) return null;
+
+  // Уровень нарушений у каждого античита свой, но порядок величин общий:
+  // единицы — шум, десятки — уверенность.
+  const severity = report.level >= 40 ? 3 : report.level >= 15 ? 2 : 1;
+
+  await flag(user.id, "ANTICHEAT", severity, {
+    check: report.check,
+    level: report.level,
+    raw: report.raw.slice(0, 500),
+  });
+
+  const site = process.env.SITE_URL ?? "https://vanillacraft.click";
+  await notifyAdmins(
+    `🚨 <b>Античит</b>\n` +
+      `Игрок: <b>${escapeHtml(user.login)}</b>\n` +
+      `Проверка: ${escapeHtml(report.check)} (уровень ${report.level})\n` +
       `${site}/panel/flags`,
   );
 

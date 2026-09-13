@@ -3316,6 +3316,62 @@ const run = async () => {
   });
   void digger;
 
+  console.log("— Мост к стороннему античиту —");
+  const cheatNoToken = await api("/api/mc/cheat", { method: "POST", body: { login: "Steve" } });
+  check("сработка античита закрыта без токена сервера", cheatNoToken.status === 401);
+
+  const cheatNoLogin = await api("/api/mc/cheat", { method: "POST", serverToken: TOKEN, body: {} });
+  check("без ника сработка не заводится", cheatNoLogin.status === 400, cheatNoLogin.json);
+
+  const cheater = await register("Letun");
+  const cheatLow = await api("/api/mc/cheat", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Letun", check: "Speed", level: 3, raw: "Letun Speed 3" },
+  });
+  check("пара нарушений — важность низкая", cheatLow.json?.severity === 1, cheatLow.json);
+
+  const cheatMid = await api("/api/mc/cheat", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Letun", check: "Reach", level: 20, raw: "Letun Reach 20" },
+  });
+  check("два десятка — важность средняя", cheatMid.json?.severity === 2, cheatMid.json);
+
+  const cheatHigh = await api("/api/mc/cheat", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Letun", check: "KillAura", level: 120, raw: "Letun KillAura 120" },
+  });
+  check("сотня нарушений — важность высокая", cheatHigh.json?.severity === 3, cheatHigh.json);
+
+  const cheatUnknown = await api("/api/mc/cheat", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "НетТакого", check: "Fly", level: 99 },
+  });
+  check("сработка у незнакомого ника молчит", cheatUnknown.json?.status === "not_found", cheatUnknown.json);
+
+  // Античит зовёт команду с чем угодно в аргументах: имя проверки длиной со
+  // строку конфига в базу попасть не должно, а уровень «-5» — стать
+  // отрицательной важностью.
+  const cheatJunk = await api("/api/mc/cheat", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Letun", check: "К".repeat(200), level: -5, raw: "мусор" },
+  });
+  check("мусор в аргументах не ломает сработку", cheatJunk.json?.severity === 1, cheatJunk.json);
+
+  const cheatFlagsPage = await fetch(BASE + "/panel/flags", { headers: { Cookie: steve.session } });
+  const cheatFlagsHtml = await cheatFlagsPage.text();
+  check(
+    "сработка античита видна в панели",
+    cheatFlagsHtml.includes("Letun") && cheatFlagsHtml.includes("Сработка античита"),
+    { status: cheatFlagsPage.status },
+  );
+  check("название проверки обрезано до вменяемой длины", !cheatFlagsHtml.includes("К".repeat(100)), null);
+  void cheater;
+
   console.log("— Кейс «Фаст фуд» —");
   // Кейс временный. Пока срок не вышел — он в продаже, после — исчезает с
   // обеих витрин и не открывается. Проверяем ту сторону, которая сейчас
