@@ -183,10 +183,11 @@ async function main() {
   console.log(`
 Стенд поднят: http://${reachable}:${PORT}
 
-  В config.yml плагина:
+  В config.yml плагина (plugins/VanillaCore/config.yml):
     api:
-      base-url: "http://${reachable}:${PORT}"
+      url: "http://${reachable}:${PORT}"
       token: "${TOKEN}"
+      site-url: "http://${reachable}:${PORT}"
 
   Дальше: зарегистрируйтесь на сайте тем же ником, что и в игре.${
     SITE_ENV.BOOTSTRAP_ADMIN_LOGIN

@@ -31,7 +31,15 @@ public final class ApiClient {
         this.plugin = plugin;
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         this.token = token;
-        this.http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+        // HTTP/1.1 принудительно. По умолчанию клиент Java пробует HTTP/2, и на
+        // сайте без TLS это заканчивается разорванным соединением: апгрейд
+        // h2c уходит в ответ, которого нет, и запрос падает с «header parser
+        // received no bytes». За Caddy разницы никакой, а стенд по http://
+        // и запасной режим по IP без этого не работают вовсе.
+        this.http = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_1_1)
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
     }
 
     public CompletableFuture<JsonObject> post(String path, Map<String, ?> body) {
