@@ -27,6 +27,9 @@ public final class AuthListener implements Listener {
 
     private static final Set<String> ALLOWED = Set.of("login", "l", "2fa", "reg", "register");
 
+    /** Команды, в аргументах которых пароль или одноразовый код. */
+    private static final Set<String> SECRET = Set.of("login", "l", "2fa", "reg", "register", "changepassword");
+
     private final VanillaCorePlugin plugin;
     private final AuthManager auth;
     private final Messages messages;
@@ -50,6 +53,30 @@ public final class AuthListener implements Listener {
 
     private boolean blocked(Player player) {
         return !auth.authenticated(player);
+    }
+
+    /**
+     * Команды с паролем не должны попадать в лог сервера.
+     *
+     * Paper пишет каждую команду игрока строкой «issued server command», и
+     * пароль из /login оказывается в logs/latest.log открытым текстом — а лог
+     * виден всем, у кого есть доступ к панели, и лежит в ротациях месяцами.
+     *
+     * Отменяем событие и выполняем команду сами: строку пишет обработчик
+     * пакета, а Bukkit.dispatchCommand — нет. Приоритет самый низкий, чтобы
+     * успеть до остальных, и MONITOR-слушатели чужих плагинов такую команду
+     * тоже не увидят: пароль не должен уходить дальше, чем нужно.
+     */
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onSecretCommand(PlayerCommandPreprocessEvent event) {
+        String line = event.getMessage();
+        String name = line.substring(1).split(" ")[0].toLowerCase(Locale.ROOT);
+        if (!SECRET.contains(name)) return;
+        // Без аргумента прятать нечего, а обычный путь короче и надёжнее.
+        if (!line.contains(" ")) return;
+
+        event.setCancelled(true);
+        plugin.getServer().dispatchCommand(event.getPlayer(), line.substring(1));
     }
 
     @EventHandler(ignoreCancelled = true)
