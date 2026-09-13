@@ -9,6 +9,7 @@ import { getMaintenance } from "@/lib/maintenance";
 import { getGameFlags } from "@/lib/gameflags";
 import MaintenanceScreen from "@/components/MaintenanceScreen";
 import SiteHeader from "@/components/SiteHeader";
+import { getEvent } from "@/lib/quests";
 import BackdropLines from "@/components/BackdropLines";
 import LangProvider from "@/components/LangProvider";
 import { translate } from "@/lib/i18n";
@@ -38,10 +39,11 @@ export const metadata: Metadata = {
 const ALWAYS_OPEN = ["/login", "/panel", "/maintenance", "/api"];
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [user, maintenance, gameFlags, requestHeaders, lang] = await Promise.all([
+  const [user, maintenance, gameFlags, event, requestHeaders, lang] = await Promise.all([
     currentUser(),
     getMaintenance(),
     getGameFlags(),
+    getEvent(),
     headers(),
     getLang(),
   ]);
@@ -72,6 +74,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <BackdropLines />
         <SiteHeader
           showGames={showGames}
+          showEvent={event.enabled}
           user={
             user
               ? { login: user.login, balanceVc: user.balanceVc, adminLevel: user.adminLevel }

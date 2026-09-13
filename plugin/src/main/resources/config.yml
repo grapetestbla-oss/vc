@@ -334,6 +334,12 @@ messages:
   daily.done: "<green>Дневная норма выполнена! Начислено <white><amount> VC<green>."
   level.reward: "<gold>Уровень <level>! Награда: <amount> VC."
 
+  quest.menu-title: "Осенний ивент · день <day>"
+  quest.done: "<gold>Задание <yellow><quest><gold> выполнено! Кейс ждёт в <white>/cases<gold>. Повторить можно через <cooldown>."
+  quest.off: "<gray>Осенний ивент сейчас не идёт."
+  quest.api-down: "<red>Сайт не отвечает, задания недоступны."
+  quest.nothing: "<gray>В рюкзаке нечего сдавать по открытым заданиям."
+  quest.delivered: "<green>Сдано предметов: <white><amount><green>."
   cases.menu-title: "Кейсы · <balance> VC"
   cases.spin-title: "Открываем кейс…"
   cases.won: "<gold>Из кейса: <yellow><prize>"

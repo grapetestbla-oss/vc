@@ -3611,6 +3611,123 @@ const run = async () => {
 
   await api("/api/panel/purge", { method: "POST", cookie: steve.session, body: { enabled: false } });
 
+  console.log("— Осенний ивент —");
+  const questNoToken = await api("/api/mc/quests");
+  check("задания закрыты без токена сервера", questNoToken.status === 401);
+
+  const questsOff = await api("/api/mc/quests?login=Steve", { serverToken: TOKEN });
+  check("по умолчанию ивент не идёт", questsOff.json?.event?.enabled === false, questsOff.json?.event);
+  check("задания видны и вне ивента", (questsOff.json?.quests?.length ?? 0) === 7, {
+    сколько: questsOff.json?.quests?.length,
+  });
+  check(
+    "вне ивента все задания закрыты",
+    questsOff.json?.quests?.every((quest) => quest.open === false),
+    null,
+  );
+
+  const offAdvance = await api("/api/mc/quests", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Steve", entries: [{ quest: "harvest", token: "WHEAT", amount: 10 }] },
+  });
+  check("вне ивента прогресс не считается", (offAdvance.json?.advanced?.length ?? 0) === 0, offAdvance.json);
+
+  const eventByPlayer = await api("/api/panel/event", {
+    method: "POST",
+    cookie: alex.session,
+    body: { enabled: true },
+  });
+  check("обычный игрок ивент не запускает", eventByPlayer.status === 403, eventByPlayer.json);
+
+  // Начало сдвигаем на четыре дня назад: так открыты задания первого, третьего
+  // и пятого дня, а седьмое остаётся закрытым — иначе проверить расписание
+  // можно было бы только подождав неделю.
+  const eventStart = new Date(Date.now() - 4 * 86_400_000).toISOString();
+  const eventOn = await api("/api/panel/event", {
+    method: "POST",
+    cookie: steve.session,
+    body: { enabled: true, startsAt: eventStart },
+  });
+  check("чиф запускает ивент", eventOn.json?.enabled === true, eventOn.json);
+  check("идёт пятый день", eventOn.json?.day === 5, eventOn.json);
+
+  const farmer = await register("Zhnets");
+  const questsOn = await api("/api/mc/quests?login=Zhnets", { serverToken: TOKEN });
+  const questOpen = Object.fromEntries(
+    (questsOn.json?.quests ?? []).map((quest) => [quest.key, quest.open]),
+  );
+  check("задание первого дня открыто", questOpen.harvest === true, questOpen);
+  check("задание пятого дня открыто", questOpen.leaffall === true, questOpen);
+  check("задание седьмого дня ещё закрыто", questOpen.nighthunt === false, questOpen);
+
+  const grew = await api("/api/mc/quests", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Zhnets", entries: [{ quest: "harvest", token: "CARROTS", amount: 100 }] },
+  });
+  check("прогресс засчитан", grew.json?.advanced?.[0]?.amount === 100, grew.json);
+  check("круг ещё не закрыт", grew.json?.advanced?.[0]?.completed === false, grew.json);
+
+  const wrongToken = await api("/api/mc/quests", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Zhnets", entries: [{ quest: "harvest", token: "DIAMOND", amount: 400 }] },
+  });
+  check("чужой предмет заданию не засчитывается", (wrongToken.json?.advanced?.length ?? 0) === 0, wrongToken.json);
+
+  const notOpenYet = await api("/api/mc/quests", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { login: "Zhnets", entries: [{ quest: "nighthunt", token: "ZOMBIE", amount: 300 }] },
+  });
+  check("закрытое задание не считается", (notOpenYet.json?.advanced?.length ?? 0) === 0, notOpenYet.json);
+
+  const stillHundred = await api("/api/mc/quests?login=Zhnets", { serverToken: TOKEN });
+  const harvestNow = stillHundred.json?.quests?.find((quest) => quest.key === "harvest");
+  check("отклонённое не попало в счётчик", harvestNow?.amount === 100, harvestNow);
+
+  // Две записи в одной пачке: первая закрывает круг, вторая должна упереться в
+  // кулдаун, а не добить второй кейс остатком той же ходки.
+  const harvestClosed = await api("/api/mc/quests", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: {
+      login: "Zhnets",
+      entries: [
+        { quest: "harvest", token: "WHEAT", amount: 412 },
+        { quest: "harvest", token: "WHEAT", amount: 512 },
+      ],
+    },
+  });
+  check("круг закрыт", harvestClosed.json?.advanced?.[0]?.completed === true, harvestClosed.json);
+  check("кейс назван в ответе", harvestClosed.json?.advanced?.[0]?.rewardCase === "wild", harvestClosed.json);
+  check("вторая запись упёрлась в кулдаун", harvestClosed.json?.advanced?.[1]?.completed === false, harvestClosed.json);
+  check("кулдаун начался", (harvestClosed.json?.advanced?.[1]?.cooldownSec ?? 0) > 0, harvestClosed.json);
+
+  const questTickets = await api("/api/mc/cases?login=Zhnets", { serverToken: TOKEN });
+  const wildTicket = questTickets.json?.tickets?.find((ticket) => ticket.caseKey === "wild");
+  check("за круг выдан билет на кейс", (wildTicket?.count ?? 0) === 1, questTickets.json?.tickets);
+
+  const afterClaim = await api("/api/mc/quests?login=Zhnets", { serverToken: TOKEN });
+  const harvestAfter = afterClaim.json?.quests?.find((quest) => quest.key === "harvest");
+  check("счётчик обнулён до нового круга", harvestAfter?.amount === 0, harvestAfter);
+  check("круг записан", harvestAfter?.rounds === 1, harvestAfter);
+  check("кулдаун виден в состоянии", (harvestAfter?.cooldownSec ?? 0) > 0, harvestAfter);
+
+  const eventPage = await fetch(BASE + "/event");
+  const eventHtml = await eventPage.text();
+  check("страница ивента открыта всем", eventPage.status === 200, { status: eventPage.status });
+  check("задания видны на странице", eventHtml.includes("Сбор урожая") && eventHtml.includes("Листопад"), null);
+
+  const eventOff = await api("/api/panel/event", {
+    method: "POST",
+    cookie: steve.session,
+    body: { enabled: false },
+  });
+  check("чиф останавливает ивент", eventOff.json?.enabled === false, eventOff.json);
+  void farmer;
+
   console.log("— Мост чата с Telegram —");
   const chatNoToken = await api("/api/mc/chat", { method: "POST", body: { lines: [] } });
   check("мост чата закрыт без токена", chatNoToken.status === 401);

@@ -37,6 +37,8 @@ import host.vanilla.core.report.ReportManager;
 import host.vanilla.core.season.GiveawayNotifier;
 import host.vanilla.core.season.ActivityTracker;
 import host.vanilla.core.season.DailyRestart;
+import host.vanilla.core.season.QuestCommand;
+import host.vanilla.core.season.QuestTracker;
 import host.vanilla.core.season.PurgeNight;
 import host.vanilla.core.season.Sidebar;
 import host.vanilla.core.season.SparkManager;
@@ -90,6 +92,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
     private GiveawayNotifier giveaways;
     private CaseShop caseShop;
     private CaseMenu caseMenu;
+    private QuestTracker quests;
     private DiceGame dice;
     private ShopManager shop;
     private HomesManager homes;
@@ -137,6 +140,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         giveaways = new GiveawayNotifier(this, messages);
         caseShop = new CaseShop(this, messages);
         caseMenu = new CaseMenu(this, messages);
+        quests = new QuestTracker(this, messages);
         dice = new DiceGame(this, messages);
         shop = new ShopManager(this);
         homes = new HomesManager(this);
@@ -187,6 +191,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         manager.registerEvents(purge, this);
         manager.registerEvents(xray, this);
         manager.registerEvents(caseMenu, this);
+        manager.registerEvents(quests, this);
         manager.registerEvents(new ReportMenuListener(this, reports), this);
         manager.registerEvents(new CosmeticListener(this, cosmetics), this);
         manager.registerEvents(new ShopListener(this, shopCommands, messages), this);
@@ -208,6 +213,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
 
         bind("cosmetics", new CosmeticCommand(this, cosmetics));
         bind("vcflag", new CheatBridge(this, messages));
+        bind("event", new QuestCommand(this, messages));
 
         for (String name : List.of("shop", "tpa", "tpaccept", "tpdeny", "sethome", "home", "homes",
                 "delhome", "back", "ec", "craft")) {
@@ -280,6 +286,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
         if (config.restartEnabled) {
             getServer().getScheduler().runTaskTimer(this, restart::tick, 20L, 20L);
         }
+        // Задания ивента: список забирается с сайта, счётчики уходят пачками.
+        quests.start();
         // Поручения с сайта (очистка инвентаря) забираем в том же ритме, что и новости.
         getServer().getScheduler().runTaskTimer(this, actions::poll,
                 config.newsPollSeconds * 20L + 40L, config.newsPollSeconds * 20L);
@@ -528,6 +536,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         shop.forget(player);
         xray.forget(player);
         caseMenu.forget(player);
+        quests.forget(player);
         homes.forget(player);
         checks.onQuit(player);
         esp.disable(player);
@@ -579,6 +588,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
     public XrayTraps xray() { return xray; }
 
     public CaseMenu caseMenu() { return caseMenu; }
+
+    public QuestTracker quests() { return quests; }
     public SparkManager sparks() { return sparks; }
     public GiveawayNotifier giveaways() { return giveaways; }
     public JailJobs jailJobs() { return jailJobs; }

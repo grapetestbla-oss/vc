@@ -25,6 +25,7 @@ const NAV = [
   { href: "/panel/games", label: "Мини-игры", permission: "games.toggle" },
   { href: "/panel/release", label: "Выкатка", permission: "release.publish" },
   { href: "/panel/purge", label: "Судная ночь", permission: "purge.toggle" },
+  { href: "/panel/event", label: "Осенний ивент", permission: "purge.toggle" },
   { href: "/panel/maintenance", label: "Техработы", permission: "maintenance.toggle" },
   { href: "/panel/ranks", label: "Ранги и права", permission: "ranks.manage" },
   { href: "/panel/staff", label: "Персонал", permission: "users.staff" },

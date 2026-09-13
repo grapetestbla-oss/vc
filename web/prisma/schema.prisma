@@ -85,6 +85,7 @@ model User {
   tickets              Ticket[]
   giveawayEntries      GiveawayEntry[]
   caseTickets          CaseTicket[]
+  questProgress        QuestProgress[]
   diceChallenges       DiceMatch[]          @relation("DiceChallenger")
   diceOpponents        DiceMatch[]          @relation("DiceOpponent")
   diceWins             DiceMatch[]          @relation("DiceWinner")
@@ -1060,4 +1061,35 @@ model PartnerApplication {
 
   @@index([status, createdAt])
   @@index([userId])
+}
+
+// ──────────────────────── Осенний ивент: задания ─────────────────────────
+
+/// Прогресс игрока по заданию ивента.
+///
+/// Задание можно сдавать много раз: сдал — кулдаун, отстоялся — счётчик
+/// обнуляется и идёт новый круг. Поэтому хранится не «выполнено/нет», а
+/// текущий круг и время последней сдачи.
+///
+/// Строка одна на пару «игрок + задание»: при сбросе круга мы перезаписываем
+/// её, а не заводим новую. История сдач и так лежит в выданных билетах и
+/// транзакциях, и плодить строки ради неё незачем.
+model QuestProgress {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Ключ задания из кода: задания придуманы заранее и в базе не настраиваются.
+  questKey String
+
+  /// Сколько набрано в текущем круге.
+  amount Int @default(0)
+  /// Сколько кругов уже сдано.
+  rounds Int @default(0)
+  /// Когда сдан последний круг — от него считается кулдаун.
+  claimedAt DateTime?
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, questKey])
+  @@index([questKey])
 }

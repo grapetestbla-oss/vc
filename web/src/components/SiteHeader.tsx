@@ -10,6 +10,7 @@ import { useT } from "./LangProvider";
 
 const LINKS = [
   { href: "/news", label: "Новости" },
+  { href: "/event", label: "Осенний ивент" },
   { href: "/giveaways", label: "Розыгрыши" },
   { href: "/cases", label: "Кейсы" },
   { href: "/shop", label: "Магазин" },
@@ -22,12 +23,18 @@ const LINKS = [
 export default function SiteHeader({
   user,
   showGames = true,
+  showEvent = false,
 }: {
   user: { login: string; balanceVc: number; adminLevel: number } | null;
   showGames?: boolean;
+  /** Ссылка на ивент висит в шапке только пока ивент идёт: две недели в году. */
+  showEvent?: boolean;
 }) {
   const t = useT();
-  const links = LINKS.filter((link) => showGames || link.href !== "/games");
+  const links = LINKS.filter(
+    (link) =>
+      (showGames || link.href !== "/games") && (showEvent || link.href !== "/event"),
+  );
 
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
