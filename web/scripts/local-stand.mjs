@@ -38,8 +38,17 @@ const PORT = Number(flag("port", 3000));
 const PG_PORT = Number(flag("pg-port", 5433));
 const HOST = args.includes("--lan") ? "0.0.0.0" : "127.0.0.1";
 const REBUILD = args.includes("--rebuild");
+const RESET_DB = args.includes("--reset-db");
 
 fs.mkdirSync(STAND, { recursive: true });
+
+// Каталог базы, оставшийся от убитого процесса, больше не открывается — и
+// молча: PGlite просто не доходит до готовности. Лечится только удалением,
+// поэтому даём ключ, а не отправляем искать папку руками.
+if (RESET_DB) {
+  fs.rmSync(path.join(STAND, "pgdata"), { recursive: true, force: true });
+  console.log("→ База сброшена: аккаунты и прогресс заведутся заново");
+}
 
 /**
  * Токен для плагина храним между запусками: он прописан в config.yml на той же
@@ -73,6 +82,27 @@ function done(child, what) {
     child.on("exit", (code) =>
       code === 0 ? resolve(output) : reject(new Error(`${what}: код ${code}\n${output}`)),
     );
+  });
+}
+
+/**
+ * Ждём строку от самой базы, а не открытый порт. PGlite держит ровно одно
+ * соединение, и пробный сокет занимает этот единственный слот: порт уже
+ * открыт, а первый настоящий запрос упирается в «Can't reach database server».
+ */
+function waitLine(child, needle, seconds) {
+  return new Promise((resolve) => {
+    let seen = "";
+    const timer = setTimeout(() => resolve(false), seconds * 1000);
+    const watch = (chunk) => {
+      seen += chunk;
+      if (seen.includes(needle)) {
+        clearTimeout(timer);
+        resolve(true);
+      }
+    };
+    child.stdout?.on("data", watch);
+    child.stderr?.on("data", watch);
   });
 }
 
@@ -146,7 +176,12 @@ async function main() {
       shutdown(1);
     }
   });
-  if (!(await waitPort(PG_PORT, 60))) throw new Error("база не поднялась");
+  if (!(await waitLine(pg, "listening", 180))) {
+    throw new Error(
+      "база не поднялась за три минуты. Обычно это каталог, оставшийся от " +
+        "прерванного запуска: перезапустите с --reset-db, база заведётся заново.",
+    );
+  }
 
   console.log("→ Схема и каталог");
   await done(
@@ -176,8 +211,21 @@ async function main() {
   console.log("→ Сайт");
   // Именно server.js, а не next start: сайт собирается в режиме standalone, и
   // next start с ним не работает — Next об этом честно предупреждает сам.
-  start("node", [server], { env: SITE_ENV });
-  if (!(await waitPort(PORT, 120))) throw new Error("сайт не поднялся");
+  const site = start("node", [server], { env: SITE_ENV });
+
+  // Занятый порт ловим по самому сайту, а не опросом порта: на занятом порту
+  // кто-то уже отвечает, и опрос радостно сообщил бы, что всё поднялось.
+  const ready = await Promise.race([
+    waitPort(PORT, 120).then((ok) => (ok ? "ok" : "timeout")),
+    new Promise((resolve) => site.on("exit", () => resolve("exit"))),
+  ]);
+  if (ready !== "ok") {
+    throw new Error(
+      ready === "exit"
+        ? "сайт не запустился. Чаще всего порт " + PORT + " уже занят — попробуйте --port " + (PORT + 1) + "."
+        : "сайт не поднялся",
+    );
+  }
 
   const reachable = HOST === "0.0.0.0" ? lanAddress() : "127.0.0.1";
   console.log(`

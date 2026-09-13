@@ -1,6 +1,15 @@
 import { requirePanel } from "@/lib/panel";
+import { db } from "@/lib/db";
 import { EVENT_DAYS, QUESTS, getEvent } from "@/lib/quests";
 import EventToggle from "@/components/EventToggle";
+
+/** Ключи целей — из кода, а администрации нужны слова. */
+const GOALS: Record<string, string> = {
+  BREAK: "сломать",
+  KILL: "убить",
+  CRAFT: "скрафтить",
+  DELIVER: "сдать",
+};
 
 export const dynamic = "force-dynamic";
 
@@ -8,7 +17,11 @@ export default async function PanelEventPage() {
   const admin = await requirePanel(5, "purge.toggle");
   if (!admin) return null;
 
-  const event = await getEvent();
+  const [event, cases] = await Promise.all([
+    getEvent(),
+    db.caseType.findMany({ select: { key: true, name: true } }),
+  ]);
+  const caseName = new Map(cases.map((item) => [item.key, item.name]));
 
   return (
     <div className="space-y-6">
@@ -50,9 +63,9 @@ export default async function PanelEventPage() {
                   <td className="py-2 pr-4">{quest.opensOnDay}</td>
                   <td className="py-2 pr-4">{quest.title}</td>
                   <td className="py-2 pr-4">
-                    {quest.target} × {quest.goal}
+                    {GOALS[quest.goal] ?? quest.goal} {quest.target.toLocaleString("ru")}
                   </td>
-                  <td className="py-2">{quest.rewardCase}</td>
+                  <td className="py-2">{caseName.get(quest.rewardCase) ?? quest.rewardCase}</td>
                 </tr>
               ))}
             </tbody>

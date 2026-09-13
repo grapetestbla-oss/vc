@@ -18,7 +18,7 @@ const GOALS: Record<string, string> = {
   BREAK: "сломать",
   KILL: "убить",
   CRAFT: "скрафтить",
-  DELIVER: "сдать командой /event сдать",
+  DELIVER: "сдать",
 };
 
 export default async function EventPage() {
@@ -81,6 +81,9 @@ export default async function EventPage() {
                 <p className="text-sm">
                   <span className="muted">Цель: </span>
                   {GOALS[quest.goal] ?? quest.goal} {quest.target.toLocaleString("ru")}
+                  {quest.goal === "DELIVER" && (
+                    <span className="muted"> — из рюкзака, командой <code>/event сдать</code></span>
+                  )}
                 </p>
 
                 <div className="mt-auto space-y-2">
