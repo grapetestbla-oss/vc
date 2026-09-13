@@ -71,6 +71,12 @@ services:
       # Группа, куда уходит общий игровой чат и откуда принимаются ответы.
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:--1003907771050}
       TELEGRAM_CHANNEL_URL: ${TELEGRAM_CHANNEL_URL:-https://t.me/vanillacraftx}
+      # Канал для новостей — не та же группа, что у пересылки чата: там
+      # болтают игроки, а канал витрина. Пусто — галочка «в Telegram» у
+      # новости честно скажет, что отправлять некуда.
+      TELEGRAM_CHANNEL_ID: ${TELEGRAM_CHANNEL_ID:-}
+      # Куда уходят сработки античита и ловушек. Пусто — админам в личку.
+      TELEGRAM_ADMIN_CHAT_ID: ${TELEGRAM_ADMIN_CHAT_ID:-}
       # Дневная норма игры: сколько активных часов и сколько за них VC.
       DAILY_ACTIVE_HOURS: ${DAILY_ACTIVE_HOURS:-5}
       DAILY_REWARD_VC: ${DAILY_REWARD_VC:-200}
