@@ -12,3 +12,7 @@ deploy/Caddyfile
 
 # TypeScript
 web/tsconfig.tsbuildinfo
+
+# Ролик-обзор собирается скриптом из текста и артов — держать в репозитории
+# семь мегабайт, которые пересобираются одной командой, незачем.
+web/update-autumn.mp4
