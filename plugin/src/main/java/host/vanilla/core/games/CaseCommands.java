@@ -42,7 +42,7 @@ public final class CaseCommands implements CommandExecutor {
 
     private boolean cases(Player player, String[] args) {
         if (args.length == 0) {
-            plugin.cases().openShop(player);
+            plugin.caseMenu().open(player);
             return true;
         }
 

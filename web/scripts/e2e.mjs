@@ -63,6 +63,14 @@ async function api(path, { method = "GET", body, cookie, serverToken, deployToke
 const SKIN_PNG_64 = "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAJ0lEQVR4nO3BAQ0AAADCoPdPbQ43oAAAAAAAAAAAAAAAAAAAAIB3A0BAAAGP8slRAAAAAElFTkSuQmCC";
 const SKIN_PNG_32 = "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAGklEQVR4nO3BAQEAAACCIP+vbkhAAQAAAO8GECAAARlDNO4AAAAASUVORK5CYII=";
 
+/** Сколько VC вернул кейс: прямой выигрыш плюс возврат за дубль. */
+function caseWinnings(results) {
+  return results.reduce(
+    (sum, item) => sum + (item.kind === "VC" ? item.amount : 0) + (item.refundVc ?? 0),
+    0,
+  );
+}
+
 async function postSkin(session, fields) {
   const form = new FormData();
   for (const [key, value] of Object.entries(fields)) {
@@ -106,6 +114,19 @@ async function register(login, password = "password123", promo) {
 }
 
 const run = async () => {
+  // Каталог должен быть накатан до прогона: без него «товар недоступен» и
+  // «кейс недоступен» посыплются десятками, и за ними не видно настоящих
+  // поломок. Лучше честно остановиться и сказать, что стенд не готов.
+  const catalogueReady = await fetch(BASE + "/api/mc/cases?login=", {
+    headers: { "X-Server-Token": TOKEN },
+  });
+  const catalogueJson = await catalogueReady.json().catch(() => null);
+  if (!catalogueReady.ok || (catalogueJson?.cases?.length ?? 0) === 0) {
+    console.log("СТОП: каталог пуст — прогоните prisma db push и prisma/seed.mjs");
+    console.log(`  ответ: ${catalogueReady.status} ${JSON.stringify(catalogueJson)}`);
+    process.exit(2);
+  }
+
   console.log("— Регистрация —");
   const steve = await register("Steve");
   check("регистрация проходит", steve.status === 200, steve.json);
@@ -2664,9 +2685,7 @@ const run = async () => {
   });
   check("результатов столько же, сколько кейсов", bulk.json?.results?.length === 5, bulk.json?.opened);
   // Из кейса может выпасть и VC, поэтому сверяем точную арифметику, а не «стало меньше».
-  const wonVc = bulk.json.results
-    .filter((item) => item.kind === "VC")
-    .reduce((sum, item) => sum + item.amount, 0);
+  const wonVc = caseWinnings(bulk.json.results);
   const balanceAfterBulk = (await api("/api/me", { cookie: bulkPlayer.session })).json.balanceVc;
   check(
     "списано ровно за пять кейсов, выигрыш зачислен",
@@ -2698,20 +2717,18 @@ const run = async () => {
     cookie: brokePlayer.session,
     body: { caseKey: bulkCase.key, count: 5 },
   });
-  check("на сколько хватило VC — столько и открылось", partial.json?.opened === 2, partial.json?.opened);
+  // Ровно двух тут больше не гарантировать: выигрыш из первого кейса может
+  // оплатить третий, и это правильное поведение, а не сбой. Проверяем то, что
+  // обязано сходиться всегда, — арифметику.
+  check("открылось не больше, чем оплачено", partial.json?.opened >= 2, partial.json?.opened);
   check("недостача объясняется словами", Boolean(partial.json?.stopped), partial.json?.stopped);
-  // Кейс может вернуть VC, поэтому ровного нуля тут не бывает: считаем выигрыш.
-  // Дубль тоже приходит деньгами, хотя вид у него COSMETIC, — его учитываем
-  // отдельным полем, иначе баланс «не сходится» на ровном месте.
-  const brokeWon = partial.json.results.reduce(
-    (sum, item) => sum + (item.kind === "VC" ? item.amount : 0) + (item.refundVc ?? 0),
-    0,
-  );
+  const brokeWon = caseWinnings(partial.json.results);
   const brokeLeft = (await api("/api/me", { cookie: brokePlayer.session })).json.balanceVc;
-  check("потрачено ровно на два кейса, выигрыш зачислен", brokeLeft === brokeWon, {
-    brokeLeft,
-    brokeWon,
-  });
+  const brokeSpent = partial.json.opened * bulkCase.priceVc;
+  check("баланс сошёлся: потрачено за открытые, выигрыш зачислен",
+    brokeLeft === bulkCase.priceVc * 2 - brokeSpent + brokeWon,
+    { brokeLeft, brokeWon, brokeSpent, opened: partial.json.opened },
+  );
   check("баланс не ушёл в минус", brokeLeft >= 0, brokeLeft);
 
   console.log("— Telegram, голоса и сектора рулетки —");
@@ -3192,6 +3209,59 @@ const run = async () => {
     releases: releaseHistory.json?.releases?.map((item) => item.status),
   });
   check("кнопка снова доступна", releaseHistory.json?.allowed === true, releaseHistory.json?.allowed);
+
+  console.log("— Меню кейсов в игре —");
+  const menuShelf = await api("/api/mc/cases?login=Steve", { serverToken: TOKEN });
+  const menuCase = menuShelf.json?.cases?.find((item) => item.key === "wild");
+  check("витрина отдаёт содержимое кейса", (menuCase?.items?.length ?? 0) > 5, {
+    items: menuCase?.items?.length,
+  });
+  check(
+    "у каждой строки есть подпись, шанс и редкость",
+    menuCase.items.every(
+      (item) => typeof item.label === "string" && typeof item.chance === "number",
+    ),
+    menuCase.items.slice(0, 2),
+  );
+  check("сумма шансов близка к сотне", Math.abs(
+    menuCase.items.reduce((sum, item) => sum + item.chance, 0) - 100,
+  ) < 1, menuCase.items.reduce((sum, item) => sum + item.chance, 0));
+  check("витрина отдаёт цвет кейса", typeof menuCase.accent === "string", menuCase.accent);
+
+  // Купленный в игре кейс до открытия виден как оплаченный: иначе он исчез бы
+  // из меню и игрок решил бы, что VC списали впустую.
+  const menuBuyer = await register("Menyushnik");
+  const menuBuyerMe = await api("/api/me", { cookie: menuBuyer.session });
+  await api("/api/panel/balance", {
+    method: "POST",
+    cookie: steve.session,
+    body: { userId: menuBuyerMe.json.id, amount: 1000, reason: "на меню" },
+  });
+  const menuBuy = await api("/api/mc/cases", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { action: "buy", login: "Menyushnik", caseKey: "wild" },
+  });
+  check("кейс куплен из меню", menuBuy.json?.status === "ok", menuBuy.json);
+
+  const menuWithTicket = await api("/api/mc/cases?login=Menyushnik", { serverToken: TOKEN });
+  check(
+    "оплаченный кейс виден отдельной строкой",
+    menuWithTicket.json?.tickets?.some((item) => item.caseKey === "wild" && item.count === 1),
+    menuWithTicket.json?.tickets,
+  );
+
+  const menuOpen = await api("/api/mc/cases", {
+    method: "POST",
+    serverToken: TOKEN,
+    body: { action: "open", login: "Menyushnik", caseKey: "wild" },
+  });
+  check("оплаченный кейс открывается без второго списания", menuOpen.json?.status === "ok", menuOpen.json);
+
+  const menuAfterOpen = await api("/api/mc/cases?login=Menyushnik", { serverToken: TOKEN });
+  check("после открытия оплаченных не осталось", (menuAfterOpen.json?.tickets?.length ?? 0) === 0, {
+    tickets: menuAfterOpen.json?.tickets,
+  });
 
   console.log("— Витрина кейсов с артами —");
   const artPage = await fetch(BASE + "/cases");

@@ -334,6 +334,9 @@ messages:
   daily.done: "<green>Дневная норма выполнена! Начислено <white><amount> VC<green>."
   level.reward: "<gold>Уровень <level>! Награда: <amount> VC."
 
+  cases.menu-title: "Кейсы · <balance> VC"
+  cases.spin-title: "Открываем кейс…"
+  cases.won: "<gold>Из кейса: <yellow><prize>"
   restart.warning: "<gold>Сервер перезапустится через <yellow><human><gold>. Успейте убрать вещи."
   restart.failed: "<red>Ночной перезапуск не прошёл: панель не ответила. Перезапустите сервер вручную."
   restart.title: "<red>Перезапуск через <seconds>"

@@ -24,6 +24,7 @@ import host.vanilla.core.cosmetics.CosmeticListener;
 import host.vanilla.core.economy.PlayerCommands;
 import host.vanilla.core.games.CaseCommands;
 import host.vanilla.core.games.CaseListener;
+import host.vanilla.core.games.CaseMenu;
 import host.vanilla.core.games.CaseShop;
 import host.vanilla.core.games.DiceGame;
 import host.vanilla.core.punish.JailJobs;
@@ -87,6 +88,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
     private SparkManager sparks;
     private GiveawayNotifier giveaways;
     private CaseShop caseShop;
+    private CaseMenu caseMenu;
     private DiceGame dice;
     private ShopManager shop;
     private HomesManager homes;
@@ -133,6 +135,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         sparks = new SparkManager(this, messages);
         giveaways = new GiveawayNotifier(this, messages);
         caseShop = new CaseShop(this, messages);
+        caseMenu = new CaseMenu(this, messages);
         dice = new DiceGame(this, messages);
         shop = new ShopManager(this);
         homes = new HomesManager(this);
@@ -182,6 +185,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         manager.registerEvents(activity, this);
         manager.registerEvents(purge, this);
         manager.registerEvents(xray, this);
+        manager.registerEvents(caseMenu, this);
         manager.registerEvents(new ReportMenuListener(this, reports), this);
         manager.registerEvents(new CosmeticListener(this, cosmetics), this);
         manager.registerEvents(new ShopListener(this, shopCommands, messages), this);
@@ -521,6 +525,7 @@ public final class VanillaCorePlugin extends JavaPlugin {
         cosmetics.forget(player);
         shop.forget(player);
         xray.forget(player);
+        caseMenu.forget(player);
         homes.forget(player);
         checks.onQuit(player);
         esp.disable(player);
@@ -570,6 +575,8 @@ public final class VanillaCorePlugin extends JavaPlugin {
     public DailyRestart restart() { return restart; }
 
     public XrayTraps xray() { return xray; }
+
+    public CaseMenu caseMenu() { return caseMenu; }
     public SparkManager sparks() { return sparks; }
     public GiveawayNotifier giveaways() { return giveaways; }
     public JailJobs jailJobs() { return jailJobs; }

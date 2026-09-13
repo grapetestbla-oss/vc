@@ -16,16 +16,50 @@ export async function GET(request: Request) {
       OR: [{ availableUntil: null }, { availableUntil: { gt: new Date() } }],
     },
     orderBy: { sortOrder: "asc" },
-    select: { key: true, name: true, description: true, priceVc: true },
+    select: {
+      key: true,
+      name: true,
+      description: true,
+      priceVc: true,
+      accent: true,
+      pityThreshold: true,
+      // Содержимое нужно меню в игре: из него собирается барабан и подсказка
+      // о лучшем призе. Веса не отдаём — шансы показывает сайт, а в барабане
+      // они только запутали бы.
+      items: {
+        select: {
+          weight: true,
+          amount: true,
+          kind: true,
+          cosmetic: { select: { name: true, rarity: true, kind: true } },
+        },
+      },
+    },
   });
 
   const user = login
     ? await db.user.findUnique({ where: { login }, select: { id: true, balanceVc: true } })
     : null;
 
+  const total = (items: { weight: number }[]) =>
+    items.reduce((sum, item) => sum + item.weight, 0);
+
   return Response.json({
     balance: user?.balanceVc ?? null,
-    cases,
+    cases: cases.map((caseType) => ({
+      key: caseType.key,
+      name: caseType.name,
+      description: caseType.description,
+      priceVc: caseType.priceVc,
+      accent: caseType.accent,
+      pityThreshold: caseType.pityThreshold,
+      items: caseType.items.map((item) => ({
+        label: item.cosmetic?.name ?? `${item.amount} VC`,
+        rarity: item.cosmetic?.rarity ?? null,
+        kind: item.cosmetic?.kind ?? item.kind,
+        chance: Math.round((item.weight / total(caseType.items)) * 10000) / 100,
+      })),
+    })),
     tickets: user ? await pendingTickets(user.id) : [],
   });
 }
