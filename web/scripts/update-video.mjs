@@ -133,7 +133,7 @@ const SCENES = [
   {
     eyebrow: "Заходи",
     title: "VANILLACRAFT",
-    lines: ["vanillacraft.dreamkit.pro", "vanillacraft.click", "Telegram — ссылка на сайте"],
+    lines: ["vanillacraft.dreamkit.pro", "vanillacraft.click", "t.me/vanillacraftx"],
     logo: true,
     seconds: 6,
   },

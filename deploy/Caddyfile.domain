@@ -29,9 +29,19 @@
 tech.{$SITE_DOMAIN} {
 	encode gzip
 
-	# Ни плагин, ни агент выкатки со стендом не разговаривают.
-	@closed path /api/mc/* /api/deploy/*
+	# Агент выкатки со стендом не разговаривает никогда.
+	@closed path /api/deploy/*
 	respond @closed 403
+
+	# Плагин — только с тестового игрового сервера и только если его адрес
+	# задан. По умолчанию сюда пускается лишь сам хост, то есть снаружи
+	# закрыто: стенд не должен отвечать первому, кто узнал токен.
+	@techmc path /api/mc/*
+	handle @techmc {
+		@foreign not remote_ip {$TECH_MC_SERVER_IP:127.0.0.1/32}
+		respond @foreign 403
+		reverse_proxy 127.0.0.1:3001
+	}
 
 	reverse_proxy 127.0.0.1:3001
 
