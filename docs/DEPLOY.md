@@ -156,8 +156,12 @@ TECH_MC_SERVER_IP=1.2.3.4/32
 ```
 
 ```
-cd /opt/vanillacoins/deploy && cp Caddyfile.domain Caddyfile && docker compose --env-file .env restart caddy
+cd /opt/vanillacoins/deploy && cp Caddyfile.domain Caddyfile && docker compose --env-file .env up -d caddy
 ```
+
+Именно `up -d`, а не `restart`: перезапуск поднимает контейнер со старым
+набором переменных, и новый `TECH_MC_SERVER_IP` до Caddy не доедет — маршрут
+останется закрытым, хотя в конфиге всё правильно.
 
 В `config.yml` плагина при этом меняются две строки: `api.base-url` на
 `https://tech.vanillacraft.click` и `api.token` на `TECH_MC_SERVER_TOKEN`

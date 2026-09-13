@@ -118,6 +118,9 @@ services:
     environment:
       SITE_DOMAIN: ${SITE_DOMAIN:-localhost}
       MC_SERVER_IP: ${MC_SERVER_IP:-0.0.0.0/0}
+      # Адрес тестового игрового сервера: без него блок стенда в Caddyfile
+      # подставит умолчание и /api/mc/* останется закрытым снаружи.
+      TECH_MC_SERVER_IP: ${TECH_MC_SERVER_IP:-127.0.0.1/32}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddydata:/data
