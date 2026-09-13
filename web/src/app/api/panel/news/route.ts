@@ -1,14 +1,14 @@
 import { db } from "@/lib/db";
 import { requirePanel } from "@/lib/panel";
 import { audit, clientIp } from "@/lib/audit";
-import { slugify } from "@/lib/news";
+import { postToChannel, slugify } from "@/lib/news";
 
 /** Публикация новости. Только chief administrator. */
 export async function POST(request: Request) {
   const admin = await requirePanel(5, "news.manage");
   if (!admin) return Response.json({ error: "Нужен 5 уровень" }, { status: 403 });
 
-  const { title, summary, body, coverUrl, pinned, broadcast, published } =
+  const { title, summary, body, coverUrl, pinned, broadcast, telegram, published } =
     (await request.json()) as {
       title?: string;
       summary?: string;
@@ -16,6 +16,7 @@ export async function POST(request: Request) {
       coverUrl?: string;
       pinned?: boolean;
       broadcast?: boolean;
+      telegram?: boolean;
       published?: boolean;
     };
 
@@ -38,19 +39,34 @@ export async function POST(request: Request) {
       coverUrl: coverUrl?.trim() || null,
       pinned: Boolean(pinned),
       broadcast: Boolean(broadcast),
+      telegram: Boolean(telegram),
       published: published !== false,
       authorId: admin.id,
     },
   });
 
+  // В канал шлём только опубликованную новость: черновик там никому не нужен,
+  // а отозвать сообщение из Telegram мы не сможем.
+  let telegramError: string | null = null;
+  if (news.telegram && news.published) {
+    const posted = await postToChannel(news);
+    if (posted.ok) {
+      await db.news.update({ where: { id: news.id }, data: { telegramAt: new Date() } });
+    } else {
+      telegramError = posted.reason;
+    }
+  }
+
   await audit({
     actorId: admin.id,
     action: "panel.news.create",
     ip: clientIp(request),
-    meta: { slug: news.slug, broadcast: news.broadcast },
+    meta: { slug: news.slug, broadcast: news.broadcast, telegram: news.telegram },
   });
 
-  return Response.json({ ok: true, slug: news.slug });
+  // Новость сохранена в любом случае: неудача с каналом её не отменяет, но и
+  // молчать о ней нельзя — иначе «галочку поставил, а поста нет».
+  return Response.json({ ok: true, slug: news.slug, telegramError });
 }
 
 /** Правка новости: снять с публикации, закрепить, поменять текст. */

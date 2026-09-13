@@ -19,6 +19,14 @@ export function relayChatId(): string | null {
   return process.env.TELEGRAM_CHAT_ID?.trim() || null;
 }
 
+/**
+ * Канал, куда уходят новости. Это не тот чат, что у пересылки игрового чата:
+ * там сидят игроки и болтают, а канал — витрина, и мешать их нельзя.
+ */
+export function channelChatId(): string | null {
+  return process.env.TELEGRAM_CHANNEL_ID?.trim() || null;
+}
+
 /** Экранирование под parse_mode=HTML: игрок может написать что угодно. */
 export function escapeHtml(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");

@@ -1022,6 +1022,11 @@ model News {
   /// Объявить новость в игровом чате — плагин заберёт её сам.
   broadcast     Boolean   @default(false)
   broadcastedAt DateTime?
+  /// Опубликовать новость в Telegram-канале.
+  telegram      Boolean   @default(false)
+  /// Когда ушла в канал. Держим отдельно от флага: по нему видно, что отправка
+  /// действительно состоялась, а не только была заказана.
+  telegramAt    DateTime?
 
   authorId  String?
   author    User?    @relation("NewsAuthor", fields: [authorId], references: [id], onDelete: SetNull)

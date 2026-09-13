@@ -6,7 +6,9 @@
  *
  * Проверки Telegram включаются, только если сайт поднят с TELEGRAM_WEBHOOK_SECRET
  * и TELEGRAM_API_URL, указывающим на заглушку: те же значения передаются сюда в
- * TELEGRAM_WEBHOOK_SECRET и TELEGRAM_STUB_PORT.
+ * TELEGRAM_WEBHOOK_SECRET и TELEGRAM_STUB_PORT. Для проверки новостей в канале
+ * сайту и прогону нужен ещё TELEGRAM_CHANNEL_ID — он должен отличаться от
+ * TELEGRAM_CHAT_ID, иначе пост в канал и пересылка игрового чата неразличимы.
  */
 import { execFileSync } from "node:child_process";
 
@@ -3901,6 +3903,62 @@ const run = async () => {
       bridged.json?.incoming?.[0]?.author === "alex_tg",
       bridged.json?.incoming?.[0],
     );
+
+    console.log("— Новость в Telegram-канале —");
+    const newsTgBefore = tgCalls.length;
+    const newsPosted = await api("/api/panel/news", {
+      method: "POST",
+      cookie: steve.session,
+      body: {
+        title: "Осеннее обновление",
+        summary: "Ивент на две недели, кейсы в игре и античит.",
+        body: "Полный разбор на сайте.",
+        telegram: true,
+      },
+    });
+    check("новость с галочкой канала создана", newsPosted.json?.ok === true, newsPosted.json);
+    check("канал не пожаловался", !newsPosted.json?.telegramError, newsPosted.json?.telegramError);
+
+    const newsCall = tgCalls.slice(newsTgBefore).find((call) => call.method === "sendMessage");
+    check("сообщение ушло в канал", Boolean(newsCall), tgCalls.slice(newsTgBefore));
+    check(
+      "в канал ушёл не игровой чат, а канал",
+      newsCall?.body?.chat_id === (process.env.TELEGRAM_CHANNEL_ID ?? "-100777"),
+      newsCall?.body?.chat_id,
+    );
+    check(
+      "в посте заголовок и ссылка на новость",
+      newsCall?.body?.text?.includes("Осеннее обновление") && newsCall?.body?.text?.includes("/news/"),
+      newsCall?.body?.text,
+    );
+
+    // Черновик в канал уходить не должен: отозвать сообщение из Telegram уже
+    // нельзя, а неопубликованную новость по ссылке никто не откроет.
+    const draftBefore = tgCalls.length;
+    const newsDraft = await api("/api/panel/news", {
+      method: "POST",
+      cookie: steve.session,
+      body: {
+        title: "Черновик обновления",
+        summary: "Ещё не готово",
+        body: "Текст в работе",
+        telegram: true,
+        published: false,
+      },
+    });
+    check("черновик сохранён", newsDraft.json?.ok === true, newsDraft.json);
+    check(
+      "черновик в канал не ушёл",
+      tgCalls.slice(draftBefore).every((call) => !String(call.body?.text ?? "").includes("Черновик")),
+      tgCalls.slice(draftBefore),
+    );
+
+    const newsPlain = await api("/api/panel/news", {
+      method: "POST",
+      cookie: steve.session,
+      body: { title: "Без канала", summary: "Только сайт", body: "Текст" },
+    });
+    check("без галочки канал не трогаем", !newsPlain.json?.telegramError, newsPlain.json);
 
     tgStub.close();
   }

@@ -30,7 +30,15 @@ export default function NewsEditor({ items }: { items: NewsItem[] }) {
     });
     const data = await response.json();
     setBusy(false);
-    setMessage(response.ok ? "Готово" : (data.error ?? "Ошибка"));
+    // Новость могла сохраниться, а в канал не уйти: молчать об этом нельзя,
+    // иначе «галочку поставил, а поста нет».
+    setMessage(
+      response.ok
+        ? data.telegramError
+          ? "Новость опубликована, но в канал не ушла: " + data.telegramError
+          : "Готово"
+        : (data.error ?? "Ошибка"),
+    );
     if (response.ok) router.refresh();
     return response.ok;
   }
@@ -51,6 +59,7 @@ export default function NewsEditor({ items }: { items: NewsItem[] }) {
               body: data.get("body"),
               pinned: data.get("pinned") === "on",
               broadcast: data.get("broadcast") === "on",
+              telegram: data.get("telegram") === "on",
               published: data.get("published") === "on",
             });
             if (ok) form.reset();
@@ -73,6 +82,9 @@ export default function NewsEditor({ items }: { items: NewsItem[] }) {
             </label>
             <label className="flex items-center gap-2">
               <input type="checkbox" name="broadcast" /> Объявить в игре
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" name="telegram" /> Опубликовать в Telegram
             </label>
           </div>
 
